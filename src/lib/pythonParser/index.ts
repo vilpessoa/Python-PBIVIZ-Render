@@ -36,13 +36,14 @@ export function parsePython(src: string, pbivizSettings?: PBISettings): ParseRes
         errorPos: pos,
         errorLine: line ?? ln,
         errorCol: col,
+        contributors: result.contributors,
       };
     }
     let html = result.html;
     const isPurePython = !!html.trim() && !/<[a-z][\s\S]*?>/i.test(html);
     const rawValue = isPurePython ? html.trim() : undefined;
     html = processHtml(html);
-    return { html, warnings, isPurePython, rawValue };
+    return { html, warnings, isPurePython, rawValue, contributors: result.contributors };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (e instanceof ParseError) {
