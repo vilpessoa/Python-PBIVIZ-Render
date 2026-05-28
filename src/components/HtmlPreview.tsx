@@ -284,6 +284,12 @@ export function HtmlPreview({
         <div className="flex flex-1 min-h-0">
           {/* Preview area */}
           <div ref={containerRef} className="relative flex flex-1 min-h-0 min-w-0 items-start justify-center overflow-auto bg-preview-bg">
+            {showSettings && (
+              <div
+                className="absolute inset-0 z-10 cursor-pointer bg-background/30 backdrop-blur-[1.5px]"
+                onClick={() => setShowSettings(false)}
+              />
+            )}
             {error ? (
               /* Error state */
               <div className="m-auto max-w-lg w-full p-6">
