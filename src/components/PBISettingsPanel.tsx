@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, X, Eye, EyeOff, RotateCcw } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  X,
+  Eye,
+  EyeOff,
+  RotateCcw,
+  Search,
+  MoreHorizontal,
+  ChevronsRight,
+} from 'lucide-react';
 import type { PBISettings } from '@/lib/storage';
 import { DEFAULT_PBI_SETTINGS } from '@/lib/storage';
 
@@ -21,29 +31,29 @@ function SectionHeader({
   title,
   open,
   onToggle,
-  icon,
+  toggleNode,
 }: {
   title: string;
   open: boolean;
   onToggle: () => void;
-  icon?: React.ReactNode;
+  toggleNode?: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="flex w-full items-center gap-2 border-b border-border bg-surface/80 px-3 py-2 text-left transition-colors hover:bg-accent/40"
-    >
-      {icon && <span className="text-muted-foreground">{icon}</span>}
-      <span className="flex-1 text-[11px] font-semibold uppercase tracking-widest text-foreground">
-        {title}
-      </span>
-      {open ? (
-        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-      ) : (
-        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-      )}
-    </button>
+    <div className="flex w-full items-center border-b border-border bg-surface/80 transition-colors hover:bg-accent/40">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex flex-1 items-center gap-2 px-3 py-2 text-left"
+      >
+        <span className="flex-1 text-[11px] font-semibold text-foreground">{title}</span>
+        {open ? (
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        )}
+      </button>
+      {toggleNode && <div className="pr-3">{toggleNode}</div>}
+    </div>
   );
 }
 
@@ -58,9 +68,7 @@ function Field({
 }) {
   return (
     <div className={`px-3 py-1.5 ${row ? 'flex items-center justify-between gap-2' : 'space-y-1'}`}>
-      <label className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </label>
+      <label className="shrink-0 text-[10px] font-medium text-muted-foreground">{label}</label>
       {children}
     </div>
   );
@@ -195,13 +203,49 @@ function PasswordField({
   );
 }
 
+function ColorField({
+  value,
+  onChange,
+  label,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+}) {
+  return (
+    <div className="px-3 py-1.5 space-y-1">
+      <span className="block truncate text-[10px] font-medium text-muted-foreground">{label}</span>
+      <label className="inline-flex cursor-pointer items-center overflow-hidden rounded border border-border bg-background hover:border-primary/60 transition-colors">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="sr-only"
+        />
+        <div className="h-6 w-8" style={{ backgroundColor: value }} />
+        <div className="flex h-6 w-5 items-center justify-center border-l border-border">
+          <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
+        </div>
+      </label>
+    </div>
+  );
+}
+
 function Divider() {
   return <div className="mx-3 border-t border-border/60" />;
 }
 
+type Tab = 'visual' | 'propriedades';
+
 export function PBISettingsPanel({ settings, onChange, onClose }: Props) {
-  const [conexaoOpen, setConexaoOpen] = useState(true);
-  const [layoutOpen, setLayoutOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<Tab>('visual');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [tamanhoOpen, setTamanhoOpen] = useState(false);
+  const [tituloOpen, setTituloOpen] = useState(false);
+  const [conexaoOpen, setConexaoOpen] = useState(false);
+  const [aparenciaChatOpen, setAparenciaChatOpen] = useState(true);
+  const [aparenciaTipografiaOpen, setAparenciaTipografiaOpen] = useState(false);
+  const [aparenciaLayoutOpen, setAparenciaLayoutOpen] = useState(false);
 
   function patchConexao(patch: Partial<typeof settings.conexao>) {
     onChange({ ...settings, conexao: { ...settings.conexao, ...patch } });
@@ -211,19 +255,36 @@ export function PBISettingsPanel({ settings, onChange, onClose }: Props) {
     onChange({ ...settings, layout: { ...settings.layout, ...patch } });
   }
 
+  function patchAparenciaChat(patch: Partial<typeof settings.aparenciaChat>) {
+    onChange({ ...settings, aparenciaChat: { ...settings.aparenciaChat, ...patch } });
+  }
+
   function resetToDefaults() {
     onChange(DEFAULT_PBI_SETTINGS);
   }
 
-  const { conexao, layout } = settings;
+  const { conexao, layout, aparenciaChat } = settings;
+
+  const sections = [
+    'Tamanho e estilo',
+    'Título',
+    'Conexão',
+    'Aparência - Chat',
+    'Aparência - Tipografia',
+    'Aparência - Layout',
+  ];
+
+  const filtered = searchQuery.trim()
+    ? sections.filter((s) => s.toLowerCase().includes(searchQuery.toLowerCase()))
+    : sections;
+
+  const show = (name: string) => filtered.includes(name);
 
   return (
     <div className="flex h-full w-[272px] shrink-0 flex-col border-l border-border bg-surface">
       {/* Header */}
       <div className="flex h-9 shrink-0 items-center justify-between border-b border-border px-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold text-foreground">Formato Visual</span>
-        </div>
+        <span className="text-[11px] font-semibold text-foreground">Formato</span>
         <div className="flex items-center gap-0.5">
           <button
             type="button"
@@ -236,143 +297,264 @@ export function PBISettingsPanel({ settings, onChange, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
+            title="Fechar"
             className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
           >
-            <X className="h-3.5 w-3.5" />
+            <ChevronsRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
+      {/* Search */}
+      <div className="shrink-0 border-b border-border px-2 py-1.5">
+        <div className="flex items-center gap-1.5 rounded border border-border bg-background px-2 py-1">
+          <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Pesquisar"
+            className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex shrink-0 border-b border-border">
+        {(['visual', 'propriedades'] as Tab[]).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 py-1.5 text-[11px] font-medium capitalize transition-colors border-b-2 -mb-px ${
+              activeTab === tab
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {tab === 'visual' ? 'Visual' : 'Propriedades'}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="px-2 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
+          title="Mais opções"
+        >
+          <MoreHorizontal className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
-
-        {/* ── Seção Conexão ── */}
-        <SectionHeader
-          title="Conexão"
-          open={conexaoOpen}
-          onToggle={() => setConexaoOpen((v) => !v)}
-          icon={
-            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          }
-        />
-
-        {conexaoOpen && (
-          <div className="py-1">
-            <Field label="Provedor">
-              <SelectInput
-                value={conexao.provedor}
-                onChange={(v) => patchConexao({ provedor: v })}
-                options={PROVEDORES}
+        {activeTab === 'visual' ? (
+          <>
+            {/* ── Tamanho e estilo ── */}
+            {show('Tamanho e estilo') && (
+              <SectionHeader
+                title="Tamanho e estilo"
+                open={tamanhoOpen}
+                onToggle={() => setTamanhoOpen((v) => !v)}
               />
-            </Field>
+            )}
+            {tamanhoOpen && show('Tamanho e estilo') && (
+              <div className="py-1">
+                <Field label="Largura">
+                  <TextInput value="" onChange={() => {}} placeholder="Automático" />
+                </Field>
+                <Divider />
+                <Field label="Altura">
+                  <TextInput value="" onChange={() => {}} placeholder="Automático" />
+                </Field>
+              </div>
+            )}
 
-            <Divider />
-
-            <Field label="Chave de API">
-              <PasswordField
-                value={conexao.apiKey}
-                onChange={(v) => patchConexao({ apiKey: v })}
-                placeholder="sk-••••••••••••"
+            {/* ── Título ── */}
+            {show('Título') && (
+              <SectionHeader
+                title="Título"
+                open={tituloOpen}
+                onToggle={() => setTituloOpen((v) => !v)}
+                toggleNode={
+                  <Toggle
+                    checked={layout.exibirTitulo}
+                    onChange={(v) => patchLayout({ exibirTitulo: v })}
+                  />
+                }
               />
-            </Field>
+            )}
+            {tituloOpen && show('Título') && (
+              <div className="py-1">
+                <Field label="Texto do título">
+                  <TextInput
+                    value={layout.tituloChat}
+                    onChange={(v) => patchLayout({ tituloChat: v })}
+                    placeholder="Assistente IA"
+                  />
+                </Field>
+              </div>
+            )}
 
-            <Divider />
-
-            <Field label="ID do Agente">
-              <TextInput
-                value={conexao.agentId}
-                onChange={(v) => patchConexao({ agentId: v })}
-                placeholder="agent-xxxxxxxx"
+            {/* ── Conexão ── */}
+            {show('Conexão') && (
+              <SectionHeader
+                title="Conexão"
+                open={conexaoOpen}
+                onToggle={() => setConexaoOpen((v) => !v)}
               />
-            </Field>
+            )}
+            {conexaoOpen && show('Conexão') && (
+              <div className="py-1">
+                <Field label="Provedor">
+                  <SelectInput
+                    value={conexao.provedor}
+                    onChange={(v) => patchConexao({ provedor: v })}
+                    options={PROVEDORES}
+                  />
+                </Field>
+                <Divider />
+                <Field label="Chave de API">
+                  <PasswordField
+                    value={conexao.apiKey}
+                    onChange={(v) => patchConexao({ apiKey: v })}
+                    placeholder="sk-••••••••••••"
+                  />
+                </Field>
+                <Divider />
+                <Field label="ID do Agente">
+                  <TextInput
+                    value={conexao.agentId}
+                    onChange={(v) => patchConexao({ agentId: v })}
+                    placeholder="agent-xxxxxxxx"
+                  />
+                </Field>
+                <Divider />
+                <Field label="Modelo">
+                  <TextInput
+                    value={conexao.modelo}
+                    onChange={(v) => patchConexao({ modelo: v })}
+                    placeholder={conexao.modeloSugerido || 'ex: gpt-4o'}
+                  />
+                </Field>
+                <Divider />
+                <Field label="System Prompt">
+                  <TextArea
+                    value={conexao.systemPrompt}
+                    onChange={(v) => patchConexao({ systemPrompt: v })}
+                    placeholder="Instruções para o assistente..."
+                    rows={4}
+                  />
+                </Field>
+              </div>
+            )}
 
-            <Divider />
-
-            <Field label="Modelo">
-              <TextInput
-                value={conexao.modelo}
-                onChange={(v) => patchConexao({ modelo: v })}
-                placeholder={conexao.modeloSugerido || 'ex: gpt-4o'}
+            {/* ── Aparência - Chat ── */}
+            {show('Aparência - Chat') && (
+              <SectionHeader
+                title="Aparência - Chat"
+                open={aparenciaChatOpen}
+                onToggle={() => setAparenciaChatOpen((v) => !v)}
               />
-            </Field>
+            )}
+            {aparenciaChatOpen && show('Aparência - Chat') && (
+              <div className="py-1">
+                <ColorField
+                  label="Cor de fundo do cabeçalho"
+                  value={aparenciaChat.corFundoCabecalho}
+                  onChange={(v) => patchAparenciaChat({ corFundoCabecalho: v })}
+                />
+                <Divider />
+                <ColorField
+                  label="Cor do texto do cabeçalho"
+                  value={aparenciaChat.corTextoCabecalho}
+                  onChange={(v) => patchAparenciaChat({ corTextoCabecalho: v })}
+                />
+                <Divider />
+                <ColorField
+                  label="Cor de fundo do chat"
+                  value={aparenciaChat.corFundoChat}
+                  onChange={(v) => patchAparenciaChat({ corFundoChat: v })}
+                />
+                <Divider />
+                <ColorField
+                  label="Cor das bolhas do usuário"
+                  value={aparenciaChat.corBolhasUsuario}
+                  onChange={(v) => patchAparenciaChat({ corBolhasUsuario: v })}
+                />
+                <Divider />
+                <ColorField
+                  label="Cor das bolhas do assistente"
+                  value={aparenciaChat.corBolhasAssistente}
+                  onChange={(v) => patchAparenciaChat({ corBolhasAssistente: v })}
+                />
+              </div>
+            )}
 
-            <Divider />
-
-            <Field label="System Prompt">
-              <TextArea
-                value={conexao.systemPrompt}
-                onChange={(v) => patchConexao({ systemPrompt: v })}
-                placeholder="Instruções para o assistente..."
-                rows={4}
+            {/* ── Aparência - Tipografia ── */}
+            {show('Aparência - Tipografia') && (
+              <SectionHeader
+                title="Aparência - Tipografia"
+                open={aparenciaTipografiaOpen}
+                onToggle={() => setAparenciaTipografiaOpen((v) => !v)}
               />
-            </Field>
-          </div>
-        )}
+            )}
+            {aparenciaTipografiaOpen && show('Aparência - Tipografia') && (
+              <div className="py-1">
+                <Field label="Família de fonte">
+                  <SelectInput
+                    value="default"
+                    onChange={() => {}}
+                    options={[
+                      { value: 'default', label: 'Padrão' },
+                      { value: 'sans', label: 'Sans-serif' },
+                      { value: 'mono', label: 'Monospace' },
+                    ]}
+                  />
+                </Field>
+                <Divider />
+                <Field label="Tamanho da fonte">
+                  <TextInput value="12" onChange={() => {}} placeholder="12" />
+                </Field>
+              </div>
+            )}
 
-        {/* ── Seção Layout ── */}
-        <SectionHeader
-          title="Layout"
-          open={layoutOpen}
-          onToggle={() => setLayoutOpen((v) => !v)}
-          icon={
-            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
-          }
-        />
-
-        {layoutOpen && (
-          <div className="py-1">
-            <Field label="Título do Chat">
-              <TextInput
-                value={layout.tituloChat}
-                onChange={(v) => patchLayout({ tituloChat: v })}
-                placeholder="Assistente IA"
+            {/* ── Aparência - Layout ── */}
+            {show('Aparência - Layout') && (
+              <SectionHeader
+                title="Aparência - Layout"
+                open={aparenciaLayoutOpen}
+                onToggle={() => setAparenciaLayoutOpen((v) => !v)}
               />
-            </Field>
-
-            <Divider />
-
-            <Field label="Exibir Título" row>
-              <Toggle
-                checked={layout.exibirTitulo}
-                onChange={(v) => patchLayout({ exibirTitulo: v })}
-              />
-            </Field>
-
-            <Divider />
-
-            <Field label="Placeholder Input">
-              <TextInput
-                value={layout.placeholderInput}
-                onChange={(v) => patchLayout({ placeholderInput: v })}
-                placeholder="Pergunte sobre os dados..."
-              />
-            </Field>
-
-            <Divider />
-
-            <Field label="Botão Enviar">
-              <TextInput
-                value={layout.textoBotaoEnviar}
-                onChange={(v) => patchLayout({ textoBotaoEnviar: v })}
-                placeholder="Enviar"
-              />
-            </Field>
-
-            <Divider />
-
-            <Field label="Debug: Exibir Contexto" row>
-              <Toggle
-                checked={layout.debugExibirContexto}
-                onChange={(v) => patchLayout({ debugExibirContexto: v })}
-              />
-            </Field>
+            )}
+            {aparenciaLayoutOpen && show('Aparência - Layout') && (
+              <div className="py-1">
+                <Field label="Placeholder do input">
+                  <TextInput
+                    value={layout.placeholderInput}
+                    onChange={(v) => patchLayout({ placeholderInput: v })}
+                    placeholder="Pergunte sobre os dados..."
+                  />
+                </Field>
+                <Divider />
+                <Field label="Texto do botão enviar">
+                  <TextInput
+                    value={layout.textoBotaoEnviar}
+                    onChange={(v) => patchLayout({ textoBotaoEnviar: v })}
+                    placeholder="Enviar"
+                  />
+                </Field>
+                <Divider />
+                <Field label="Debug: exibir contexto" row>
+                  <Toggle
+                    checked={layout.debugExibirContexto}
+                    onChange={(v) => patchLayout({ debugExibirContexto: v })}
+                  />
+                </Field>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground/60">
+            <span className="text-xs">Nenhuma propriedade disponível.</span>
           </div>
         )}
       </div>
