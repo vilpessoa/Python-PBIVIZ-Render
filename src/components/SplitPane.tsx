@@ -78,9 +78,9 @@ export function SplitPane({ left, right, initialSplit = 50, onSplitChange }: Pro
         role="separator"
         aria-orientation="vertical"
         onMouseDown={onMouseDown}
-        className={`relative flex w-1.5 shrink-0 cursor-col-resize items-center justify-center bg-gradient-to-b from-white/20 via-white/10 to-white/20 transition-colors hover:bg-gradient-to-b hover:from-primary/30 hover:via-primary/20 hover:to-primary/30 ${dragging ? 'bg-gradient-to-b from-primary/60 via-primary/50 to-primary/60' : ''}`}
+        className={`relative flex w-1.5 shrink-0 cursor-col-resize items-center justify-center bg-border transition-colors hover:bg-primary/40 ${dragging ? 'bg-primary/60' : ''}`}
       >
-        <div className="absolute flex h-8 w-3.5 items-center justify-center rounded bg-white/10 text-muted-foreground hover:bg-primary/20">
+        <div className="absolute flex h-8 w-3.5 items-center justify-center rounded bg-border text-muted-foreground hover:bg-primary/20">
           <GripVertical className="h-3 w-3" />
         </div>
       </div>
