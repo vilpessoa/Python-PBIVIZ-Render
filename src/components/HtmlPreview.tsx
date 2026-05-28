@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -73,6 +73,7 @@ export function HtmlPreview({
   rawValue,
   visualEditsEnabled,
   onToggleVisualEdits,
+  cursorOffset,
   viewport,
   onViewportChange,
   onLocate,
@@ -104,13 +105,11 @@ export function HtmlPreview({
     return () => ro.disconnect();
   }, []);
 
-  // Send VE mode to iframe
+  // Send cursor position to iframe for VE highlight-on-cursor
   useEffect(() => {
-    iframeRef.current?.contentWindow?.postMessage(
-      { type: 'python:setMode', enabled: visualEditsEnabled },
-      '*',
-    );
-  }, [visualEditsEnabled, html]);
+    if (!visualEditsEnabled) return;
+    iframeRef.current?.contentWindow?.postMessage({ type: 'python:cursorAt', offset: cursorOffset }, '*');
+  }, [cursorOffset, visualEditsEnabled]);
 
   // Receive VE locate messages
   useEffect(() => {

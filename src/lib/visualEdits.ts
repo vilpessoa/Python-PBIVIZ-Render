@@ -1,20 +1,20 @@
 export type VEMessage =
   | { type: 'python:locate'; loc: string; clientX: number; clientY: number }
-  | { type: 'python:setMode'; enabled: boolean }
   | { type: 'python:cursorAt'; offset: number };
 
+// Overlay script injected into the iframe when Visual Edits is active.
+// Starts enabled immediately (only embedded when VE is on),
+// eliminating the race condition with postMessage timing.
 export const VE_OVERLAY_SCRIPT = `
 <script>
 (function() {
-  let _enabled = false;
-  let _cursorOffset = -1;
-  let _active = null;
+  var _active = null;
 
   function findLoc(el) {
-    let cur = el;
+    var cur = el;
     while (cur && cur !== document.body) {
-      const loc = cur.getAttribute && cur.getAttribute('data-py-loc');
-      if (loc) return { el: cur, loc };
+      var loc = cur.getAttribute && cur.getAttribute('data-py-loc');
+      if (loc) return { el: cur, loc: loc };
       cur = cur.parentElement;
     }
     return null;
@@ -27,7 +27,7 @@ export const VE_OVERLAY_SCRIPT = `
 
   function clearActive() {
     if (_active) {
-      applyStyle(_active, { outline: '', outlineOffset: '' });
+      applyStyle(_active, { outline: '', outlineOffset: '', cursor: '' });
       _active = null;
     }
   }
@@ -35,26 +35,27 @@ export const VE_OVERLAY_SCRIPT = `
   function setActive(el) {
     clearActive();
     if (el) {
-      applyStyle(el, { outline: '2px solid rgba(249,115,22,0.85)', outlineOffset: '1px' });
+      applyStyle(el, { outline: '2px solid rgba(249,115,22,0.85)', outlineOffset: '1px', cursor: 'pointer' });
       _active = el;
     }
   }
 
   document.addEventListener('mouseover', function(e) {
-    if (!_enabled) return;
-    const found = findLoc(e.target);
-    if (found) applyStyle(found.el, { outline: '2px solid rgba(59,130,246,0.8)', outlineOffset: '1px' });
+    var found = findLoc(e.target);
+    if (found && found.el !== _active) {
+      applyStyle(found.el, { outline: '2px solid rgba(59,130,246,0.8)', outlineOffset: '1px', cursor: 'pointer' });
+    }
   });
 
   document.addEventListener('mouseout', function(e) {
-    if (!_enabled) return;
-    const found = findLoc(e.target);
-    if (found && found.el !== _active) applyStyle(found.el, { outline: '', outlineOffset: '' });
+    var found = findLoc(e.target);
+    if (found && found.el !== _active) {
+      applyStyle(found.el, { outline: '', outlineOffset: '', cursor: '' });
+    }
   });
 
   document.addEventListener('click', function(e) {
-    if (!_enabled) return;
-    const found = findLoc(e.target);
+    var found = findLoc(e.target);
     if (!found) return;
     e.preventDefault();
     e.stopPropagation();
@@ -63,26 +64,22 @@ export const VE_OVERLAY_SCRIPT = `
   });
 
   window.addEventListener('message', function(e) {
-    const d = e.data;
+    var d = e.data;
     if (!d || typeof d !== 'object') return;
-    if (d.type === 'python:setMode') {
-      _enabled = d.enabled;
-      if (!_enabled) clearActive();
-    } else if (d.type === 'python:cursorAt') {
-      _cursorOffset = d.offset;
-      if (!_enabled) return;
-      const els = document.querySelectorAll('[data-py-loc]');
-      let best = null;
-      let bestSize = Infinity;
+    if (d.type === 'python:cursorAt') {
+      var offset = d.offset;
+      var els = document.querySelectorAll('[data-py-loc]');
+      var best = null;
+      var bestSize = Infinity;
       els.forEach(function(el) {
-        const loc = el.getAttribute('data-py-loc');
+        var loc = el.getAttribute('data-py-loc');
         if (!loc) return;
-        const parts = loc.split('-');
+        var parts = loc.split('-');
         if (parts.length < 2) return;
-        const start = parseInt(parts[0], 10);
-        const end = parseInt(parts[1], 10);
-        if (_cursorOffset >= start && _cursorOffset <= end) {
-          const size = end - start;
+        var start = parseInt(parts[0], 10);
+        var end = parseInt(parts[1], 10);
+        if (offset >= start && offset <= end) {
+          var size = end - start;
           if (size < bestSize) { bestSize = size; best = el; }
         }
       });
