@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ChevronDown, FileText, HelpCircle, Trash2, ZapOff, Radio } from 'lucide-react';
+import { ChevronDown, FileText, HelpCircle, Trash2, ZapOff } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +8,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown';
 import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
 import type { Snippet } from '@/lib/storage';
 
@@ -53,16 +52,15 @@ export function AppHeader({
   );
 
   return (
-    <TooltipProvider delayDuration={500}>
-      <header className="relative flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface-elevated px-8 shadow-card">
+    <header className="relative flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface-elevated px-8 shadow-card">
         {/* Brand */}
         <div className="flex shrink-0 items-center gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-card text-xl">
-            🐍
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-white shadow-card text-xl font-bold">
+            PB
           </div>
           <div className="hidden flex-col leading-tight md:flex">
-            <span className="text-[15px] font-semibold tracking-tight">Python Render</span>
-            <span className="text-[12px] text-muted-foreground">Python para HTML</span>
+            <span className="text-[15px] font-semibold tracking-tight">PBIVIZ render</span>
+            <span className="text-[12px] text-muted-foreground">Python para .pbiviz</span>
           </div>
         </div>
 
@@ -71,38 +69,31 @@ export function AppHeader({
           <DropdownMenu>
             <div className="inline-flex items-center gap-0.5 rounded-full border border-border bg-background/60 p-0.5 shadow-card">
               {/* Live toggle */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => { if (!liveRender && canRender) onRender(); onToggleLive(); }}
-                    aria-pressed={liveRender}
-                    className={cn(
-                      'inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors',
-                      liveRender
-                        ? 'bg-success/15 text-[hsl(var(--success))]'
-                        : 'bg-muted/30 text-muted-foreground',
-                    )}
-                  >
-                    {liveRender ? (
-                      <>
-                        <span className="relative flex h-2 w-2 shrink-0">
-                          <span className="absolute inset-0 rounded-full bg-[hsl(var(--success))] pulse-dot" />
-                        </span>
-                        <span className="hidden sm:inline">Ao Vivo</span>
-                      </>
-                    ) : (
-                      <>
-                        <ZapOff className="h-3 w-3" />
-                        <span className="hidden sm:inline">Manual</span>
-                      </>
-                    )}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {liveRender ? 'Modo Ao Vivo — renderiza automaticamente' : 'Modo Manual — pressione Ctrl+Enter'}
-                </TooltipContent>
-              </Tooltip>
+              <button
+                type="button"
+                onClick={() => { if (!liveRender && canRender) onRender(); onToggleLive(); }}
+                aria-pressed={liveRender}
+                className={cn(
+                  'inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors',
+                  liveRender
+                    ? 'bg-success/15 text-[hsl(var(--success))]'
+                    : 'bg-muted/30 text-muted-foreground',
+                )}
+              >
+                {liveRender ? (
+                  <>
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className="absolute inset-0 rounded-full bg-[hsl(var(--success))] pulse-dot" />
+                    </span>
+                    <span className="hidden sm:inline">Live</span>
+                  </>
+                ) : (
+                  <>
+                    <ZapOff className="h-3 w-3" />
+                    <span className="hidden sm:inline">Manual</span>
+                  </>
+                )}
+              </button>
 
               {/* Snippets / Rascunhos */}
               <DropdownMenuTrigger asChild>
@@ -178,23 +169,17 @@ export function AppHeader({
 
         {/* Right */}
         <div className="flex shrink-0 items-center gap-1.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={onHelp}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                aria-label="Ajuda"
-              >
-                <HelpCircle className="h-3.5 w-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Ajuda</TooltipContent>
-          </Tooltip>
+          <button
+            onClick={onHelp}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label="Ajuda"
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+          </button>
           <div className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent">
             <AnimatedThemeToggler isDark={theme === 'dark'} onToggle={onToggleTheme} />
           </div>
         </div>
       </header>
-    </TooltipProvider>
   );
 }
