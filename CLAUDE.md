@@ -6,6 +6,12 @@ Este arquivo orienta o Claude Code (claude.ai/code) ao trabalhar com código nes
 
 **Setup:** Claude Code Web → Repositório GitHub → Vercel (SEM PRs, commits diretos na main)
 
+## Linguagem de Comunicação
+
+**Comunique com o Claude sempre em PT-BR.**  
+**Qualer descrição de PR e .MD devem ser em PT-BR**
+Responda em português brasileiro. Este repositório segue padrão PT-BR em mensagens e documentação.
+
 ### ⚠️ REGRA IMPORTANTE
 **NÃO criar Pull Requests. NÃO fazer merge. Commits diretos na branch `main`.**
 Vercel detecta automaticamente e faz deploy. Simples assim.
@@ -192,8 +198,3 @@ Nenhuma configuração CI/CD necessária — Vercel auto-detecta projeto Vite + 
 
 ---
 
-## Linguagem de Comunicação
-
-**Comunique com o Claude sempre em PT-BR.**  
-**Qualer descrição de PR e .MD devem ser em PT-BR**
-Responda em português brasileiro. Este repositório segue padrão PT-BR em mensagens e documentação.
