@@ -7,9 +7,10 @@ export interface PbivizPreviewProps {
   guid: string;
   dataView: any;
   resetKey: number;
+  onViewportChange?: (v: { width: number; height: number }) => void;
 }
 
-export function PbivizPreview({ css, js, guid, dataView, resetKey }: PbivizPreviewProps) {
+export function PbivizPreview({ css, js, guid, dataView, resetKey, onViewportChange }: PbivizPreviewProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [ready, setReady] = useState(false);
@@ -32,11 +33,13 @@ export function PbivizPreview({ css, js, guid, dataView, resetKey }: PbivizPrevi
     if (!wrapRef.current) return;
     const ro = new ResizeObserver((es) => {
       const r = es[0].contentRect;
-      setViewport({ width: Math.max(160, r.width), height: Math.max(120, r.height) });
+      const next = { width: Math.max(160, r.width), height: Math.max(120, r.height) };
+      setViewport(next);
+      onViewportChange?.(next);
     });
     ro.observe(wrapRef.current);
     return () => ro.disconnect();
-  }, []);
+  }, [onViewportChange]);
 
   useEffect(() => {
     if (!ready || !iframeRef.current?.contentWindow) return;
@@ -49,9 +52,6 @@ export function PbivizPreview({ css, js, guid, dataView, resetKey }: PbivizPrevi
 
   return (
     <div ref={wrapRef} className="relative h-full w-full bg-white overflow-hidden">
-      <div className="absolute right-2 top-2 z-10 rounded bg-black/60 px-2 py-0.5 text-[10px] text-white font-mono pointer-events-none">
-        {Math.round(viewport.width)} x {Math.round(viewport.height)}
-      </div>
       <iframe
         key={resetKey}
         ref={iframeRef}

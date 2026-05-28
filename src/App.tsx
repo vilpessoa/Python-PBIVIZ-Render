@@ -45,6 +45,8 @@ export default function App() {
   const [openSave, setOpenSave] = useState(false);
   const [openLoad, setOpenLoad] = useState(false);
   const [openAI, setOpenAI] = useState(false);
+  const [showHostPanel, setShowHostPanel] = useState(false);
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", settings.theme === "dark");
@@ -149,7 +151,25 @@ export default function App() {
           }
           right={
             <div className="flex h-full flex-col">
-              <div className="relative flex-1 min-h-0 border-b border-border">
+              {/* Preview toolbar */}
+              <div className="flex h-8 shrink-0 items-center justify-between border-b border-border bg-bg px-2">
+                <span className="font-mono text-[11px] text-muted select-none">
+                  {viewport.width > 0 ? `${Math.round(viewport.width)} × ${Math.round(viewport.height)}` : "—"}
+                </span>
+                <button
+                  onClick={() => setShowHostPanel((v) => !v)}
+                  className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                    showHostPanel
+                      ? "bg-accent text-accent-fg"
+                      : "text-muted hover:bg-border hover:text-fg"
+                  }`}
+                >
+                  Formatar
+                </button>
+              </div>
+
+              {/* Preview + overlay panel */}
+              <div className="relative flex-1 min-h-0">
                 {error && (
                   <div className="absolute left-0 right-0 top-0 z-10 max-h-32 overflow-auto border-b border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-[11px] font-mono text-rose-400 whitespace-pre-wrap">
                     {error}
@@ -161,16 +181,21 @@ export default function App() {
                   guid={result?.guid ?? ""}
                   dataView={dataView}
                   resetKey={resetKey}
+                  onViewportChange={setViewport}
                 />
-              </div>
-              <div className="h-[42%] min-h-[180px] overflow-hidden border-t border-border bg-bg">
-                <MockHostPanel
-                  capabilities={result?.capabilities}
-                  dataViewConfig={dataViewConfig}
-                  onDataViewConfigChange={setDataViewConfig}
-                  objects={objects}
-                  onObjectsChange={setObjects}
-                />
+
+                {/* Lateral overlay panel */}
+                {showHostPanel && (
+                  <div className="absolute right-0 top-0 z-20 h-full w-72 overflow-y-auto border-l border-border bg-bg shadow-lg">
+                    <MockHostPanel
+                      capabilities={result?.capabilities}
+                      dataViewConfig={dataViewConfig}
+                      onDataViewConfigChange={setDataViewConfig}
+                      objects={objects}
+                      onObjectsChange={setObjects}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           }
