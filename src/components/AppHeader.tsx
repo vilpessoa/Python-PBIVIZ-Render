@@ -57,7 +57,7 @@ export function AppHeader({
         <div className="flex shrink-0 items-center gap-4">
           <img src="/logo.svg" alt="Logo" className="h-10 w-10 shrink-0 shadow-card rounded-lg" />
           <div className="hidden flex-col leading-tight md:flex">
-            <span className="text-[15px] font-semibold tracking-tight">PBIVIZ render</span>
+            <span className="text-[15px] font-semibold tracking-tight">PBIVIZ Render</span>
             <span className="text-[12px] text-muted-foreground">Python para .pbiviz</span>
           </div>
         </div>
