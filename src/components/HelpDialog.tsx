@@ -36,7 +36,7 @@ export function HelpDialog({ open, onOpenChange }: Props) {
             </div>
             <ol className="space-y-2 text-xs text-muted-foreground list-decimal list-inside">
               <li>Escreva código Python no editor à esquerda</li>
-              <li>Ative o <strong className="text-foreground">Modo Ao Vivo</strong> para renderização automática</li>
+              <li>Ative o <strong className="text-foreground">Modo Live</strong> para renderização automática</li>
               <li>O resultado HTML aparece no painel à direita</li>
               <li>Copie o HTML gerado com <kbd className="kbd">Ctrl+C</kbd></li>
               <li>Salve rascunhos com <kbd className="kbd">Ctrl+S</kbd></li>

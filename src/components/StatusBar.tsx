@@ -66,7 +66,7 @@ export function StatusBar({
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inset-0 rounded-full bg-[hsl(var(--success))] pulse-dot" />
             </span>
-            Ao Vivo
+            Live
           </span>
         )}
         {visualEditsEnabled && (

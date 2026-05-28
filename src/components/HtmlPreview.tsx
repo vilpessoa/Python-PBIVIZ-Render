@@ -335,7 +335,7 @@ export function HtmlPreview({
                 <p className="text-sm">
                   Digite código Python e pressione{' '}
                   <kbd className="kbd">Ctrl+Enter</kbd>, ou ative o{' '}
-                  <strong className="text-muted-foreground">Modo Ao Vivo</strong>.
+                  <strong className="text-muted-foreground">Modo Live</strong>.
                 </p>
               </div>
             ) : (
