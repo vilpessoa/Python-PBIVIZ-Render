@@ -286,7 +286,7 @@ export function HtmlPreview({
           <div ref={containerRef} className="relative flex flex-1 min-h-0 min-w-0 items-start justify-center overflow-auto bg-preview-bg">
             {showSettings && (
               <div
-                className="absolute inset-0 z-10 cursor-pointer bg-background/30 backdrop-blur-[1.5px]"
+                className="absolute inset-0 z-10 cursor-pointer bg-black/40 backdrop-blur-sm"
                 onClick={() => setShowSettings(false)}
               />
             )}
