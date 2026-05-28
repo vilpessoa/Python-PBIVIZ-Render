@@ -148,6 +148,118 @@ function buildSoftTheme(isDark: boolean) {
   });
 }
 
+function buildOneTheme(isDark: boolean) {
+  return createTheme({
+    theme: isDark ? 'dark' : 'light',
+    settings: {
+      background: isDark ? '#282c34' : '#fafafa',
+      foreground: isDark ? '#abb2bf' : '#383a42',
+      caret: isDark ? '#61afef' : '#0184bc',
+      selection: isDark ? 'rgba(97, 175, 239, 0.25)' : 'rgba(1, 132, 188, 0.15)',
+      selectionMatch: isDark ? 'rgba(97, 175, 239, 0.15)' : 'rgba(1, 132, 188, 0.10)',
+      lineHighlight: isDark ? '#2c313c' : '#f5f5f5',
+      gutterBackground: isDark ? '#282c34' : '#fafafa',
+      gutterForeground: isDark ? '#5c6370' : '#a0a1a7',
+    },
+    styles: [
+      { tag: t.keyword, color: isDark ? '#c678dd' : '#a626a4' },
+      { tag: t.string, color: isDark ? '#98c379' : '#50a14f' },
+      { tag: t.comment, color: isDark ? '#5c6370' : '#a0a1a7', fontStyle: 'italic' },
+      { tag: t.number, color: isDark ? '#d19a66' : '#986801' },
+      { tag: t.function(t.variableName), color: isDark ? '#61afef' : '#0184bc' },
+      { tag: t.variableName, color: isDark ? '#abb2bf' : '#383a42' },
+      { tag: t.operator, color: isDark ? '#56b6c2' : '#0184bc' },
+      { tag: t.bool, color: isDark ? '#d19a66' : '#986801' },
+      { tag: t.typeName, color: isDark ? '#e06c75' : '#e45649' },
+      { tag: t.propertyName, color: isDark ? '#e06c75' : '#e45649' },
+    ],
+  });
+}
+
+function buildGitHubTheme(isDark: boolean) {
+  return createTheme({
+    theme: isDark ? 'dark' : 'light',
+    settings: {
+      background: isDark ? '#0d1117' : '#ffffff',
+      foreground: isDark ? '#c9d1d9' : '#24292f',
+      caret: isDark ? '#58a6ff' : '#0969da',
+      selection: isDark ? 'rgba(88, 166, 255, 0.25)' : 'rgba(9, 105, 218, 0.15)',
+      selectionMatch: isDark ? 'rgba(88, 166, 255, 0.15)' : 'rgba(9, 105, 218, 0.10)',
+      lineHighlight: isDark ? '#161b22' : '#f6f8fa',
+      gutterBackground: isDark ? '#0d1117' : '#ffffff',
+      gutterForeground: isDark ? '#30363d' : '#d0d7de',
+    },
+    styles: [
+      { tag: t.keyword, color: isDark ? '#ff7b72' : '#d1242f' },
+      { tag: t.string, color: isDark ? '#a5d6ff' : '#0a3069' },
+      { tag: t.comment, color: isDark ? '#8b949e' : '#57606a', fontStyle: 'italic' },
+      { tag: t.number, color: isDark ? '#79c0ff' : '#0969da' },
+      { tag: t.function(t.variableName), color: isDark ? '#d2a8ff' : '#8250df' },
+      { tag: t.variableName, color: isDark ? '#c9d1d9' : '#24292f' },
+      { tag: t.operator, color: isDark ? '#ff7b72' : '#d1242f' },
+      { tag: t.bool, color: isDark ? '#79c0ff' : '#0969da' },
+      { tag: t.typeName, color: isDark ? '#79c0ff' : '#0969da' },
+      { tag: t.propertyName, color: isDark ? '#79c0ff' : '#0969da' },
+    ],
+  });
+}
+
+function buildGruvboxTheme(isDark: boolean) {
+  return createTheme({
+    theme: isDark ? 'dark' : 'light',
+    settings: {
+      background: isDark ? '#282828' : '#fbf1c7',
+      foreground: isDark ? '#ebdbb2' : '#3c3836',
+      caret: isDark ? '#83a598' : '#8f3f2f',
+      selection: isDark ? 'rgba(131, 165, 152, 0.25)' : 'rgba(143, 63, 47, 0.15)',
+      selectionMatch: isDark ? 'rgba(131, 165, 152, 0.15)' : 'rgba(143, 63, 47, 0.10)',
+      lineHighlight: isDark ? '#32302f' : '#f3f1e8',
+      gutterBackground: isDark ? '#282828' : '#fbf1c7',
+      gutterForeground: isDark ? '#928374' : '#a89984',
+    },
+    styles: [
+      { tag: t.keyword, color: isDark ? '#fb4934' : '#9d0006' },
+      { tag: t.string, color: isDark ? '#b8bb26' : '#79740e' },
+      { tag: t.comment, color: isDark ? '#928374' : '#a89984', fontStyle: 'italic' },
+      { tag: t.number, color: isDark ? '#d3869b' : '#b57614' },
+      { tag: t.function(t.variableName), color: isDark ? '#83a598' : '#076678' },
+      { tag: t.variableName, color: isDark ? '#ebdbb2' : '#3c3836' },
+      { tag: t.operator, color: isDark ? '#fb4934' : '#9d0006' },
+      { tag: t.bool, color: isDark ? '#d3869b' : '#b57614' },
+      { tag: t.typeName, color: isDark ? '#fabd2f' : '#b57614' },
+      { tag: t.propertyName, color: isDark ? '#8ec07c' : '#427b58' },
+    ],
+  });
+}
+
+function buildAyuTheme(isDark: boolean) {
+  return createTheme({
+    theme: isDark ? 'dark' : 'light',
+    settings: {
+      background: isDark ? '#0f1419' : '#fafafa',
+      foreground: isDark ? '#e6e1cf' : '#575f66',
+      caret: isDark ? '#f07178' : '#f07178',
+      selection: isDark ? 'rgba(240, 113, 120, 0.25)' : 'rgba(240, 113, 120, 0.15)',
+      selectionMatch: isDark ? 'rgba(240, 113, 120, 0.15)' : 'rgba(240, 113, 120, 0.10)',
+      lineHighlight: isDark ? '#151a1f' : '#f5f5f5',
+      gutterBackground: isDark ? '#0f1419' : '#fafafa',
+      gutterForeground: isDark ? '#464b50' : '#adb7bf',
+    },
+    styles: [
+      { tag: t.keyword, color: isDark ? '#ff7733' : '#f07178' },
+      { tag: t.string, color: isDark ? '#b8cc52' : '#86b300' },
+      { tag: t.comment, color: isDark ? '#626a73' : '#949494', fontStyle: 'italic' },
+      { tag: t.number, color: isDark ? '#ffb454' : '#f5a623' },
+      { tag: t.function(t.variableName), color: isDark ? '#59c2ff' : '#55b4d4' },
+      { tag: t.variableName, color: isDark ? '#e6e1cf' : '#575f66' },
+      { tag: t.operator, color: isDark ? '#f07178' : '#f07178' },
+      { tag: t.bool, color: isDark ? '#ffb454' : '#f5a623' },
+      { tag: t.typeName, color: isDark ? '#59c2ff' : '#55b4d4' },
+      { tag: t.propertyName, color: isDark ? '#a37acc' : '#a37acc' },
+    ],
+  });
+}
+
 export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
   function PythonEditor(
     {
@@ -253,14 +365,19 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
     }, []);
 
     // Resolve active theme
+    const isDark = theme === 'dark';
     let resolvedTheme: unknown;
     if (pythonEditorTheme === 'dracula') resolvedTheme = dracula;
     else if (pythonEditorTheme === 'nord') resolvedTheme = nord;
     else if (pythonEditorTheme === 'monokai') resolvedTheme = monokai;
     else if (pythonEditorTheme === 'tokyo') resolvedTheme = tokyoNight;
     else if (pythonEditorTheme === 'soft-dark') resolvedTheme = buildSoftTheme(true);
-    else if (pythonEditorTheme === 'soft') resolvedTheme = buildSoftTheme(theme === 'dark');
-    else resolvedTheme = buildDefaultTheme(theme === 'dark');
+    else if (pythonEditorTheme === 'soft') resolvedTheme = buildSoftTheme(isDark);
+    else if (pythonEditorTheme === 'one-pro') resolvedTheme = buildOneTheme(isDark);
+    else if (pythonEditorTheme === 'github') resolvedTheme = buildGitHubTheme(isDark);
+    else if (pythonEditorTheme === 'gruvbox') resolvedTheme = buildGruvboxTheme(isDark);
+    else if (pythonEditorTheme === 'ayu') resolvedTheme = buildAyuTheme(isDark);
+    else resolvedTheme = buildDefaultTheme(isDark);
 
     const extensions = [
       python(),
