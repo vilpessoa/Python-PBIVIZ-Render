@@ -14,7 +14,7 @@ import { AnimatedVisualEditsButton } from '@/components/ui/animated-visual-edits
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { enhancePythonError } from '@/lib/pythonParser/errorEnhancer';
-import { VE_OVERLAY_SCRIPT } from '@/lib/visualEdits';
+import { VE_OVERLAY_SCRIPT, type VELocateTokens } from '@/lib/visualEdits';
 import type { ViewportState, PBISettings } from '@/lib/storage';
 import { PBISettingsPanel } from '@/components/PBISettingsPanel';
 
@@ -35,7 +35,7 @@ interface Props {
   cursorOffset: number;
   viewport: ViewportState;
   onViewportChange: (v: ViewportState) => void;
-  onLocate: (loc: string, screenX: number, screenY: number) => void;
+  onLocate: (tokens: VELocateTokens, screenX: number, screenY: number) => void;
   isPbiviz?: boolean;
   pbivizSettings: PBISettings;
   onPbivizSettingsChange: (s: PBISettings) => void;
@@ -116,12 +116,12 @@ export function HtmlPreview({
     function onMessage(e: MessageEvent) {
       if (!e.data || typeof e.data !== 'object') return;
       if (e.data.type !== 'python:locate') return;
-      const { loc, clientX, clientY } = e.data;
-      if (typeof loc !== 'string') return;
+      const { tokens, clientX, clientY } = e.data;
+      if (!tokens || typeof tokens !== 'object') return;
       const iframe = iframeRef.current;
       if (!iframe) return;
       const rect = iframe.getBoundingClientRect();
-      onLocate(loc, rect.left + (clientX ?? 0), rect.top + (clientY ?? 0));
+      onLocate(tokens as VELocateTokens, rect.left + (clientX ?? 0), rect.top + (clientY ?? 0));
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
