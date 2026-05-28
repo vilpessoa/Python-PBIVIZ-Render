@@ -1,187 +1,199 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Este arquivo orienta o Claude Code (claude.ai/code) ao trabalhar com código neste repositório.
 
-## ⚡ Quick Start (Solo Workflow — GitHub + Vercel Auto-Deploy)
+## ⚡ Início Rápido (Fluxo Solo — GitHub + Vercel Auto-Deploy)
 
-**Setup:** Claude Code Web → GitHub repo → Vercel (no PRs, direct commits to main)
+**Setup:** Claude Code Web → Repositório GitHub → Vercel (SEM PRs, commits diretos na main)
 
-### Session Flow
+### ⚠️ REGRA IMPORTANTE
+**NÃO criar Pull Requests. NÃO fazer merge. Commits diretos na branch `main`.**
+Vercel detecta automaticamente e faz deploy. Simples assim.
+
+### Fluxo de Sessão
 ```bash
-# Start
+# Início
 cd ~/Python-PBIVIZ-Render
 git pull origin main
 
-# Edit code (use Claude Code UI normally)
+# Editar código (usar Claude Code UI normalmente)
 
-# Test locally
-npm install      (if added deps)
+# Testar localmente
+npm install      (se adicionou deps)
 npm run dev      # http://localhost:5173
-npm run lint     # syntax check
+npm run lint     # verificação de sintaxe
 
-# Commit & Push (auto-triggers Vercel deploy)
+# Commitar & Fazer Push (auto-dispara deploy da Vercel)
 git add .
-git commit -m "type: description (feat/fix/refactor/docs/style)"
+git commit -m "tipo: descrição (feat/fix/refactor/docs/style)"
 git push origin main
 
-# Deploy (2-5 min) — check https://vercel.com/vilpessoa/python-pbiviz-render
+# Deploy (2-5 min) — acompanhe em https://vercel.com/vilpessoa/python-pbiviz-render
 ```
 
-### Commit Message Examples
-- `feat: add Visual Edits debugging context menu`
-- `fix: Python parser handling for augmented assignment (+=)`
-- `refactor: split pythonParser into evaluator + htmlProcessor`
-- `docs: update CLAUDE.md with workflow`
-- `style: improve dark mode color contrast on error panel`
+### Exemplos de Commit Message
+- `feat: adicionar context menu de Visual Edits debugging`
+- `fix: tratamento do parser Python para augmented assignment (+=)`
+- `refactor: separar pythonParser em evaluator + htmlProcessor`
+- `docs: atualizar CLAUDE.md com workflow`
+- `style: melhorar contraste do painel de erro em dark mode`
 
-### Pre-Push Checklist
-- ✓ `npm run lint` passes
-- ✓ `npm run build` succeeds
-- ✓ Tested in browser (localhost:5173) — works?
-- ✓ Commit message is clear
-- ✓ Ready to go live? (no revert without git revert + new commit)
+### Checklist Pré-Push
+- ✓ `npm run lint` passou sem erros?
+- ✓ `npm run build` compila OK?
+- ✓ Testou no navegador (localhost:5173) — funciona?
+- ✓ Commit message está clara?
+- ✓ Pronto pra ir ao vivo? (sem volta — use git revert se errou)
 
-### Quick Revert (if mistake)
+### Reverter Rápido (se cometeu erro)
 ```bash
-git revert HEAD          # Creates undo commit
-git push origin main     # Deploys previous version
+git revert HEAD          # Cria commit de desfazimento
+git push origin main     # Deploya versão anterior
 ```
 
-### Useful Git Commands
+### Comandos Git Úteis
 ```bash
-git log --oneline -5           # Last 5 commits
-git diff HEAD                  # Unstaged changes
-git status                     # Current state
-git stash / git stash pop      # Temp save/restore
+git log --oneline -5           # Últimos 5 commits
+git diff HEAD                  # Mudanças não commitadas
+git status                     # Estado atual
+git stash / git stash pop      # Guardar/recuperar temporariamente
 ```
 
-### Deploy URL
+### URL de Deploy
 **Live:** https://python-pbiviz-render.vercel.app
 
 ---
 
-## Project Overview
+## Visão Geral do Projeto
 
-**Python HTML Render** is a web editor for pragmatic Python code that generates HTML in real-time. It's a functional clone of DAX-HTML-Render but replaces the DAX parser with a custom Python evaluator. The UI is a split-pane editor (left) with HTML preview (right).
+**Python HTML Render** é um editor web de código Python pragmático que gera HTML em tempo real. É um clone funcional do DAX-HTML-Render, mas substitui o parser DAX por um avaliador Python customizado. A UI é um editor de painel dividido (esquerda) com preview HTML (direita).
 
-**Key Features:**
-- Live HTML preview with iframe sandbox
-- Pragmatic Python evaluator (assignment, concatenation, return statements only)
-- localStorage persistence
-- Hotkeys: `Ctrl+Enter` render, `Ctrl+S` save snippet, `Ctrl+L` clear, `Ctrl+F` search, `Ctrl+±` zoom
-- Code snippets management
-- Dark mode & 5 code editor themes
-- Power BI visualization preview support (pbiviz)
-- Visual edits debugging (source location highlighting)
+**Funcionalidades Principais:**
+- Preview HTML ao vivo com iframe sandbox
+- Avaliador Python pragmático (apenas atribuição, concatenação, return)
+- Persistência em localStorage
+- Atalhos: `Ctrl+Enter` render, `Ctrl+S` salvar snippet, `Ctrl+L` limpar, `Ctrl+F` buscar, `Ctrl+±` zoom
+- Gerenciamento de snippets de código
+- Dark mode & 5 temas de editor de código
+- Suporte a visualização de Power BI (pbiviz)
+- Debug de Visual Edits (destaque de localização na fonte)
 
 **Stack:** React 19, TypeScript, Vite, TailwindCSS, Lucide Icons, CodeMirror 6
 
-## Architecture
+## Arquitetura
 
-### Split-Pane Layout (App.tsx)
-The main `App` component orchestrates:
-- **Left pane:** `PythonEditor` (CodeMirror-based) with `PythonEditorToolbar`
-- **Right pane:** `HtmlPreview` (iframe sandbox) with settings panels
-- **Header:** Theme toggle, live render switch, snippets dropdown, help
-- **StatusBar:** Line/col, render time, error/warning counts
+### Layout de Painel Dividido (App.tsx)
+O componente principal `App` orquestra:
+- **Painel esquerdo:** `PythonEditor` (baseado em CodeMirror) com `PythonEditorToolbar`
+- **Painel direito:** `HtmlPreview` (sandbox iframe) com painéis de configuração
+- **Cabeçalho:** Toggle de tema, switch de render ao vivo, dropdown de snippets, ajuda
+- **Barra de Status:** Linha/coluna, tempo de render, contagem de erros/warnings
 
-State flows downward; callbacks bubble up. Settings persist to localStorage via `useDebounce()` (code saves at 1000ms, settings immediately).
+O estado flui para baixo; callbacks sobem. Configurações persistem em localStorage via `useDebounce()` (código salva em 1000ms, configurações imediatamente).
 
-### Python Parser (src/lib/pythonParser/)
-Entry point: `parsePython(src, pbivizSettings?)` returns `ParseResult`:
-- **evaluator.ts:** Parses and evaluates pragmatic Python (no f-strings, no imports). Tracks variable assignments in order, handles `return` and `+=` augmented assignment. Outputs `{ html, rawValue, warnings, error, errorLine, errorPos }`.
-- **pbivizExtractor.ts:** Detects Power BI visual scripts (triple-quoted CSS/JS) and extracts preview HTML.
-- **htmlProcessor.ts:** Wraps plain text in `<pre>` if needed.
-- **errorEnhancer.ts:** Improves error messages.
-- **types.ts:** `ParseResult` interface.
+### Parser Python (src/lib/pythonParser/)
+Ponto de entrada: `parsePython(src, pbivizSettings?)` retorna `ParseResult`:
+- **evaluator.ts:** Analisa e avalia Python pragmático (sem f-strings, sem imports). Rastreia atribuições de variáveis em ordem, trata `return` e atribuição aumentada `+=`. Saída: `{ html, rawValue, warnings, error, errorLine, errorPos }`.
+- **pbivizExtractor.ts:** Detecta scripts visuais Power BI (CSS/JS entre aspas triplas) e extrai preview HTML.
+- **htmlProcessor.ts:** Encapsula texto simples em `<pre>` se necessário.
+- **errorEnhancer.ts:** Melhora mensagens de erro.
+- **types.ts:** Interface `ParseResult`.
 
 ### Storage (src/lib/storage.ts)
-Persists to localStorage under key `pythonHtmlRenderDraft`:
-- Current code
-- Saved snippets (user-created templates)
-- Theme (light/dark), viewport preset, editor font size, zoom, split pane ratio
-- Python editor theme (Dracula, Nord, Tokyo Night, etc.)
-- PBI settings (connection, layout, colors)
+Persiste em localStorage sob a chave `pythonHtmlRenderDraft`:
+- Código atual
+- Snippets salvos (templates criados pelo usuário)
+- Tema (light/dark), viewport preset, tamanho da fonte do editor, zoom, proporção de painel dividido
+- Tema do editor Python (Dracula, Nord, Tokyo Night, etc.)
+- Configurações PBI (conexão, layout, cores)
 
-### UI Components
-- **PythonEditor:** CodeMirror wrapper with Python syntax highlighting, error markers, cursor tracking
-- **HtmlPreview:** iframe sandbox, renders parse result HTML, error panel, warnings list
-- **VisualEditsMenu:** Context menu for locating variable assignments in source
-- **PBISettingsPanel:** Configure Power BI chat visual (colors, prompts, etc.)
-- **SearchBar:** CodeMirror find extension
+### Componentes UI
+- **PythonEditor:** Wrapper CodeMirror com syntax highlighting Python, marcadores de erro, rastreamento de cursor
+- **HtmlPreview:** Sandbox iframe, renderiza HTML do resultado, painel de erro, lista de warnings
+- **VisualEditsMenu:** Menu de contexto para localizar atribuições de variáveis na fonte
+- **PBISettingsPanel:** Configura visual de chat Power BI (cores, prompts, etc.)
+- **SearchBar:** Extensão find do CodeMirror
 - **Dialogs:** SaveSnippetDialog, HelpDialog
 
-### Hotkeys (useHotkeys hook)
-Stateful map in `App.tsx` via `useMemo`. Use ref to capture latest handlers avoiding dependency stale closures.
+### Hotkeys (hook useHotkeys)
+Mapa com estado em `App.tsx` via `useMemo`. Usa ref para capturar últimos handlers, evitando closures obsoletos de dependência.
 
-## Development
+## Desenvolvimento
 
-### Setup & Run
+### Setup & Execução
 ```bash
 npm install
-npm run dev        # Vite dev server on http://localhost:5173
-npm run build      # TypeScript + Vite production build
+npm run dev        # Servidor Vite em http://localhost:5173
+npm run build      # Build TypeScript + Vite para produção
 npm run lint       # ESLint
 ```
 
-### Key Patterns
+### Padrões-Chave
 
-**Python Evaluation Flow:**
-1. Editor text → `renderCode()` callback (manual or auto-render)
-2. `parsePython(src, pbivizSettings)` → evaluates + wraps HTML
-3. Result (`html`, `error`, `warnings`) → `HtmlPreview` component
-4. Errors: position (`errorPos`, `errorLine`, `errorCol`) used for highlighting in editor
+**Fluxo de Avaliação Python:**
+1. Texto do editor → callback `renderCode()` (manual ou auto-render)
+2. `parsePython(src, pbivizSettings)` → avalia + encapsula HTML
+3. Resultado (`html`, `error`, `warnings`) → componente `HtmlPreview`
+4. Erros: posição (`errorPos`, `errorLine`, `errorCol`) usada para destaque no editor
 
-**State Persistence:**
-- Code: debounced 1000ms (only save when user pauses)
-- Settings: immediate (theme, zoom, split, etc.)
-- Snippet CRUD: immediate
+**Persistência de Estado:**
+- Código: debounce 1000ms (salva apenas quando usuário pausa)
+- Configurações: imediato (tema, zoom, painel dividido, etc.)
+- Snippet CRUD: imediato
 
-**Re-render Triggers:**
-- Manual: `Ctrl+Enter` or "Render" button
-- Auto (if `liveRender` enabled): code changes (400ms debounce)
-- Settings change: PBI settings (300ms debounce)
+**Gatilhos de Re-render:**
+- Manual: `Ctrl+Enter` ou botão "Render"
+- Auto (se `liveRender` habilitado): mudanças de código (debounce 400ms)
+- Mudança de configuração: configurações PBI (debounce 300ms)
 
-**Error Handling:**
-- Parse errors: `ParseError` exception with `.pos` and `.endPos` for range highlighting
-- Evaluation errors: caught, line/col computed via `posToLineCol(src, pos)`
-- User feedback: toast notifications via Sonner
+**Tratamento de Erros:**
+- Erros de parse: exceção `ParseError` com `.pos` e `.endPos` para destaque de intervalo
+- Erros de avaliação: capturados, linha/coluna computadas via `posToLineCol(src, pos)`
+- Feedback ao usuário: notificações toast via Sonner
 
-### File Organization
+### Organização de Arquivos
 ```
 src/
-  App.tsx                      # Main orchestrator, state tree
+  App.tsx                      # Orquestrador principal, árvore de estado
   components/
-    PythonEditor.tsx           # CodeMirror editor
-    HtmlPreview.tsx            # iframe sandbox, settings
-    PythonEditorToolbar.tsx    # render/save/clear buttons
-    AppHeader.tsx              # theme, snippets, help
-    [ui components...]
+    PythonEditor.tsx           # Editor CodeMirror
+    HtmlPreview.tsx            # Sandbox iframe, configurações
+    PythonEditorToolbar.tsx    # Botões render/save/clear
+    AppHeader.tsx              # tema, snippets, ajuda
+    [componentes ui...]
   lib/
-    pythonParser/              # Python evaluation pipeline
-    storage.ts                 # localStorage + types
-    useDebounce, useHotkeys    # custom hooks
+    pythonParser/              # Pipeline de avaliação Python
+    storage.ts                 # localStorage + tipos
+    useDebounce, useHotkeys    # hooks customizados
   hooks/
   data/                        # sampleDefault
 ```
 
-### Important Notes
-- **No async:** Python evaluator is fully synchronous (no await, no API calls beyond Gemini AI in toolbar).
-- **Sandbox:** HtmlPreview uses iframe + Content-Security-Policy to safely render user HTML.
-- **Power BI:** pbiviz detection is heuristic-based (looks for triple-quoted CSS/JS patterns). Preview uses mock data.
-- **Pragmatic Python:** Only supports `var = expr`, `var += expr`, and `return expr`. No imports, loops, functions, or f-strings. Uses simple hand-written parser (not full Python AST).
-- **Copy to clipboard:** Use `navigator.clipboard` (fails gracefully with toast).
-- **Timezone:** No timezone handling; all timestamps are local.
+### Notas Importantes
+- **Sem async:** Avaliador Python é totalmente síncrono (sem await, sem API calls além de Gemini AI na toolbar).
+- **Sandbox:** HtmlPreview usa iframe + Content-Security-Policy para renderizar HTML do usuário com segurança.
+- **Power BI:** Detecção pbiviz é heurística (procura por padrões CSS/JS entre aspas triplas). Preview usa dados mock.
+- **Python Pragmático:** Suporta apenas `var = expr`, `var += expr` e `return expr`. Sem imports, loops, funções ou f-strings. Usa parser simples escrito à mão (não AST Python completo).
+- **Copy to clipboard:** Usa `navigator.clipboard` (falha graciosamente com toast).
+- **Timezone:** Sem tratamento de timezone; todos os timestamps são locais.
 
 ---
 
-## Deployment
+## Deploy
 
-**Platform:** Vercel (auto-deploy on push to main)  
-**Trigger:** GitHub webhook (push to `main` → Vercel build → live)  
-**Build command:** `npm run build`  
-**Output dir:** `dist/`
+**Plataforma:** Vercel (auto-deploy ao fazer push na main)  
+**Gatilho:** Webhook GitHub (push para `main` → build Vercel → ao vivo)  
+**Comando de build:** `npm run build`  
+**Diretório de output:** `dist/`
 
-Vercel dashboard: https://vercel.com/vilpessoa/python-pbiviz-render
+Dashboard Vercel: https://vercel.com/vilpessoa/python-pbiviz-render
 
-No CI/CD configuration needed — Vercel auto-detects Vite + Node.js project.
+Nenhuma configuração CI/CD necessária — Vercel auto-detecta projeto Vite + Node.js.
+
+---
+
+## Linguagem de Comunicação
+
+**Comunique com o Claude sempre em PT-BR.**  
+**Qualer descrição de PR e .MD devem ser em PT-BR**
+Responda em português brasileiro. Este repositório segue padrão PT-BR em mensagens e documentação.
