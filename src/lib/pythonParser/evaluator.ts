@@ -8,6 +8,7 @@ interface EvalEnv {
   vars: Record<string, PythonValue>;
   warnings: string[];
   contributors: ContributorIndex;
+  locMap: Map<string, { varName?: string; lineNum: number; stmt: string }>;
 }
 
 function makeEnv(): EvalEnv {
@@ -25,6 +26,7 @@ function makeEnv(): EvalEnv {
     },
     warnings: [],
     contributors: {},
+    locMap: new Map(),
   };
 }
 
@@ -182,6 +184,7 @@ function evaluateListComp(
       vars: { ...env.vars, [varName]: item },
       warnings: env.warnings,
       contributors: env.contributors,
+      locMap: env.locMap,
     };
     return evaluateExpr(exprStr, innerEnv, lineNum);
   });
@@ -309,38 +312,10 @@ function injectLoc(value: string, loc: { start: number; end: number } | undefine
   return value.slice(0, insertAt) + attr + value.slice(insertAt);
 }
 
-function getHtmlSegments(value: string): Contributor[] {
-  if (!value || typeof value !== 'string') return [];
-  const segments: Contributor[] = [];
-  const htmlRegex = /<[^>]+>/g;
-  let lastIndex = 0;
-  let match;
-  while ((match = htmlRegex.exec(value)) !== null) {
-    if (match.index > lastIndex && value.slice(lastIndex, match.index).trim()) {
-      segments.push({
-        kind: 'text',
-        text: value.slice(lastIndex, match.index),
-        loc: { start: 0, end: 0 },
-        line: 0,
-      });
-    }
-    segments.push({
-      kind: 'html',
-      text: match[0],
-      loc: { start: 0, end: 0 },
-      line: 0,
-    });
-    lastIndex = match.index + match[0].length;
-  }
-  if (lastIndex < value.length && value.slice(lastIndex).trim()) {
-    segments.push({
-      kind: 'text',
-      text: value.slice(lastIndex),
-      loc: { start: 0, end: 0 },
-      line: 0,
-    });
-  }
-  return segments;
+function trackLocation(env: EvalEnv, html: string, loc: SourceLoc | undefined, lineNum: number, varName?: string) {
+  if (!loc || !html || typeof html !== 'string') return;
+  const locKey = `${loc.start}-${loc.end}`;
+  env.locMap.set(locKey, { varName, lineNum, stmt: html.substring(0, 100) });
 }
 
 interface Statement {
@@ -426,55 +401,36 @@ function parseStatements(lines: { text: string; lineNum: number; offset: number 
   return stmts;
 }
 
-function registerContributor(env: EvalEnv, value: string, loc: SourceLoc | undefined, lineNum: number, varName?: string) {
-  if (!loc || !value || typeof value !== 'string') return;
-  const key = `${loc.start}-${loc.end}`;
-  if (!env.contributors[key]) {
-    env.contributors[key] = {
-      rootLoc: loc,
-      rootLine: lineNum,
-      items: [],
-    };
-  }
-  if (varName) {
-    const existing = env.contributors[key].items.find(
-      (c) => c.kind === 'var' && c.name === varName
-    );
-    if (!existing) {
-      env.contributors[key].items.push({
-        kind: 'var',
-        name: varName,
-        refLoc: loc,
-        declLoc: loc,
-        line: lineNum,
-        snippet: value.substring(0, 50),
-      });
+function buildContributorsFromHtml(html: string, env: EvalEnv) {
+  const locRegex = /data-py-loc="(\d+)-(\d+)"/g;
+  let match;
+  while ((match = locRegex.exec(html)) !== null) {
+    const locStr = `${match[1]}-${match[2]}`;
+    const info = env.locMap.get(locStr);
+    if (!info) continue;
+
+    const rootLoc = { start: parseInt(match[1], 10), end: parseInt(match[2], 10) };
+    if (!env.contributors[locStr]) {
+      env.contributors[locStr] = {
+        rootLoc,
+        rootLine: info.lineNum,
+        items: [],
+      };
     }
-  } else {
-    const segments = getHtmlSegments(value);
-    for (const seg of segments) {
-      if (seg.kind === 'html') {
-        if (!env.contributors[key].items.some(
-          (c) => c.kind === 'html' && 'text' in c && c.text === seg.text
-        )) {
-          env.contributors[key].items.push({
-            kind: 'html',
-            text: seg.text,
-            loc,
-            line: lineNum,
-          });
-        }
-      } else if (seg.kind === 'text') {
-        if (!env.contributors[key].items.some(
-          (c) => c.kind === 'text' && 'text' in c && c.text === seg.text
-        )) {
-          env.contributors[key].items.push({
-            kind: 'text',
-            text: seg.text,
-            loc,
-            line: lineNum,
-          });
-        }
+
+    if (info.varName) {
+      const existing = env.contributors[locStr].items.find(
+        (c) => c.kind === 'var' && c.name === info.varName
+      );
+      if (!existing) {
+        env.contributors[locStr].items.push({
+          kind: 'var',
+          name: info.varName,
+          refLoc: rootLoc,
+          declLoc: rootLoc,
+          line: info.lineNum,
+          snippet: info.stmt,
+        });
       }
     }
   }
@@ -488,7 +444,7 @@ function executeStatements(stmts: Statement[], env: EvalEnv): string | null {
       const val = evaluateExpr(stmt.expr!, env, stmt.lineNum);
       const strVal = typeof val === 'string' ? injectLoc(val, stmt.loc) : val;
       if (typeof strVal === 'string') {
-        registerContributor(env, strVal, stmt.loc, stmt.lineNum);
+        trackLocation(env, strVal, stmt.loc, stmt.lineNum);
       }
       return toString(strVal);
     }
@@ -498,7 +454,7 @@ function executeStatements(stmts: Statement[], env: EvalEnv): string | null {
       const strVal = typeof val === 'string' ? injectLoc(val, stmt.loc) : val;
       env.vars[stmt.varName!] = strVal;
       if (typeof strVal === 'string') {
-        registerContributor(env, strVal, stmt.loc, stmt.lineNum, stmt.varName);
+        trackLocation(env, strVal, stmt.loc, stmt.lineNum, stmt.varName);
       }
       continue;
     }
@@ -510,7 +466,7 @@ function executeStatements(stmts: Statement[], env: EvalEnv): string | null {
         const injected = typeof val === 'string' ? injectLoc(val, stmt.loc) : val;
         const result = toString(existing) + toString(injected);
         env.vars[stmt.varName!] = result;
-        registerContributor(env, result, stmt.loc, stmt.lineNum, stmt.varName);
+        trackLocation(env, result, stmt.loc, stmt.lineNum, stmt.varName);
       } else {
         env.vars[stmt.varName!] = toNumber(existing ?? 0) + toNumber(val);
       }
@@ -524,7 +480,8 @@ function executeStatements(stmts: Statement[], env: EvalEnv): string | null {
         const innerEnv: EvalEnv = {
           vars: { ...env.vars, [stmt.iterVar!]: item },
           warnings: env.warnings,
-          contributors: env.contributors
+          contributors: env.contributors,
+          locMap: env.locMap,
         };
         const result = executeStatements(stmt.body ?? [], innerEnv);
         // Propagate variable changes back
@@ -560,6 +517,9 @@ export function evaluatePythonCode(src: string): { html: string; warnings: strin
 
     // If there's a "return" result, use it; otherwise try to find an html variable
     const html = result ?? toString(env.vars['html'] ?? env.vars['_html'] ?? env.vars['output'] ?? '');
+
+    // Build contributors from the final HTML
+    buildContributorsFromHtml(html, env);
 
     return { html, warnings: env.warnings, contributors: env.contributors };
   } catch (e) {
