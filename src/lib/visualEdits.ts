@@ -3,91 +3,69 @@ export type VEMessage =
   | { type: 'python:cursorAt'; offset: number };
 
 // Overlay script injected into the iframe when Visual Edits is active.
-// Starts enabled immediately (only embedded when VE is on),
-// eliminating the race condition with postMessage timing.
+// Uses CSS attribute classes (with !important) to override any user CSS —
+// same approach as the working DAX-HTML-Render implementation.
 export const VE_OVERLAY_SCRIPT = `
+<style id="py-ve-style">
+  [data-py-ve-hover] { outline: 2px solid #3B82F6 !important; outline-offset: -2px !important; cursor: pointer !important; }
+  [data-py-ve-active] { outline: 2px solid #F97316 !important; outline-offset: -2px !important; }
+</style>
 <script>
-(function() {
-  var _active = null;
-
-  function findLoc(el) {
-    var cur = el;
-    while (cur && cur !== document.body) {
-      var loc = cur.getAttribute && cur.getAttribute('data-py-loc');
-      if (loc) return { el: cur, loc: loc };
-      cur = cur.parentElement;
+(function(){
+  var lastHover = null;
+  var lastActive = null;
+  function clearHover(){
+    if(lastHover){ lastHover.removeAttribute('data-py-ve-hover'); lastHover=null; }
+  }
+  function clearActive(){
+    if(lastActive){ lastActive.removeAttribute('data-py-ve-active'); lastActive=null; }
+  }
+  function findLoc(el){
+    while(el && el!==document.body){
+      if(el.getAttribute && el.getAttribute('data-py-loc')) return el;
+      el=el.parentNode;
     }
     return null;
   }
-
-  function applyStyle(el, style) {
-    if (!el) return;
-    Object.assign(el.style, style);
-  }
-
-  function clearActive() {
-    if (_active) {
-      applyStyle(_active, { outline: '', outlineOffset: '', cursor: '' });
-      _active = null;
-    }
-  }
-
-  function setActive(el) {
-    clearActive();
-    if (el) {
-      applyStyle(el, { outline: '2px solid rgba(249,115,22,0.85)', outlineOffset: '1px', cursor: 'pointer' });
-      _active = el;
-    }
-  }
-
-  document.addEventListener('mouseover', function(e) {
-    var found = findLoc(e.target);
-    if (found && found.el !== _active) {
-      applyStyle(found.el, { outline: '2px solid rgba(59,130,246,0.8)', outlineOffset: '1px', cursor: 'pointer' });
-    }
-  });
-
-  document.addEventListener('mouseout', function(e) {
-    var found = findLoc(e.target);
-    if (found && found.el !== _active) {
-      applyStyle(found.el, { outline: '', outlineOffset: '', cursor: '' });
-    }
-  });
-
-  document.addEventListener('click', function(e) {
-    var found = findLoc(e.target);
-    if (!found) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setActive(found.el);
-    window.parent.postMessage({ type: 'python:locate', loc: found.loc, clientX: e.clientX, clientY: e.clientY }, '*');
-  });
-
-  window.addEventListener('message', function(e) {
-    var d = e.data;
-    if (!d || typeof d !== 'object') return;
-    if (d.type === 'python:cursorAt') {
-      var offset = d.offset;
-      var els = document.querySelectorAll('[data-py-loc]');
-      var best = null;
-      var bestSize = Infinity;
-      els.forEach(function(el) {
-        var loc = el.getAttribute('data-py-loc');
-        if (!loc) return;
-        var parts = loc.split('-');
-        if (parts.length < 2) return;
-        var start = parseInt(parts[0], 10);
-        var end = parseInt(parts[1], 10);
-        if (offset >= start && offset <= end) {
-          var size = end - start;
-          if (size < bestSize) { bestSize = size; best = el; }
+  document.addEventListener('mouseover',function(e){
+    var el=findLoc(e.target);
+    if(el===lastHover) return;
+    clearHover();
+    if(el){ el.setAttribute('data-py-ve-hover',''); lastHover=el; }
+  },true);
+  document.addEventListener('mouseout',function(){ clearHover(); },true);
+  document.addEventListener('click',function(e){
+    var el=findLoc(e.target);
+    if(!el) return;
+    e.preventDefault(); e.stopPropagation();
+    parent.postMessage({
+      type:'python:locate',
+      loc:el.getAttribute('data-py-loc'),
+      clientX:e.clientX,
+      clientY:e.clientY
+    },'*');
+  },true);
+  window.addEventListener('message',function(e){
+    var d=e.data||{};
+    if(d.type==='python:cursorAt'){
+      var off=d.offset|0;
+      var nodes=document.querySelectorAll('[data-py-loc]');
+      var best=null,bestLen=Infinity;
+      for(var i=0;i<nodes.length;i++){
+        var loc=nodes[i].getAttribute('data-py-loc')||'';
+        var parts=loc.split('-');
+        var s=parts[0]|0,end=parts[1]|0;
+        if(off>=s && off<=end){
+          var len=end-s;
+          if(len<bestLen){ best=nodes[i]; bestLen=len; }
         }
-      });
-      if (best) {
-        setActive(best);
-        try { best.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(_) {}
-      } else {
-        clearActive();
+      }
+      if(best===lastActive) return;
+      clearActive();
+      if(best){
+        best.setAttribute('data-py-ve-active','');
+        lastActive=best;
+        try{best.scrollIntoView({block:'nearest',behavior:'smooth'});}catch(_){}
       }
     }
   });

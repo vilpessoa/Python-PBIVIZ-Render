@@ -51,6 +51,108 @@ function toNumber(v: PythonValue): number {
   return 0;
 }
 
+// ---------- Chained access: var["key"], var[0], var.attr, var["key"][0].attr ----------
+
+function evaluateChained(expr: string, env: EvalEnv, lineNum: number): PythonValue | undefined {
+  const firstWord = expr.match(/^(\w+)/)?.[1];
+  if (!firstWord || !(firstWord in env.vars)) return undefined;
+
+  let current: PythonValue = env.vars[firstWord];
+  let pos = firstWord.length;
+
+  while (pos < expr.length) {
+    const ch = expr[pos];
+    if (ch === '.') {
+      const m = expr.slice(pos).match(/^\.(\w+)/);
+      if (!m) return undefined;
+      if (current && typeof current === 'object' && !Array.isArray(current)) {
+        current = (current as Record<string, PythonValue>)[m[1]] ?? null;
+      } else {
+        current = null;
+      }
+      pos += m[0].length;
+    } else if (ch === '[') {
+      let depth = 0, end = -1;
+      let inStr: string | null = null;
+      for (let i = pos; i < expr.length; i++) {
+        const c = expr[i];
+        if (inStr) {
+          if (c === '\\') { i++; continue; }
+          if (c === inStr) inStr = null;
+        } else if (c === '"' || c === "'") {
+          inStr = c;
+        } else if (c === '[') {
+          depth++;
+        } else if (c === ']') {
+          depth--;
+          if (depth === 0) { end = i; break; }
+        }
+      }
+      if (end < 0) return undefined;
+      const idxExpr = expr.slice(pos + 1, end);
+      const idx = evaluateExpr(idxExpr, env, lineNum);
+      if (Array.isArray(current)) {
+        const n = toNumber(idx);
+        current = (current[n < 0 ? current.length + n : n] ?? null) as PythonValue;
+      } else if (typeof current === 'string') {
+        const n = toNumber(idx);
+        current = (current[n < 0 ? current.length + n : n] ?? null) as PythonValue;
+      } else if (current && typeof current === 'object') {
+        current = (current as Record<string, PythonValue>)[toString(idx)] ?? null;
+      } else {
+        current = null;
+      }
+      pos = end + 1;
+    } else {
+      return undefined;
+    }
+  }
+
+  return current;
+}
+
+// ---------- Dict literal ----------
+
+function evaluateDict(content: string, env: EvalEnv, lineNum: number): Record<string, PythonValue> {
+  const result: Record<string, PythonValue> = {};
+  if (!content.trim()) return result;
+  const items = splitComma(content);
+  for (const item of items) {
+    const trimmed = item.trim();
+    if (!trimmed) continue;
+    const colonIdx = findTopLevelColon(trimmed);
+    if (colonIdx < 0) continue;
+    const keyExpr = trimmed.slice(0, colonIdx).trim();
+    const valExpr = trimmed.slice(colonIdx + 1).trim();
+    const key = toString(evaluateExpr(keyExpr, env, lineNum));
+    result[key] = evaluateExpr(valExpr, env, lineNum);
+  }
+  return result;
+}
+
+function findTopLevelColon(s: string): number {
+  let depth = 0;
+  let inStr: string | null = null;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inStr) {
+      if (ch === '\\') { i++; continue; }
+      if (ch === inStr) inStr = null;
+    } else if (ch === '"' || ch === "'") {
+      inStr = ch;
+    } else if (ch === '(' || ch === '[' || ch === '{') {
+      depth++;
+    } else if (ch === ')' || ch === ']' || ch === '}') {
+      depth--;
+    } else if (ch === ':' && depth === 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// ---------- evaluateExpr ----------
+
 function evaluateExpr(expr: string, env: EvalEnv, lineNum: number): PythonValue {
   expr = expr.trim();
 
@@ -62,14 +164,15 @@ function evaluateExpr(expr: string, env: EvalEnv, lineNum: number): PythonValue 
   // Number literal
   if (/^-?\d+(\.\d+)?$/.test(expr)) return parseFloat(expr);
 
-  // String literal (single or double quoted, possibly f-string)
-  const fstrMatch = expr.match(/^f["']([\s\S]*)["']$/);
-  if (fstrMatch) {
-    return evaluateFString(fstrMatch[1], env, lineNum);
-  }
+  // f-string with triple quotes (must check before single-char triple check)
+  const fstrTripleD = expr.match(/^f"""([\s\S]*)"""$/);
+  if (fstrTripleD) return evaluateFString(fstrTripleD[1], env, lineNum);
+  const fstrTripleS = expr.match(/^f'''([\s\S]*)'''$/);
+  if (fstrTripleS) return evaluateFString(fstrTripleS[1], env, lineNum);
 
-  const strMatch = expr.match(/^["']([\s\S]*)["']$/);
-  if (strMatch) return unescapeString(strMatch[1]);
+  // Regular f-string (single/double quoted)
+  const fstrMatch = expr.match(/^f["']([\s\S]*)["']$/);
+  if (fstrMatch) return evaluateFString(fstrMatch[1], env, lineNum);
 
   // Triple-quoted string
   const tripleDouble = expr.match(/^"""([\s\S]*)"""$/);
@@ -77,12 +180,27 @@ function evaluateExpr(expr: string, env: EvalEnv, lineNum: number): PythonValue 
   const tripleSingle = expr.match(/^'''([\s\S]*)'''$/);
   if (tripleSingle) return tripleSingle[1];
 
+  // String literal (single or double quoted)
+  const strMatch = expr.match(/^["']([\s\S]*)["']$/);
+  if (strMatch) return unescapeString(strMatch[1]);
+
+  // Dict literal: {key: value, ...}
+  if (expr.startsWith('{') && expr.endsWith('}')) {
+    return evaluateDict(expr.slice(1, -1), env, lineNum);
+  }
+
+  // List comprehension: [expr for var in iterable]
+  const compMatch = expr.match(/^\[([\s\S]+?)\s+for\s+(\w+)\s+in\s+([\s\S]+)\]$/);
+  if (compMatch) {
+    return evaluateListComp(compMatch[1], compMatch[2], compMatch[3], env, lineNum);
+  }
+
   // List literal: [...]
   if (expr.startsWith('[') && expr.endsWith(']')) {
     return evaluateList(expr.slice(1, -1), env, lineNum);
   }
 
-  // ".join(list_expr)
+  // "sep".join(list_expr)
   const joinMatch = expr.match(/^["'](.*?)["']\s*\.\s*join\s*\(\s*([\s\S]+)\s*\)$/);
   if (joinMatch) {
     const sep = joinMatch[1];
@@ -103,12 +221,6 @@ function evaluateExpr(expr: string, env: EvalEnv, lineNum: number): PythonValue 
     }
   }
 
-  // List comprehension: [expr for var in iterable]
-  const compMatch = expr.match(/^\[([\s\S]+?)\s+for\s+(\w+)\s+in\s+([\s\S]+)\]$/);
-  if (compMatch) {
-    return evaluateListComp(compMatch[1], compMatch[2], compMatch[3], env, lineNum);
-  }
-
   // String concatenation: expr + expr
   const concatParts = splitOnOp(expr, '+');
   if (concatParts.length > 1) {
@@ -119,14 +231,10 @@ function evaluateExpr(expr: string, env: EvalEnv, lineNum: number): PythonValue 
     return parts.reduce<number>((acc, p) => acc + toNumber(p), 0);
   }
 
-  // Attribute access: obj.attr or obj["key"] or obj['key']
-  const dotMatch = expr.match(/^(\w+)\.([\w]+)$/);
-  if (dotMatch) {
-    const obj = env.vars[dotMatch[1]];
-    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
-      const val = (obj as Record<string, PythonValue>)[dotMatch[2]];
-      if (val !== undefined) return val;
-    }
+  // Chained access: var["key"], var[0], var.attr, var["key"][0] etc.
+  if (/^\w+[\[.]/.test(expr)) {
+    const chained = evaluateChained(expr, env, lineNum);
+    if (chained !== undefined) return chained;
   }
 
   // Variable reference
@@ -149,7 +257,7 @@ function evaluateExpr(expr: string, env: EvalEnv, lineNum: number): PythonValue 
 }
 
 function evaluateFString(template: string, env: EvalEnv, lineNum: number): string {
-  return template.replace(/\{([^}]+)\}/g, (_, inner) => {
+  return template.replace(/\{([^{}]+)\}/g, (_, inner) => {
     try {
       const val = evaluateExpr(inner.trim(), env, lineNum);
       return toString(val);
@@ -167,7 +275,7 @@ function unescapeString(s: string): string {
 function evaluateList(content: string, env: EvalEnv, lineNum: number): PythonValue[] {
   if (!content.trim()) return [];
   const items = splitComma(content);
-  return items.map(item => evaluateExpr(item.trim(), env, lineNum));
+  return items.filter(item => item.trim()).map(item => evaluateExpr(item.trim(), env, lineNum));
 }
 
 function evaluateListComp(
@@ -186,7 +294,7 @@ function evaluateListComp(
       contributors: env.contributors,
       locMap: env.locMap,
     };
-    return evaluateExpr(exprStr, innerEnv, lineNum);
+    return evaluateExpr(exprStr.trim(), innerEnv, lineNum);
   });
 }
 
@@ -271,26 +379,43 @@ function splitOnOp(expr: string, op: string): string[] {
   let depth = 0;
   let current = '';
   let inStr: string | null = null;
+  let inTriple: string | null = null;
   for (let i = 0; i < expr.length; i++) {
     const ch = expr[i];
-    if (inStr) {
+    if (inTriple) {
       current += ch;
-      if (ch === inStr && expr[i - 1] !== '\\') inStr = null;
-    } else if (ch === '"' || ch === "'") {
-      inStr = ch;
+      if (expr.slice(i, i + 3) === inTriple) {
+        current += expr[i + 1] + expr[i + 2];
+        i += 2;
+        inTriple = null;
+      }
+    } else if (inStr) {
       current += ch;
-    } else if (ch === '(' || ch === '[' || ch === '{') {
-      depth++;
-      current += ch;
-    } else if (ch === ')' || ch === ']' || ch === '}') {
-      depth--;
-      current += ch;
-    } else if (depth === 0 && expr.slice(i, i + op.length) === op) {
-      parts.push(current);
-      current = '';
-      i += op.length - 1;
+      if (ch === '\\') { current += expr[++i] || ''; }
+      else if (ch === inStr) inStr = null;
     } else {
-      current += ch;
+      // Check for triple quotes
+      const q3 = expr.slice(i, i + 3);
+      if (q3 === '"""' || q3 === "'''") {
+        inTriple = q3;
+        current += q3;
+        i += 2;
+      } else if (ch === '"' || ch === "'") {
+        inStr = ch;
+        current += ch;
+      } else if (ch === '(' || ch === '[' || ch === '{') {
+        depth++;
+        current += ch;
+      } else if (ch === ')' || ch === ']' || ch === '}') {
+        depth--;
+        current += ch;
+      } else if (depth === 0 && expr.slice(i, i + op.length) === op) {
+        parts.push(current);
+        current = '';
+        i += op.length - 1;
+      } else {
+        current += ch;
+      }
     }
   }
   parts.push(current);
@@ -301,15 +426,16 @@ function splitComma(s: string): string[] {
   return splitOnOp(s, ',');
 }
 
-// Inject data-py-loc into HTML string literals
+// ---------- data-py-loc injection ----------
+
+// Inject data-py-loc into every opening HTML tag in the string.
+// Skips if the string already has any data-py-loc (avoids double-injection
+// when a variable is reused in return statements or concatenations).
 function injectLoc(value: string, loc: { start: number; end: number } | undefined): string {
-  if (!loc) return value;
-  const OPEN_TAG_RE = /<([a-zA-Z][a-zA-Z0-9-]*)(\s|\/|>)/;
-  const m = OPEN_TAG_RE.exec(value);
-  if (!m) return value;
-  const insertAt = m.index + 1 + m[1].length;
+  if (!loc || !value || typeof value !== 'string') return value;
+  if (value.includes('data-py-loc=')) return value;
   const attr = ` data-py-loc="${loc.start}-${loc.end}"`;
-  return value.slice(0, insertAt) + attr + value.slice(insertAt);
+  return value.replace(/<([a-zA-Z][a-zA-Z0-9-]*)(\s|\/|>)/g, (_, tag, sep) => `<${tag}${attr}${sep}`);
 }
 
 function trackLocation(env: EvalEnv, html: string, loc: SourceLoc | undefined, lineNum: number, varName?: string) {
@@ -317,6 +443,8 @@ function trackLocation(env: EvalEnv, html: string, loc: SourceLoc | undefined, l
   const locKey = `${loc.start}-${loc.end}`;
   env.locMap.set(locKey, { varName, lineNum, stmt: html.substring(0, 100) });
 }
+
+// ---------- Statements ----------
 
 interface Statement {
   kind: 'assign' | 'augadd' | 'augmul' | 'return' | 'for' | 'comment' | 'expr';
@@ -346,21 +474,23 @@ function parseStatements(lines: { text: string; lineNum: number; offset: number 
   let i = 0;
   while (i < lines.length) {
     const { text, lineNum, offset } = lines[i];
+    // Use the first line of possibly-multi-line text for indent detection
+    const firstLine = text.split('\n')[0];
     const trimmed = text.trim();
-    const indent = getIndent(text);
+    const indent = getIndent(firstLine);
 
     if (!trimmed || trimmed.startsWith('#')) { i++; continue; }
     if (indent < baseIndent) break;
     if (indent > baseIndent) { i++; continue; }
 
-    // For loop
-    const forMatch = trimmed.match(/^for\s+(\w+)\s+in\s+(.+)\s*:$/);
+    // For loop (only applies to single-line for declarations)
+    const forMatch = trimmed.match(/^for\s+(\w+)\s+in\s+([\s\S]+?)\s*:(?:\s*#.*)?$/);
     if (forMatch) {
       i++;
       const bodyLines = [];
       const bodyIndent = baseIndent + 4;
       while (i < lines.length) {
-        const nextIndent = getIndent(lines[i].text);
+        const nextIndent = getIndent(lines[i].text.split('\n')[0]);
         if (!lines[i].text.trim() || nextIndent >= bodyIndent) {
           bodyLines.push(lines[i]);
           i++;
@@ -372,23 +502,23 @@ function parseStatements(lines: { text: string; lineNum: number; offset: number 
     }
 
     // Return
-    if (trimmed.startsWith('return ')) {
-      const expr = trimmed.slice('return '.length).trim();
+    if (trimmed.startsWith('return ') || trimmed === 'return') {
+      const expr = trimmed.slice('return'.length).trim();
       stmts.push({ kind: 'return', raw: text, lineNum, indent, expr, loc: { start: offset, end: offset + text.length } });
       i++;
       continue;
     }
 
     // Augmented assignment
-    const augMatch = trimmed.match(/^(\w+)\s*\+=\s*(.+)$/);
+    const augMatch = trimmed.match(/^(\w+)\s*\+=\s*([\s\S]+)$/);
     if (augMatch) {
       stmts.push({ kind: 'augadd', raw: text, lineNum, indent, varName: augMatch[1], expr: augMatch[2], loc: { start: offset, end: offset + text.length } });
       i++;
       continue;
     }
 
-    // Regular assignment
-    const assignMatch = trimmed.match(/^(\w+)\s*=\s*(.+)$/);
+    // Regular assignment ([\s\S]+ to handle multi-line expressions)
+    const assignMatch = trimmed.match(/^(\w+)\s*=\s*([\s\S]+)$/);
     if (assignMatch) {
       stmts.push({ kind: 'assign', raw: text, lineNum, indent, varName: assignMatch[1], expr: assignMatch[2], loc: { start: offset, end: offset + text.length } });
       i++;
@@ -404,8 +534,11 @@ function parseStatements(lines: { text: string; lineNum: number; offset: number 
 function buildContributorsFromHtml(html: string, env: EvalEnv) {
   const locRegex = /data-py-loc="(\d+)-(\d+)"/g;
   let match;
+  const seen = new Set<string>();
   while ((match = locRegex.exec(html)) !== null) {
     const locStr = `${match[1]}-${match[2]}`;
+    if (seen.has(locStr)) continue;
+    seen.add(locStr);
     const info = env.locMap.get(locStr);
     if (!info) continue;
 
@@ -418,14 +551,13 @@ function buildContributorsFromHtml(html: string, env: EvalEnv) {
       };
     }
 
-    // Always add an item with the statement info
     const existing = env.contributors[locStr].items.find(
-      (c) => c.kind === 'var' && (c.name === info.varName || (!c.name && !info.varName))
+      (c) => c.kind === 'var' && c.name === (info.varName || '(result)')
     );
     if (!existing) {
       env.contributors[locStr].items.push({
         kind: 'var',
-        name: info.varName || `(result)`,
+        name: info.varName || '(result)',
         refLoc: rootLoc,
         declLoc: rootLoc,
         line: info.lineNum,
@@ -441,6 +573,8 @@ function executeStatements(stmts: Statement[], env: EvalEnv): string | null {
 
     if (stmt.kind === 'return') {
       const val = evaluateExpr(stmt.expr!, env, stmt.lineNum);
+      // Don't re-inject if value already has loc tracking from prior statements.
+      // Only inject if this return produces fresh HTML with no existing loc.
       const strVal = typeof val === 'string' ? injectLoc(val, stmt.loc) : val;
       if (typeof strVal === 'string') {
         trackLocation(env, strVal, stmt.loc, stmt.lineNum);
@@ -483,7 +617,6 @@ function executeStatements(stmts: Statement[], env: EvalEnv): string | null {
           locMap: env.locMap,
         };
         const result = executeStatements(stmt.body ?? [], innerEnv);
-        // Propagate variable changes back
         Object.assign(env.vars, innerEnv.vars);
         if (result !== null) return result;
       }
@@ -491,33 +624,85 @@ function executeStatements(stmts: Statement[], env: EvalEnv): string | null {
     }
 
     if (stmt.kind === 'expr') {
-      // Evaluate but discard (side effects might matter in future)
       evaluateExpr(stmt.expr!, env, stmt.lineNum);
     }
   }
   return null;
 }
 
+// ---------- Multi-line expression joining ----------
+
+// Returns true if src has unclosed brackets or an unclosed triple-quoted string.
+function isExpressionIncomplete(src: string): boolean {
+  let depth = 0;
+  let inTriple: string | null = null;
+  let inStr: string | null = null;
+  let i = 0;
+  while (i < src.length) {
+    const ch = src[i];
+    if (inTriple) {
+      if (src.slice(i, i + 3) === inTriple) { inTriple = null; i += 3; } else { i++; }
+      continue;
+    }
+    if (inStr) {
+      if (ch === '\\') { i += 2; continue; }
+      if (ch === inStr) inStr = null;
+      i++;
+      continue;
+    }
+    // f/r/b prefix before triple quote
+    const pfx = (ch === 'f' || ch === 'r' || ch === 'b') ? 1 : 0;
+    const q3 = src.slice(i + pfx, i + pfx + 3);
+    if (q3 === '"""' || q3 === "'''") { inTriple = q3; i += pfx + 3; continue; }
+    if (ch === '"' || ch === "'") { inStr = ch; i++; continue; }
+    if (ch === '#' && !inStr && !inTriple) break; // comment — rest of line
+    if (ch === '(' || ch === '[' || ch === '{') depth++;
+    else if (ch === ')' || ch === ']' || ch === '}') depth--;
+    i++;
+  }
+  return depth > 0 || inTriple !== null;
+}
+
+// Joins raw source lines into logical statement lines, handling multi-line
+// strings (triple quotes) and multi-line expressions (unclosed brackets).
+function joinMultiLineStatements(rawLines: string[]): { text: string; lineNum: number; offset: number }[] {
+  const result: { text: string; lineNum: number; offset: number }[] = [];
+  let rawOffset = 0;
+  let i = 0;
+
+  while (i < rawLines.length) {
+    const startOffset = rawOffset;
+    const startLineNum = i + 1;
+    let combined = rawLines[i];
+    rawOffset += rawLines[i].length + 1;
+    i++;
+
+    while (i < rawLines.length && isExpressionIncomplete(combined)) {
+      combined += '\n' + rawLines[i];
+      rawOffset += rawLines[i].length + 1;
+      i++;
+    }
+
+    result.push({ text: combined, lineNum: startLineNum, offset: startOffset });
+  }
+
+  return result;
+}
+
+// ---------- Public entry point ----------
+
 export function evaluatePythonCode(src: string): { html: string; warnings: string[]; contributors: ContributorIndex; error?: string; errorLine?: number; errorPos?: number } {
   const env = makeEnv();
 
-  // Build line objects with offsets
   const rawLines = src.split(/\r?\n/);
-  const lineObjects: { text: string; lineNum: number; offset: number }[] = [];
-  let offset = 0;
-  for (let i = 0; i < rawLines.length; i++) {
-    lineObjects.push({ text: rawLines[i], lineNum: i + 1, offset });
-    offset += rawLines[i].length + 1;
-  }
+  const lineObjects = joinMultiLineStatements(rawLines);
 
   try {
     const stmts = parseStatements(lineObjects, 0);
     const result = executeStatements(stmts, env);
 
-    // If there's a "return" result, use it; otherwise try to find an html variable
     const html = result ?? toString(env.vars['html'] ?? env.vars['_html'] ?? env.vars['output'] ?? '');
 
-    // Build contributors from the final HTML
     buildContributorsFromHtml(html, env);
 
     return { html, warnings: env.warnings, contributors: env.contributors };
