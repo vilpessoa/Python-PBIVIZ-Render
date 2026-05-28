@@ -26,11 +26,15 @@ function VDivider() {
 const THEME_LABELS: Record<string, string> = {
   default: 'Python',
   soft: 'Soft',
+  'soft-dark': 'Soft Dark',
+  'one-pro': 'One Pro',
   dracula: 'Dracula',
   nord: 'Nord',
   monokai: 'Monokai',
   tokyo: 'Tokyo',
-  'soft-dark': 'Soft Dark',
+  github: 'GitHub',
+  gruvbox: 'Gruvbox',
+  ayu: 'Ayu',
 };
 
 export function StatusBar({

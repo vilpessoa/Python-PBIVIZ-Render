@@ -29,13 +29,17 @@ interface Props {
 }
 
 const THEMES: { id: PythonEditorTheme; label: string; dot1: string; dot2: string }[] = [
-  { id: 'default',   label: 'Python',    dot1: '#4CA64C', dot2: '#BB5252' },
-  { id: 'soft',      label: 'Soft',      dot1: '#7d61a9', dot2: '#b6dbd5' },
-  { id: 'dracula',   label: 'Dracula',   dot1: '#bd93f9', dot2: '#ff79c6' },
-  { id: 'nord',      label: 'Nord',      dot1: '#7C99BB', dot2: '#BED0B3' },
-  { id: 'monokai',   label: 'Monokai',   dot1: '#EEE9B6', dot2: '#F9B9CF' },
-  { id: 'tokyo',     label: 'Tokyo',     dot1: '#894FEE', dot2: '#5ECDB7' },
-  { id: 'soft-dark', label: 'Soft Dark', dot1: '#1e2030', dot2: '#4abca6' },
+  { id: 'default',     label: 'Python',      dot1: '#4CA64C', dot2: '#BB5252' },
+  { id: 'soft',        label: 'Soft',        dot1: '#7d61a9', dot2: '#b6dbd5' },
+  { id: 'soft-dark',   label: 'Soft Dark',   dot1: '#1e2030', dot2: '#4abca6' },
+  { id: 'one-pro',     label: 'One Pro',     dot1: '#c678dd', dot2: '#61afef' },
+  { id: 'dracula',     label: 'Dracula',     dot1: '#bd93f9', dot2: '#ff79c6' },
+  { id: 'nord',        label: 'Nord',        dot1: '#7C99BB', dot2: '#BED0B3' },
+  { id: 'monokai',     label: 'Monokai',     dot1: '#EEE9B6', dot2: '#F9B9CF' },
+  { id: 'tokyo',       label: 'Tokyo',       dot1: '#894FEE', dot2: '#5ECDB7' },
+  { id: 'github',      label: 'GitHub',      dot1: '#ff7b72', dot2: '#0969da' },
+  { id: 'gruvbox',     label: 'Gruvbox',     dot1: '#fb4934', dot2: '#076678' },
+  { id: 'ayu',         label: 'Ayu',         dot1: '#f07178', dot2: '#55b4d4' },
 ];
 
 function VDivider() {
