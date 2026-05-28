@@ -418,20 +418,19 @@ function buildContributorsFromHtml(html: string, env: EvalEnv) {
       };
     }
 
-    if (info.varName) {
-      const existing = env.contributors[locStr].items.find(
-        (c) => c.kind === 'var' && c.name === info.varName
-      );
-      if (!existing) {
-        env.contributors[locStr].items.push({
-          kind: 'var',
-          name: info.varName,
-          refLoc: rootLoc,
-          declLoc: rootLoc,
-          line: info.lineNum,
-          snippet: info.stmt,
-        });
-      }
+    // Always add an item with the statement info
+    const existing = env.contributors[locStr].items.find(
+      (c) => c.kind === 'var' && (c.name === info.varName || (!c.name && !info.varName))
+    );
+    if (!existing) {
+      env.contributors[locStr].items.push({
+        kind: 'var',
+        name: info.varName || `(result)`,
+        refLoc: rootLoc,
+        declLoc: rootLoc,
+        line: info.lineNum,
+        snippet: info.stmt.substring(0, 50),
+      });
     }
   }
 }
