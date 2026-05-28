@@ -2,6 +2,7 @@ import { evaluatePythonCode } from './evaluator';
 import { ParseError } from './types';
 import type { ParseResult } from './types';
 import { processHtml } from './htmlProcessor';
+import { isPbivizScript, extractPbivizPreviewHtml } from './pbivizExtractor';
 
 function posToLineCol(src: string, pos: number): { line: number; col: number } {
   let line = 1, col = 1;
@@ -12,6 +13,13 @@ function posToLineCol(src: string, pos: number): { line: number; col: number } {
 }
 
 export function parsePython(src: string): ParseResult {
+  // Fast-path: pbiviz build scripts define CSS + JS as triple-quoted strings
+  // and package them into a .pbiviz ZIP — render a visual preview instead.
+  if (isPbivizScript(src)) {
+    const html = extractPbivizPreviewHtml(src);
+    if (html) return { html, warnings: [] };
+  }
+
   const warnings: string[] = [];
   try {
     const result = evaluatePythonCode(src);
