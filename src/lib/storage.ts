@@ -14,6 +14,46 @@ export interface ViewportState {
 
 export type PythonEditorTheme = 'default' | 'soft' | 'dracula' | 'nord' | 'monokai' | 'tokyo' | 'soft-dark';
 
+export interface PBIConexao {
+  provedor: string;
+  apiKey: string;
+  agentId: string;
+  modelo: string;
+  modeloSugerido: string;
+  systemPrompt: string;
+}
+
+export interface PBILayout {
+  tituloChat: string;
+  exibirTitulo: boolean;
+  placeholderInput: string;
+  textoBotaoEnviar: string;
+  debugExibirContexto: boolean;
+}
+
+export interface PBISettings {
+  conexao: PBIConexao;
+  layout: PBILayout;
+}
+
+export const DEFAULT_PBI_SETTINGS: PBISettings = {
+  conexao: {
+    provedor: 'tess',
+    apiKey: '',
+    agentId: '',
+    modelo: '',
+    modeloSugerido: 'tess-5',
+    systemPrompt: '',
+  },
+  layout: {
+    tituloChat: 'Assistente IA',
+    exibirTitulo: true,
+    placeholderInput: 'Pergunte sobre os dados...',
+    textoBotaoEnviar: 'Enviar',
+    debugExibirContexto: false,
+  },
+};
+
 export interface AppState {
   currentCode: string;
   savedSnippets: Snippet[];
@@ -26,6 +66,7 @@ export interface AppState {
   accentColor: string;
   fontFamily: string;
   pythonEditorTheme: PythonEditorTheme;
+  pbivizSettings: PBISettings;
 }
 
 const KEY = 'python-renderer-state';
@@ -42,6 +83,7 @@ const DEFAULT_STATE: AppState = {
   accentColor: 'blue',
   fontFamily: 'space-grotesk',
   pythonEditorTheme: 'default',
+  pbivizSettings: DEFAULT_PBI_SETTINGS,
 };
 
 export function loadState(): AppState {
@@ -54,6 +96,10 @@ export function loadState(): AppState {
       ...DEFAULT_STATE,
       ...parsed,
       viewport: { ...DEFAULT_STATE.viewport, ...(parsed.viewport ?? {}) },
+      pbivizSettings: {
+        conexao: { ...DEFAULT_PBI_SETTINGS.conexao, ...(parsed.pbivizSettings?.conexao ?? {}) },
+        layout: { ...DEFAULT_PBI_SETTINGS.layout, ...(parsed.pbivizSettings?.layout ?? {}) },
+      },
     };
   } catch {
     return { ...DEFAULT_STATE };

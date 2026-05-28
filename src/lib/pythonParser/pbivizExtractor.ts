@@ -7,6 +7,9 @@
  * in the preview pane.
  */
 
+import type { PBISettings } from '../storage';
+import { DEFAULT_PBI_SETTINGS } from '../storage';
+
 function extractTripleQuotedString(code: string, varName: string): string | null {
   // Handles:  VAR = """..."""  /  VAR = r"""..."""  /  VAR = '''...'''  /  VAR = r'''...'''
   const re = new RegExp(
@@ -29,31 +32,39 @@ export function isPbivizScript(code: string): boolean {
   return hasCSS && hasJS;
 }
 
-export function extractPbivizPreviewHtml(code: string): string | null {
+export function extractPbivizPreviewHtml(code: string, settings?: PBISettings): string | null {
   const css = extractTripleQuotedString(code, 'CSS');
   const js  = extractTripleQuotedString(code, 'JS');
 
   if (!css || !js) return null;
 
   const displayName = extractScalarString(code, 'DISPLAY_NAME') ?? 'Power BI Visual';
-  const chatTitle   = extractScalarString(code, 'DISPLAY_NAME') ?? displayName;
+  const resolved = settings ?? DEFAULT_PBI_SETTINGS;
 
-  return buildPreviewHtml({ css, js, displayName, chatTitle });
+  return buildPreviewHtml({ css, js, displayName, settings: resolved });
 }
 
 function buildPreviewHtml({
   css,
   js,
   displayName,
-  chatTitle,
+  settings,
 }: {
   css: string;
   js: string;
   displayName: string;
-  chatTitle: string;
+  settings: PBISettings;
 }): string {
-  // Escape the displayName / chatTitle for safe injection inside JS string literals
-  const safeName = chatTitle.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const { conexao, layout } = settings;
+
+  const safeName       = layout.tituloChat.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safeDisplay    = displayName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safeApiKey     = conexao.apiKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safeAgentId    = conexao.agentId.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safeModelo     = (conexao.modelo || conexao.modeloSugerido).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safePrompt     = conexao.systemPrompt.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safePlaceholder = layout.placeholderInput.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safeBotao      = layout.textoBotaoEnviar.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -124,42 +135,30 @@ ${js}
 
     var visual = plugin.create({ element: container, host: mockHost });
 
-    // Call update with mock settings so the chat UI renders in configured state
     visual.update({
       dataViews: [{
         metadata: {
           objects: {
             conexao: {
-              provedor:       'tess',
-              apiKey:         '__PREVIEW__',
-              agentId:        'preview-agent',
-              modelo:         '',
-              modeloSugerido: 'tess-5',
-              systemPrompt:   'Modo preview — configure suas credenciais reais no Power BI.'
+              provedor:       '${conexao.provedor}',
+              apiKey:         '${safeApiKey}',
+              agentId:        '${safeAgentId}',
+              modelo:         '${safeModelo}',
+              modeloSugerido: '${conexao.modeloSugerido}',
+              systemPrompt:   '${safePrompt}'
             },
             layout: {
               tituloChat:          '${safeName}',
-              exibirTitulo:        true,
-              placeholderInput:    'Pergunte sobre os dados...',
-              textoBotaoEnviar:    'Enviar',
-              debugExibirContexto: false
+              exibirTitulo:        ${layout.exibirTitulo},
+              placeholderInput:    '${safePlaceholder}',
+              textoBotaoEnviar:    '${safeBotao}',
+              debugExibirContexto: ${layout.debugExibirContexto},
+              displayName:         '${safeDisplay}'
             }
           }
         }
       }]
     });
-
-    // Warn user that API calls won't work in preview
-    var bar = document.createElement('div');
-    bar.style.cssText = [
-      'position:fixed','bottom:0','left:0','right:0',
-      'background:rgba(234,179,8,0.9)','color:#1c1917',
-      'font-size:11px','font-family:system-ui,sans-serif',
-      'padding:4px 12px','text-align:center','z-index:9999',
-      'letter-spacing:0.01em'
-    ].join(';');
-    bar.textContent = '⚠ Modo preview — chamadas de API desabilitadas. Configure sua chave real no Power BI.';
-    document.body.appendChild(bar);
   } catch (err) {
     document.body.innerHTML =
       '<div style="padding:20px;font-family:monospace;font-size:13px;color:#991b1b;' +
