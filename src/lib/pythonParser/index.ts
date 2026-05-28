@@ -17,8 +17,15 @@ export function parsePython(src: string, pbivizSettings?: PBISettings): ParseRes
   // Fast-path: pbiviz build scripts define CSS + JS as triple-quoted strings
   // and package them into a .pbiviz ZIP — render a visual preview instead.
   if (isPbivizScript(src)) {
-    const html = extractPbivizPreviewHtml(src, pbivizSettings);
-    if (html) return { html, warnings: [], isPbiviz: true };
+    const result = extractPbivizPreviewHtml(src, pbivizSettings);
+    if (result) {
+      return {
+        html: result.html,
+        warnings: [],
+        isPbiviz: true,
+        extractedPbivizConfig: result.extractedConfig,
+      };
+    }
   }
 
   const warnings: string[] = [];
@@ -54,4 +61,4 @@ export function parsePython(src: string, pbivizSettings?: PBISettings): ParseRes
   }
 }
 
-export type { ParseResult } from './types';
+export type { ParseResult, ExtractedPbivizConfig } from './types';

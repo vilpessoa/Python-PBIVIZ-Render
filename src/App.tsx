@@ -433,6 +433,7 @@ export default function App() {
               isPbiviz={rendered?.isPbiviz}
               pbivizSettings={pbivizSettings}
               onPbivizSettingsChange={setPbivizSettings}
+              extractedPbivizConfig={rendered?.extractedPbivizConfig}
             />
           }
         />

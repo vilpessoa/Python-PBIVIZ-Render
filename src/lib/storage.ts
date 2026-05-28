@@ -50,11 +50,41 @@ export interface PBIAparenciaChat {
   corBolhasAssistente: string;
 }
 
+export interface PBIDadosColuna {
+  id: string;
+  nome: string;
+  tipo: 'text' | 'numeric' | 'boolean';
+  valores: string;
+}
+
+export interface PBIDadosMedida {
+  id: string;
+  nome: string;
+  valor: string;
+}
+
+export interface PBIDados {
+  colunas: PBIDadosColuna[];
+  medidas: PBIDadosMedida[];
+}
+
 export interface PBISettings {
   conexao: PBIConexao;
   layout: PBILayout;
   aparenciaChat: PBIAparenciaChat;
+  dados: PBIDados;
 }
+
+export const DEFAULT_PBI_DADOS: PBIDados = {
+  colunas: [
+    { id: 'col_1', nome: 'Categoria', tipo: 'text', valores: 'A, B, C' },
+    { id: 'col_2', nome: 'Período', tipo: 'text', valores: 'Jan, Fev, Mar' },
+  ],
+  medidas: [
+    { id: 'med_1', nome: 'Vendas', valor: '1200' },
+    { id: 'med_2', nome: 'Custo', valor: '800' },
+  ],
+};
 
 export const DEFAULT_PBI_SETTINGS: PBISettings = {
   conexao: {
@@ -79,6 +109,7 @@ export const DEFAULT_PBI_SETTINGS: PBISettings = {
     corBolhasUsuario: '#0078d4',
     corBolhasAssistente: '#f0f0f0',
   },
+  dados: DEFAULT_PBI_DADOS,
 };
 
 export interface AppState {
@@ -127,6 +158,10 @@ export function loadState(): AppState {
         conexao: { ...DEFAULT_PBI_SETTINGS.conexao, ...(parsed.pbivizSettings?.conexao ?? {}) },
         layout: { ...DEFAULT_PBI_SETTINGS.layout, ...(parsed.pbivizSettings?.layout ?? {}) },
         aparenciaChat: { ...DEFAULT_PBI_SETTINGS.aparenciaChat, ...(parsed.pbivizSettings?.aparenciaChat ?? {}) },
+        dados: {
+          colunas: parsed.pbivizSettings?.dados?.colunas ?? DEFAULT_PBI_DADOS.colunas,
+          medidas: parsed.pbivizSettings?.dados?.medidas ?? DEFAULT_PBI_DADOS.medidas,
+        },
       },
     };
   } catch {

@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { enhancePythonError } from '@/lib/pythonParser/errorEnhancer';
 import { VE_OVERLAY_SCRIPT, type VELocateTokens } from '@/lib/visualEdits';
 import type { ViewportState, PBISettings } from '@/lib/storage';
+import type { ExtractedPbivizConfig } from '@/lib/pythonParser/types';
 import { PBISettingsPanel } from '@/components/PBISettingsPanel';
 
 interface Props {
@@ -39,6 +40,7 @@ interface Props {
   isPbiviz?: boolean;
   pbivizSettings: PBISettings;
   onPbivizSettingsChange: (s: PBISettings) => void;
+  extractedPbivizConfig?: ExtractedPbivizConfig;
 }
 
 const PRESETS: { id: string; label: string; width: number; height: number; icon: React.ElementType }[] = [
@@ -80,6 +82,7 @@ export function HtmlPreview({
   isPbiviz,
   pbivizSettings,
   onPbivizSettingsChange,
+  extractedPbivizConfig,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -398,6 +401,7 @@ export function HtmlPreview({
               settings={pbivizSettings}
               onChange={onPbivizSettingsChange}
               onClose={() => setShowSettings(false)}
+              extractedFromCode={extractedPbivizConfig}
             />
           )}
         </div>

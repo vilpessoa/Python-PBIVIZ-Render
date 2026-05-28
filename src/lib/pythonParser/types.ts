@@ -16,6 +16,28 @@ export interface ContributorsEntry {
 
 export type ContributorIndex = Record<string, ContributorsEntry>;
 
+export interface ExtractedPbivizConfig {
+  conexao?: {
+    provedor?: string;
+    apiKey?: string;
+    agentId?: string;
+    modelo?: string;
+    systemPrompt?: string;
+  };
+  layout?: {
+    tituloChat?: string;
+    placeholderInput?: string;
+    textoBotaoEnviar?: string;
+  };
+  aparenciaChat?: {
+    corFundoCabecalho?: string;
+    corTextoCabecalho?: string;
+    corFundoChat?: string;
+    corBolhasUsuario?: string;
+    corBolhasAssistente?: string;
+  };
+}
+
 export interface ParseResult {
   html: string;
   warnings: string[];
@@ -29,6 +51,7 @@ export interface ParseResult {
   measureName?: string;
   contributors?: ContributorIndex;
   isPbiviz?: boolean;
+  extractedPbivizConfig?: ExtractedPbivizConfig;
 }
 
 export class ParseError extends Error {
