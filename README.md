@@ -1,23 +1,12 @@
-# Python-PBIVIZ-Render
+# Python HTML Render
 
-IDE web para visualizar **ao vivo** o layout de um Power BI custom visual (PBIVIZ) gerado por um build script Python — sem rodar o `pbiviz` CLI nem abrir o Power BI Desktop.
+Editor web split-screen: escreva Python pragmático (atribuição, concatenação e `return`) e visualize o HTML gerado em tempo real, com persistência em `localStorage`.
 
-Inspirado no [DAX-HTML-Render](https://github.com/vilpessoa/DAX-HTML-Render), adaptado para o fluxo do projeto [chatAI-powerbi-tess](https://github.com/vilpessoa/chatAI-powerbi-tess).
-
-## Como funciona
-
-1. Voce edita o build script Python (que define `CSS`, `JS`, `CAPABILITIES`, `GUID`).
-2. O codigo eh executado **no proprio browser** via Pyodide (WebAssembly).
-3. As variaveis sao extraidas e montadas em um iframe sandbox com:
-   - `window.powerbi.visuals.plugins` simulado
-   - `IVisualHost` mock (selectionManager, colorPalette, tooltipService...)
-   - `DataView` construido a partir do painel **Data**
-   - `metadata.objects` controlado pelo painel **Format** (gerado automaticamente do `capabilities.objects`)
-4. Mudancas no Python re-rodam o build (debounce); mudancas no Format/Data so disparam `update()` no visual.
+Clone funcional do [DAX-HTML-Render](https://github.com/vilpessoa/DAX-HTML-Render), trocando o parser DAX (Power BI) por um avaliador Python pragmático.
 
 ## Stack
 
-React 19, TypeScript, Vite, TailwindCSS, Radix UI, CodeMirror 6, Framer Motion, Sonner, Pyodide.
+React 19, TypeScript, Vite, TailwindCSS, Lucide Icons.
 
 ## Dev
 
@@ -28,12 +17,19 @@ npm run dev
 
 ## Features
 
-- Editor CodeMirror com syntax Python (Dracula/Light)
-- Preview ao vivo em iframe sandbox
-- Painel Format auto-gerado do `capabilities.objects` (text, bool, numeric, fill, enum)
-- Painel Data para simular measures/categories/dates conectadas ao visual
-- Snippets salvos em localStorage
-- Tema claro/escuro
-- Atalhos: `Ctrl+Enter` render, `Ctrl+S` snippet, `Ctrl+L` limpar, `Ctrl+F` buscar
-- Assistente IA via Gemini (refatorar/formatar/comentar/debugar) — exige `GEMINI_API_KEY` no Vercel ou chave salva nas configuracoes
-- Status bar com tempo de build, GUID detectado, erros
+- Editor de código (textarea) com fonte monoespaçada
+- Preview HTML em `iframe` sandbox
+- Toolbar: Renderizar, Salvar, Limpar, Copiar HTML (com feedback)
+- Atalhos: `Ctrl+Enter` renderiza, `Ctrl+S` salva, `Ctrl+L` limpa
+- Persistência em `localStorage` (chave `pythonHtmlRenderDraft`)
+- Painel de erro acima do grid quando o parser falha
+- Dark mode (slate/navy)
+- Footer com atalhos, exemplo e info de armazenamento
+
+## Parser Python suportado
+
+- Atribuição: `html = "..."`
+- Concatenação: `html += "..."`
+- Soma de strings/variáveis: `html = a + b + "..."`
+- Comentários `# ...`
+- `return <expr>` — se ausente, concatena variáveis na ordem de atribuição
