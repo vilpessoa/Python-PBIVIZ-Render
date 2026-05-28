@@ -1,0 +1,10 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Smaller light yellow block (bottom-left) -->
+  <rect x="30" y="120" width="90" height="70" rx="20" fill="#F4D66E"/>
+
+  <!-- Medium yellow block (middle) -->
+  <rect x="75" y="65" width="90" height="90" rx="20" fill="#F0C856"/>
+
+  <!-- Larger dark gold block (top-right) -->
+  <rect x="120" y="10" width="70" height="120" rx="20" fill="#D4A017"/>
+</svg>
