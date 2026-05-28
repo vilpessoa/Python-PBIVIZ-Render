@@ -1,11 +1,13 @@
 import { MOCK_USERS, MOCK_PRODUCTS, MOCK_SALES } from './mockData';
 import { ParseError } from './types';
+import type { Contributor, ContributorIndex, SourceLoc } from './types';
 
 type PythonValue = string | number | boolean | null | object | PythonValue[];
 
 interface EvalEnv {
   vars: Record<string, PythonValue>;
   warnings: string[];
+  contributors: ContributorIndex;
 }
 
 function makeEnv(): EvalEnv {
@@ -22,6 +24,7 @@ function makeEnv(): EvalEnv {
       None: null,
     },
     warnings: [],
+    contributors: {},
   };
 }
 
@@ -178,6 +181,7 @@ function evaluateListComp(
     const innerEnv: EvalEnv = {
       vars: { ...env.vars, [varName]: item },
       warnings: env.warnings,
+      contributors: env.contributors,
     };
     return evaluateExpr(exprStr, innerEnv, lineNum);
   });
@@ -305,6 +309,40 @@ function injectLoc(value: string, loc: { start: number; end: number } | undefine
   return value.slice(0, insertAt) + attr + value.slice(insertAt);
 }
 
+function getHtmlSegments(value: string): Contributor[] {
+  if (!value || typeof value !== 'string') return [];
+  const segments: Contributor[] = [];
+  const htmlRegex = /<[^>]+>/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = htmlRegex.exec(value)) !== null) {
+    if (match.index > lastIndex && value.slice(lastIndex, match.index).trim()) {
+      segments.push({
+        kind: 'text',
+        text: value.slice(lastIndex, match.index),
+        loc: { start: 0, end: 0 },
+        line: 0,
+      });
+    }
+    segments.push({
+      kind: 'html',
+      text: match[0],
+      loc: { start: 0, end: 0 },
+      line: 0,
+    });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < value.length && value.slice(lastIndex).trim()) {
+    segments.push({
+      kind: 'text',
+      text: value.slice(lastIndex),
+      loc: { start: 0, end: 0 },
+      line: 0,
+    });
+  }
+  return segments;
+}
+
 interface Statement {
   kind: 'assign' | 'augadd' | 'augmul' | 'return' | 'for' | 'comment' | 'expr';
   raw: string;
@@ -388,19 +426,80 @@ function parseStatements(lines: { text: string; lineNum: number; offset: number 
   return stmts;
 }
 
+function registerContributor(env: EvalEnv, value: string, loc: SourceLoc | undefined, lineNum: number, varName?: string) {
+  if (!loc || !value || typeof value !== 'string') return;
+  const key = `${loc.start}-${loc.end}`;
+  if (!env.contributors[key]) {
+    env.contributors[key] = {
+      rootLoc: loc,
+      rootLine: lineNum,
+      items: [],
+    };
+  }
+  if (varName) {
+    const existing = env.contributors[key].items.find(
+      (c) => c.kind === 'var' && c.name === varName
+    );
+    if (!existing) {
+      env.contributors[key].items.push({
+        kind: 'var',
+        name: varName,
+        refLoc: loc,
+        declLoc: loc,
+        line: lineNum,
+        snippet: value.substring(0, 50),
+      });
+    }
+  } else {
+    const segments = getHtmlSegments(value);
+    for (const seg of segments) {
+      if (seg.kind === 'html') {
+        if (!env.contributors[key].items.some(
+          (c) => c.kind === 'html' && 'text' in c && c.text === seg.text
+        )) {
+          env.contributors[key].items.push({
+            kind: 'html',
+            text: seg.text,
+            loc,
+            line: lineNum,
+          });
+        }
+      } else if (seg.kind === 'text') {
+        if (!env.contributors[key].items.some(
+          (c) => c.kind === 'text' && 'text' in c && c.text === seg.text
+        )) {
+          env.contributors[key].items.push({
+            kind: 'text',
+            text: seg.text,
+            loc,
+            line: lineNum,
+          });
+        }
+      }
+    }
+  }
+}
+
 function executeStatements(stmts: Statement[], env: EvalEnv): string | null {
   for (const stmt of stmts) {
     if (stmt.kind === 'comment') continue;
 
     if (stmt.kind === 'return') {
       const val = evaluateExpr(stmt.expr!, env, stmt.lineNum);
-      return toString(val);
+      const strVal = typeof val === 'string' ? injectLoc(val, stmt.loc) : val;
+      if (typeof strVal === 'string') {
+        registerContributor(env, strVal, stmt.loc, stmt.lineNum);
+      }
+      return toString(strVal);
     }
 
     if (stmt.kind === 'assign') {
       const val = evaluateExpr(stmt.expr!, env, stmt.lineNum);
       const strVal = typeof val === 'string' ? injectLoc(val, stmt.loc) : val;
       env.vars[stmt.varName!] = strVal;
+      if (typeof strVal === 'string') {
+        registerContributor(env, strVal, stmt.loc, stmt.lineNum, stmt.varName);
+      }
       continue;
     }
 
@@ -409,7 +508,9 @@ function executeStatements(stmts: Statement[], env: EvalEnv): string | null {
       const val = evaluateExpr(stmt.expr!, env, stmt.lineNum);
       if (typeof existing === 'string' || typeof val === 'string') {
         const injected = typeof val === 'string' ? injectLoc(val, stmt.loc) : val;
-        env.vars[stmt.varName!] = toString(existing) + toString(injected);
+        const result = toString(existing) + toString(injected);
+        env.vars[stmt.varName!] = result;
+        registerContributor(env, result, stmt.loc, stmt.lineNum, stmt.varName);
       } else {
         env.vars[stmt.varName!] = toNumber(existing ?? 0) + toNumber(val);
       }
@@ -420,7 +521,11 @@ function executeStatements(stmts: Statement[], env: EvalEnv): string | null {
       const iterable = evaluateExpr(stmt.iterExpr!, env, stmt.lineNum);
       const items = Array.isArray(iterable) ? iterable : [];
       for (const item of items) {
-        const innerEnv: EvalEnv = { vars: { ...env.vars, [stmt.iterVar!]: item }, warnings: env.warnings };
+        const innerEnv: EvalEnv = {
+          vars: { ...env.vars, [stmt.iterVar!]: item },
+          warnings: env.warnings,
+          contributors: env.contributors
+        };
         const result = executeStatements(stmt.body ?? [], innerEnv);
         // Propagate variable changes back
         Object.assign(env.vars, innerEnv.vars);
@@ -437,7 +542,7 @@ function executeStatements(stmts: Statement[], env: EvalEnv): string | null {
   return null;
 }
 
-export function evaluatePythonCode(src: string): { html: string; warnings: string[]; error?: string; errorLine?: number; errorPos?: number } {
+export function evaluatePythonCode(src: string): { html: string; warnings: string[]; contributors: ContributorIndex; error?: string; errorLine?: number; errorPos?: number } {
   const env = makeEnv();
 
   // Build line objects with offsets
@@ -456,12 +561,12 @@ export function evaluatePythonCode(src: string): { html: string; warnings: strin
     // If there's a "return" result, use it; otherwise try to find an html variable
     const html = result ?? toString(env.vars['html'] ?? env.vars['_html'] ?? env.vars['output'] ?? '');
 
-    return { html, warnings: env.warnings };
+    return { html, warnings: env.warnings, contributors: env.contributors };
   } catch (e) {
     if (e instanceof ParseError) {
-      return { html: '', warnings: env.warnings, error: e.message, errorPos: e.pos, errorLine: undefined };
+      return { html: '', warnings: env.warnings, contributors: {}, error: e.message, errorPos: e.pos, errorLine: undefined };
     }
     const msg = e instanceof Error ? e.message : String(e);
-    return { html: '', warnings: env.warnings, error: msg };
+    return { html: '', warnings: env.warnings, contributors: {}, error: msg };
   }
 }
