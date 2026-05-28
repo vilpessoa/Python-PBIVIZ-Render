@@ -43,11 +43,19 @@ export interface PBILayout {
 }
 
 export interface PBIAparenciaChat {
-  corFundoCabecalho: string;
-  corTextoCabecalho: string;
+  // Nomes alinhados com o que o visual JS lê em _readSettings
+  corFundoHeader: string;
+  corTextoHeader: string;
   corFundoChat: string;
-  corBolhasUsuario: string;
-  corBolhasAssistente: string;
+  corBolhaUsuario: string;
+  corBolhaAssistente: string;
+  corTextoBolha: string;
+  corTextoBolhaUsuario: string;
+  corFundoInput: string;
+  corBotaoEnviar: string;
+  avatarUsuarioUrl: string;
+  avatarAgenteUrl: string;
+  exibirAvatares: boolean;
 }
 
 export interface PBIDadosColuna {
@@ -103,11 +111,18 @@ export const DEFAULT_PBI_SETTINGS: PBISettings = {
     debugExibirContexto: false,
   },
   aparenciaChat: {
-    corFundoCabecalho: '#0078d4',
-    corTextoCabecalho: '#ffffff',
-    corFundoChat: '#ffffff',
-    corBolhasUsuario: '#0078d4',
-    corBolhasAssistente: '#f0f0f0',
+    corFundoHeader:       '#0B5FFF',
+    corTextoHeader:       '#FFFFFF',
+    corFundoChat:         '#F9FAFB',
+    corBolhaUsuario:      '#0B5FFF',
+    corBolhaAssistente:   '#F3F4F6',
+    corTextoBolha:        '#111827',
+    corTextoBolhaUsuario: '#FFFFFF',
+    corFundoInput:        '#F9FAFB',
+    corBotaoEnviar:       '#0B5FFF',
+    avatarUsuarioUrl:     '',
+    avatarAgenteUrl:      '',
+    exibirAvatares:       true,
   },
   dados: DEFAULT_PBI_DADOS,
 };

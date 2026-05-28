@@ -30,11 +30,18 @@ export interface ExtractedPbivizConfig {
     textoBotaoEnviar?: string;
   };
   aparenciaChat?: {
-    corFundoCabecalho?: string;
-    corTextoCabecalho?: string;
+    corFundoHeader?: string;
+    corTextoHeader?: string;
     corFundoChat?: string;
-    corBolhasUsuario?: string;
-    corBolhasAssistente?: string;
+    corBolhaUsuario?: string;
+    corBolhaAssistente?: string;
+    corTextoBolha?: string;
+    corTextoBolhaUsuario?: string;
+    corFundoInput?: string;
+    corBotaoEnviar?: string;
+    avatarUsuarioUrl?: string;
+    avatarAgenteUrl?: string;
+    exibirAvatares?: boolean;
   };
 }
 

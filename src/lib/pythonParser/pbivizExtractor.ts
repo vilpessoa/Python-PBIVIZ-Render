@@ -4,6 +4,11 @@
  * A pbiviz build script defines CSS and JS as top-level triple-quoted strings.
  * We extract CSS + JS, plus any recognized config variables, then render a mock
  * Power BI sandbox with real dataViews so the visual behaves as expected.
+ *
+ * Field names in aparenciaChat match exactly what the visual's _readSettings reads:
+ *   corFundoHeader, corTextoHeader, corFundoChat, corBolhaUsuario, corBolhaAssistente,
+ *   corTextoBolha, corTextoBolhaUsuario, corFundoInput, corBotaoEnviar,
+ *   avatarUsuarioUrl, avatarAgenteUrl, exibirAvatares
  */
 
 import type { ExtractedPbivizConfig } from './types';
@@ -36,18 +41,24 @@ export function isPbivizScript(code: string): boolean {
 }
 
 /**
- * Scans the Python source for known config variable names and returns
- * their values. These override any panel settings when building the preview.
+ * Extrai variáveis de configuração do código Python.
+ * Suporta os nomes canônicos AND aliases legados (COR_FUNDO_CABECALHO etc.).
  *
- * Recognized variables:
+ * Variáveis reconhecidas:
  *   Conexão:      API_KEY, PROVEDOR, AGENT_ID, MODELO, SYSTEM_PROMPT
- *   Layout:       TITULO_CHAT (or DISPLAY_NAME), PLACEHOLDER, TEXTO_BOTAO
- *   Aparência:    COR_FUNDO_CABECALHO, COR_TEXTO_CABECALHO, COR_FUNDO_CHAT,
- *                 COR_BOLHAS_USUARIO, COR_BOLHAS_ASSISTENTE
+ *   Layout:       TITULO_CHAT (ou DISPLAY_NAME), PLACEHOLDER
+ *   Aparência:    COR_FUNDO_HEADER, COR_TEXTO_HEADER, COR_FUNDO_CHAT,
+ *                 COR_BOLHA_USUARIO, COR_BOLHA_ASSISTENTE,
+ *                 COR_TEXTO_BOLHA, COR_TEXTO_BOLHA_USUARIO,
+ *                 COR_FUNDO_INPUT, COR_BOTAO_ENVIAR,
+ *                 AVATAR_USUARIO_URL, AVATAR_AGENTE_URL
+ *   (aliases legados: COR_FUNDO_CABECALHO, COR_TEXTO_CABECALHO,
+ *                     COR_BOLHAS_USUARIO, COR_BOLHAS_ASSISTENTE)
  */
 export function extractPbivizConfig(code: string): ExtractedPbivizConfig {
   const result: ExtractedPbivizConfig = {};
 
+  // ── Conexão ──────────────────────────────────────────────────
   const apiKey       = extractScalarString(code, 'API_KEY');
   const provedor     = extractScalarString(code, 'PROVEDOR');
   const agentId      = extractScalarString(code, 'AGENT_ID');
@@ -64,33 +75,51 @@ export function extractPbivizConfig(code: string): ExtractedPbivizConfig {
     if (systemPrompt !== null) result.conexao.systemPrompt = systemPrompt;
   }
 
-  // TITULO_CHAT takes precedence over DISPLAY_NAME
+  // ── Layout ───────────────────────────────────────────────────
   const tituloChat      = extractScalarString(code, 'TITULO_CHAT')
                        ?? extractScalarString(code, 'DISPLAY_NAME');
   const placeholderInput = extractScalarString(code, 'PLACEHOLDER');
-  const textoBotaoEnviar = extractScalarString(code, 'TEXTO_BOTAO');
 
-  if (tituloChat !== null || placeholderInput !== null || textoBotaoEnviar !== null) {
+  if (tituloChat !== null || placeholderInput !== null) {
     result.layout = {};
     if (tituloChat !== null)       result.layout.tituloChat = tituloChat;
     if (placeholderInput !== null) result.layout.placeholderInput = placeholderInput;
-    if (textoBotaoEnviar !== null) result.layout.textoBotaoEnviar = textoBotaoEnviar;
   }
 
-  const corFundoCabecalho   = extractScalarString(code, 'COR_FUNDO_CABECALHO');
-  const corTextoCabecalho   = extractScalarString(code, 'COR_TEXTO_CABECALHO');
-  const corFundoChat        = extractScalarString(code, 'COR_FUNDO_CHAT');
-  const corBolhasUsuario    = extractScalarString(code, 'COR_BOLHAS_USUARIO');
-  const corBolhasAssistente = extractScalarString(code, 'COR_BOLHAS_ASSISTENTE');
+  // ── Aparência — nomes canônicos + aliases legados ─────────────
+  const corFundoHeader     = extractScalarString(code, 'COR_FUNDO_HEADER')
+                          ?? extractScalarString(code, 'COR_FUNDO_CABECALHO');
+  const corTextoHeader     = extractScalarString(code, 'COR_TEXTO_HEADER')
+                          ?? extractScalarString(code, 'COR_TEXTO_CABECALHO');
+  const corFundoChat       = extractScalarString(code, 'COR_FUNDO_CHAT');
+  const corBolhaUsuario    = extractScalarString(code, 'COR_BOLHA_USUARIO')
+                          ?? extractScalarString(code, 'COR_BOLHAS_USUARIO');
+  const corBolhaAssistente = extractScalarString(code, 'COR_BOLHA_ASSISTENTE')
+                          ?? extractScalarString(code, 'COR_BOLHAS_ASSISTENTE');
+  const corTextoBolha          = extractScalarString(code, 'COR_TEXTO_BOLHA');
+  const corTextoBolhaUsuario   = extractScalarString(code, 'COR_TEXTO_BOLHA_USUARIO');
+  const corFundoInput          = extractScalarString(code, 'COR_FUNDO_INPUT');
+  const corBotaoEnviar         = extractScalarString(code, 'COR_BOTAO_ENVIAR');
+  const avatarUsuarioUrl       = extractScalarString(code, 'AVATAR_USUARIO_URL');
+  const avatarAgenteUrl        = extractScalarString(code, 'AVATAR_AGENTE_URL');
 
-  if (corFundoCabecalho !== null || corTextoCabecalho !== null || corFundoChat !== null
-      || corBolhasUsuario !== null || corBolhasAssistente !== null) {
+  if (corFundoHeader !== null || corTextoHeader !== null || corFundoChat !== null
+      || corBolhaUsuario !== null || corBolhaAssistente !== null
+      || corTextoBolha !== null || corTextoBolhaUsuario !== null
+      || corFundoInput !== null || corBotaoEnviar !== null
+      || avatarUsuarioUrl !== null || avatarAgenteUrl !== null) {
     result.aparenciaChat = {};
-    if (corFundoCabecalho !== null)   result.aparenciaChat.corFundoCabecalho = corFundoCabecalho;
-    if (corTextoCabecalho !== null)   result.aparenciaChat.corTextoCabecalho = corTextoCabecalho;
-    if (corFundoChat !== null)        result.aparenciaChat.corFundoChat = corFundoChat;
-    if (corBolhasUsuario !== null)    result.aparenciaChat.corBolhasUsuario = corBolhasUsuario;
-    if (corBolhasAssistente !== null) result.aparenciaChat.corBolhasAssistente = corBolhasAssistente;
+    if (corFundoHeader !== null)       result.aparenciaChat.corFundoHeader = corFundoHeader;
+    if (corTextoHeader !== null)       result.aparenciaChat.corTextoHeader = corTextoHeader;
+    if (corFundoChat !== null)         result.aparenciaChat.corFundoChat = corFundoChat;
+    if (corBolhaUsuario !== null)      result.aparenciaChat.corBolhaUsuario = corBolhaUsuario;
+    if (corBolhaAssistente !== null)   result.aparenciaChat.corBolhaAssistente = corBolhaAssistente;
+    if (corTextoBolha !== null)        result.aparenciaChat.corTextoBolha = corTextoBolha;
+    if (corTextoBolhaUsuario !== null) result.aparenciaChat.corTextoBolhaUsuario = corTextoBolhaUsuario;
+    if (corFundoInput !== null)        result.aparenciaChat.corFundoInput = corFundoInput;
+    if (corBotaoEnviar !== null)       result.aparenciaChat.corBotaoEnviar = corBotaoEnviar;
+    if (avatarUsuarioUrl !== null)     result.aparenciaChat.avatarUsuarioUrl = avatarUsuarioUrl;
+    if (avatarAgenteUrl !== null)      result.aparenciaChat.avatarAgenteUrl = avatarAgenteUrl;
   }
 
   return result;
@@ -99,9 +128,9 @@ export function extractPbivizConfig(code: string): ExtractedPbivizConfig {
 function mergeWithExtracted(settings: PBISettings, extracted: ExtractedPbivizConfig): PBISettings {
   return {
     ...settings,
-    conexao:      { ...settings.conexao,      ...(extracted.conexao      ?? {}) },
-    layout:       { ...settings.layout,       ...(extracted.layout       ?? {}) },
-    aparenciaChat:{ ...settings.aparenciaChat, ...(extracted.aparenciaChat ?? {}) },
+    conexao:       { ...settings.conexao,       ...(extracted.conexao       ?? {}) },
+    layout:        { ...settings.layout,        ...(extracted.layout        ?? {}) },
+    aparenciaChat: { ...settings.aparenciaChat, ...(extracted.aparenciaChat ?? {}) },
   };
 }
 
@@ -113,7 +142,7 @@ export function extractPbivizPreviewHtml(
   const js  = extractTripleQuotedString(code, 'JS');
   if (!css || !js) return null;
 
-  const displayName    = extractScalarString(code, 'DISPLAY_NAME') ?? 'Power BI Visual';
+  const displayName     = extractScalarString(code, 'DISPLAY_NAME') ?? 'Power BI Visual';
   const extractedConfig = extractPbivizConfig(code);
   const resolved        = settings ?? DEFAULT_PBI_SETTINGS;
   const effectiveSettings = mergeWithExtracted(resolved, extractedConfig);
@@ -137,15 +166,16 @@ function buildPreviewHtml({
 }): string {
   const { conexao, layout, aparenciaChat, dados } = settings;
 
-  const safeName        = esc(layout.tituloChat);
   const safeDisplay     = esc(displayName);
   const safeApiKey      = esc(conexao.apiKey);
   const safeAgentId     = esc(conexao.agentId);
   const safeModelo      = esc(conexao.modelo || conexao.modeloSugerido);
   const safePrompt      = esc(conexao.systemPrompt);
+  const safeName        = esc(layout.tituloChat);
   const safePlaceholder = esc(layout.placeholderInput);
-  const safeBotao       = esc(layout.textoBotaoEnviar);
-  // Escape </script> inside JSON to avoid early tag close
+  const safeAvatarUser  = esc(aparenciaChat.avatarUsuarioUrl);
+  const safeAvatarAgent = esc(aparenciaChat.avatarAgenteUrl);
+  // Escape </script> to avoid early tag close
   const dadosJson = JSON.stringify(dados ?? { colunas: [], medidas: [] })
     .replace(/<\/script>/gi, '<\\/script>');
 
@@ -218,7 +248,7 @@ ${js}
 
     var visual = plugin.create({ element: container, host: mockHost });
 
-    // ── Mock data (from painel "Dados") ────────────────────────
+    // ── Mock data (aba Dados do painel) ────────────────────────
     var __dados = ${dadosJson};
 
     function __parseDados() {
@@ -249,14 +279,16 @@ ${js}
       var colMeta = colunas.map(function(c, i) {
         return {
           displayName: c.nome, queryName: 'Table.' + c.nome,
-          type: makeType(c.tipo), index: i, roles: { Category: true }
+          type: makeType(c.tipo), index: i,
+          roles: { Category: true, category: true }
         };
       });
       var measMeta = medidas.map(function(m, i) {
         return {
           displayName: m.nome, queryName: 'Table.' + m.nome,
           type: { numeric: true }, isMeasure: true,
-          index: colunas.length + i, roles: { Values: true }
+          index: colunas.length + i,
+          roles: { Values: true, measure: true }
         };
       });
 
@@ -306,7 +338,8 @@ ${js}
       }];
     }
 
-    // ── Settings injetadas do Python/painel ────────────────────
+    // ── Settings injetadas do Python / painel ──────────────────
+    // Chaves exatamente como o visual lê em _readSettings()
     var __settingsObjects = {
       conexao: {
         provedor:       '${conexao.provedor}',
@@ -320,16 +353,22 @@ ${js}
         tituloChat:          '${safeName}',
         exibirTitulo:        ${layout.exibirTitulo},
         placeholderInput:    '${safePlaceholder}',
-        textoBotaoEnviar:    '${safeBotao}',
         debugExibirContexto: ${layout.debugExibirContexto},
         displayName:         '${safeDisplay}'
       },
       aparenciaChat: {
-        corFundoCabecalho:   '${aparenciaChat.corFundoCabecalho}',
-        corTextoCabecalho:   '${aparenciaChat.corTextoCabecalho}',
-        corFundoChat:        '${aparenciaChat.corFundoChat}',
-        corBolhasUsuario:    '${aparenciaChat.corBolhasUsuario}',
-        corBolhasAssistente: '${aparenciaChat.corBolhasAssistente}'
+        corFundoHeader:         '${aparenciaChat.corFundoHeader}',
+        corTextoHeader:         '${aparenciaChat.corTextoHeader}',
+        corFundoChat:           '${aparenciaChat.corFundoChat}',
+        corBolhaUsuario:        '${aparenciaChat.corBolhaUsuario}',
+        corBolhaAssistente:     '${aparenciaChat.corBolhaAssistente}',
+        corTextoBolha:          '${aparenciaChat.corTextoBolha}',
+        corTextoBolhaUsuario:   '${aparenciaChat.corTextoBolhaUsuario}',
+        corFundoInput:          '${aparenciaChat.corFundoInput}',
+        corBotaoEnviar:         '${aparenciaChat.corBotaoEnviar}',
+        avatarUsuarioUrl:       '${safeAvatarUser}',
+        avatarAgenteUrl:        '${safeAvatarAgent}',
+        exibirAvatares:         ${aparenciaChat.exibirAvatares}
       }
     };
 
