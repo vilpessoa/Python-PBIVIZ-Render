@@ -276,7 +276,7 @@ export function PBISettingsPanel({ settings, onChange, onClose }: Props) {
   const show = (name: string) => filtered.includes(name);
 
   return (
-    <div className="flex h-full w-[272px] shrink-0 flex-col border-l border-border bg-surface">
+    <div className="flex h-full w-[272px] shrink-0 flex-col border-l border-border bg-surface shadow-lg">
       {/* Header */}
       <div className="flex h-9 shrink-0 items-center justify-between border-b border-border px-3">
         <span className="text-[11px] font-semibold text-foreground">Formato</span>
