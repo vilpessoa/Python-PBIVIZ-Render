@@ -24,6 +24,8 @@ import {
 import { parsePython } from '@/lib/pythonParser';
 import type { ParseResult } from '@/lib/pythonParser/types';
 import { VisualEditsMenu, type VisualEditsMenuState } from '@/components/VisualEditsMenu';
+import { searchPythonSource } from '@/lib/veSearch';
+import type { VELocateTokens } from '@/lib/visualEdits';
 import { ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN } from '@/components/ZoomControls';
 import DEFAULT_SAMPLE from '@/data/sampleDefault';
 
@@ -298,22 +300,36 @@ export default function App() {
 
   const onSplitChange = useCallback((s: number) => setPanelSplit(s), []);
 
+  const codeRef = useRef<string>('');
+  useEffect(() => { codeRef.current = code; }, [code]);
+
   const onVisualEditsLocate = useCallback(
-    (loc: string, screenX: number, screenY: number) => {
-      const m = /^(\d+)-(\d+)$/.exec(loc);
-      if (!m) return;
-      const entry = renderedRef.current?.contributors?.[loc];
-      if (!entry || entry.items.length === 0) {
-        editorRef.current?.scrollAndSelect(parseInt(m[1], 10), parseInt(m[2], 10));
+    (tokens: VELocateTokens, screenX: number, screenY: number) => {
+      const src = codeRef.current;
+      const matches = searchPythonSource(src, tokens);
+
+      // Build a readable label for the clicked element
+      const label =
+        tokens.text.trim()
+          ? tokens.text.trim().slice(0, 40)
+          : tokens.id
+          ? `#${tokens.id}`
+          : tokens.classes.length
+          ? `.${tokens.classes[0]}`
+          : `<${tokens.tag}>`;
+
+      if (matches.length === 1) {
+        // Single match — navigate directly, no menu needed
+        editorRef.current?.scrollAndSelect(matches[0].start, matches[0].end);
         setVeMenu(null);
         return;
       }
+
       setVeMenu({
         x: screenX,
         y: screenY,
-        clickedLoc: entry.rootLoc,
-        clickedLine: entry.rootLine,
-        items: entry.items,
+        elementLabel: label,
+        matches,
       });
     },
     [],

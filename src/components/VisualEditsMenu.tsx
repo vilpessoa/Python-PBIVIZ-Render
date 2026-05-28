@@ -1,13 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MousePointerClick, X, FileCode2 } from 'lucide-react';
-import type { Contributor } from '@/lib/pythonParser/types';
+import type { VEMatch } from '@/lib/veSearch';
 
 export interface VisualEditsMenuState {
   x: number;
   y: number;
-  clickedLoc: { start: number; end: number };
-  clickedLine: number;
-  items: Contributor[];
+  elementLabel: string;
+  matches: VEMatch[];
 }
 
 interface Props {
@@ -17,59 +16,8 @@ interface Props {
 }
 
 const MENU_MIN_W = 280;
-const MENU_MAX_W = 460;
+const MENU_MAX_W = 480;
 const VIEWPORT_PAD = 8;
-
-type BadgeKind = 'var' | 'html' | 'text';
-
-function TypeBadge({ kind }: { kind: BadgeKind }) {
-  const base =
-    'shrink-0 inline-flex items-center justify-center text-[9px] font-mono font-bold h-4 px-1 rounded border';
-  if (kind === 'html') {
-    return (
-      <span className={`${base} bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700`}>
-        {'</>'}
-      </span>
-    );
-  }
-  if (kind === 'text') {
-    return (
-      <span className={`${base} bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-700`}>
-        Tx
-      </span>
-    );
-  }
-  return (
-    <span className={`${base} bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-700`}>
-      VAR
-    </span>
-  );
-}
-
-function htmlLabel(text: string): string {
-  const tagMatch = /^<([a-zA-Z][a-zA-Z0-9-]*)/.exec(text);
-  if (!tagMatch) return text;
-  const tag = tagMatch[1];
-  const rest = text.slice(tagMatch[0].length);
-  const styleMatch = /\bstyle\s*=\s*['"]\s*([a-zA-Z-]+)/.exec(rest);
-  if (styleMatch) return styleMatch[1];
-  const attrMatch = /\s+[a-zA-Z][a-zA-Z0-9-]*\s*=\s*['"]([^'"]+)['"]/.exec(rest);
-  if (attrMatch) return attrMatch[1].trim();
-  return `<${tag}>`;
-}
-
-function labelOf(c: Contributor): string {
-  if (c.kind === 'var') return c.name;
-  if (c.kind === 'html') return htmlLabel(c.text);
-  return c.text;
-}
-
-function locOf(c: Contributor): { start: number; end: number } {
-  if (c.kind === 'var') return c.declLoc;
-  return c.loc;
-}
-
-const TRECHO_KEY = '__trecho__';
 
 export function VisualEditsMenu({ menu, onSelect, onClose }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -78,11 +26,11 @@ export function VisualEditsMenu({ menu, onSelect, onClose }: Props) {
     top: number;
     anchor?: { left: number; top: number; width: number; height: number };
   } | null>(null);
-  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
 
   useEffect(() => {
-    setActiveKey(null);
-  }, [menu?.clickedLoc.start, menu?.clickedLoc.end]);
+    setActiveIdx(null);
+  }, [menu?.elementLabel]);
 
   useLayoutEffect(() => {
     if (!menu || !ref.current) { setAdjusted(null); return; }
@@ -153,7 +101,7 @@ export function VisualEditsMenu({ menu, onSelect, onClose }: Props) {
     boxShadow: '0 4px 6px -1px rgba(0,0,0,0.08), 0 10px 24px -4px rgba(0,0,0,0.14)',
   };
 
-  const sortedItems = [...menu.items].sort((a, b) => a.line - b.line);
+  const hasMatches = menu.matches.length > 0;
 
   return (
     <>
@@ -174,78 +122,54 @@ export function VisualEditsMenu({ menu, onSelect, onClose }: Props) {
           <X className="h-3.5 w-3.5" />
         </button>
 
-        <div className="flex items-center justify-center gap-2 px-3 py-2 border-b border-border bg-gradient-to-b from-muted/40 to-transparent rounded-t-xl overflow-hidden">
-          <MousePointerClick className="h-3.5 w-3.5 text-muted-foreground/70" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Elemento selecionado
+        {/* Header */}
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-gradient-to-b from-muted/40 to-transparent rounded-t-xl overflow-hidden">
+          <MousePointerClick className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">
+            {menu.elementLabel || 'Elemento selecionado'}
           </span>
         </div>
 
         <div className="rounded-b-xl overflow-hidden">
-          {sortedItems.length > 0 && (
+          {hasMatches ? (
             <div className="pt-1 max-h-72 overflow-y-auto">
-              {sortedItems.map((c, i) => {
-                const loc = locOf(c);
-                const key = `${c.kind}-${loc.start}-${i}`;
-                return (
-                  <MenuItem
-                    key={key}
-                    kind={c.kind as BadgeKind}
-                    label={labelOf(c)}
-                    line={c.line}
-                    active={activeKey === key}
-                    onClick={() => { onSelect(loc.start, loc.end); setActiveKey(key); }}
-                  />
-                );
-              })}
+              {menu.matches.map((m, i) => (
+                <MatchItem
+                  key={i}
+                  match={m}
+                  active={activeIdx === i}
+                  onClick={() => { onSelect(m.start, m.end); setActiveIdx(i); }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="px-3 py-4 text-xs text-muted-foreground text-center">
+              Nenhuma linha encontrada no código.
             </div>
           )}
-          {sortedItems.length > 0 && <div className="mx-2.5 my-1 h-px bg-border" />}
-          <TrechoItem
-            line={menu.clickedLine}
-            active={activeKey === TRECHO_KEY}
-            onClick={() => { onSelect(menu.clickedLoc.start, menu.clickedLoc.end); setActiveKey(TRECHO_KEY); }}
-          />
         </div>
       </div>
     </>
   );
 }
 
-function MenuItem({ kind, label, line, active, onClick }: { kind: BadgeKind; label: string; line: number; active?: boolean; onClick: () => void }) {
+function MatchItem({ match, active, onClick }: { match: VEMatch; active: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`w-full flex items-center gap-2 px-2.5 py-1 text-xs transition-colors ${active ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : 'hover:bg-accent'}`}
-      role="menuitem"
-    >
-      <TypeBadge kind={kind} />
-      <span className="flex-1 min-w-0 truncate text-left font-mono text-foreground">{label}</span>
-      <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/50">{line}</span>
-    </button>
-  );
-}
-
-function TrechoItem({ line, active, onClick }: { line: number; active?: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs transition-colors ${
+      className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs transition-colors ${
         active
-          ? 'bg-blue-50 dark:bg-blue-950/40 ring-1 ring-inset ring-blue-300/60 dark:ring-blue-700/50'
-          : 'bg-blue-50/60 dark:bg-blue-950/20 hover:bg-blue-100/80 dark:hover:bg-blue-950/40'
+          ? 'bg-primary/10 ring-1 ring-inset ring-primary/30'
+          : 'hover:bg-accent'
       }`}
       role="menuitem"
     >
       <span className="shrink-0 inline-flex items-center justify-center h-5 w-5 rounded bg-blue-100 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400">
         <FileCode2 className="h-3 w-3" />
       </span>
-      <span className="flex-1 min-w-0 truncate text-left font-mono font-medium text-blue-700 dark:text-blue-400">
-        Trecho HTML final
-      </span>
-      <span className="shrink-0 text-[10px] tabular-nums text-blue-400/70 dark:text-blue-500/70">{line}</span>
+      <span className="flex-1 min-w-0 truncate text-left font-mono text-foreground">{match.label}</span>
+      <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/50">L{match.line}</span>
     </button>
   );
 }
