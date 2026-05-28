@@ -516,10 +516,13 @@ export function PBISettingsPanel({ settings, onChange, onClose, extractedFromCod
   const fromCodeCount = [
     fromCod.conexao?.apiKey, fromCod.conexao?.provedor, fromCod.conexao?.agentId,
     fromCod.conexao?.modelo, fromCod.conexao?.systemPrompt,
-    fromCod.layout?.tituloChat, fromCod.layout?.placeholderInput, fromCod.layout?.textoBotaoEnviar,
-    fromCod.aparenciaChat?.corFundoCabecalho, fromCod.aparenciaChat?.corTextoCabecalho,
-    fromCod.aparenciaChat?.corFundoChat, fromCod.aparenciaChat?.corBolhasUsuario,
-    fromCod.aparenciaChat?.corBolhasAssistente,
+    fromCod.layout?.tituloChat, fromCod.layout?.placeholderInput,
+    fromCod.aparenciaChat?.corFundoHeader, fromCod.aparenciaChat?.corTextoHeader,
+    fromCod.aparenciaChat?.corFundoChat, fromCod.aparenciaChat?.corBolhaUsuario,
+    fromCod.aparenciaChat?.corBolhaAssistente, fromCod.aparenciaChat?.corTextoBolha,
+    fromCod.aparenciaChat?.corTextoBolhaUsuario, fromCod.aparenciaChat?.corFundoInput,
+    fromCod.aparenciaChat?.corBotaoEnviar, fromCod.aparenciaChat?.avatarUsuarioUrl,
+    fromCod.aparenciaChat?.avatarAgenteUrl,
   ].filter((v) => v !== undefined).length;
 
   const allSections = ['Tamanho e estilo', 'Título', 'Conexão', 'Aparência - Chat', 'Aparência - Tipografia', 'Aparência - Layout'];
@@ -685,35 +688,80 @@ export function PBISettingsPanel({ settings, onChange, onClose, extractedFromCod
             <SectionHeader title="Aparência - Chat" open={aparenciaChatOpen} onToggle={() => setAparenciaChatOpen(v => !v)} />
             <AccordionContent open={aparenciaChatOpen}>
               <SmartColor
-                label="Cor de fundo do cabeçalho"
-                codeValue={fromCod.aparenciaChat?.corFundoCabecalho}
-                value={aparenciaChat.corFundoCabecalho}
-                onChange={(v) => patchAparenciaChat({ corFundoCabecalho: v })}
+                label="Fundo do topo"
+                codeValue={fromCod.aparenciaChat?.corFundoHeader}
+                value={aparenciaChat.corFundoHeader}
+                onChange={(v) => patchAparenciaChat({ corFundoHeader: v })}
               />
               <SmartColor
-                label="Cor do texto do cabeçalho"
-                codeValue={fromCod.aparenciaChat?.corTextoCabecalho}
-                value={aparenciaChat.corTextoCabecalho}
-                onChange={(v) => patchAparenciaChat({ corTextoCabecalho: v })}
+                label="Texto do topo"
+                codeValue={fromCod.aparenciaChat?.corTextoHeader}
+                value={aparenciaChat.corTextoHeader}
+                onChange={(v) => patchAparenciaChat({ corTextoHeader: v })}
               />
               <SmartColor
-                label="Cor de fundo do chat"
+                label="Fundo do chat"
                 codeValue={fromCod.aparenciaChat?.corFundoChat}
                 value={aparenciaChat.corFundoChat}
                 onChange={(v) => patchAparenciaChat({ corFundoChat: v })}
               />
               <SmartColor
-                label="Cor das bolhas do usuário"
-                codeValue={fromCod.aparenciaChat?.corBolhasUsuario}
-                value={aparenciaChat.corBolhasUsuario}
-                onChange={(v) => patchAparenciaChat({ corBolhasUsuario: v })}
+                label="Balão do usuário"
+                codeValue={fromCod.aparenciaChat?.corBolhaUsuario}
+                value={aparenciaChat.corBolhaUsuario}
+                onChange={(v) => patchAparenciaChat({ corBolhaUsuario: v })}
               />
               <SmartColor
-                label="Cor das bolhas do assistente"
-                codeValue={fromCod.aparenciaChat?.corBolhasAssistente}
-                value={aparenciaChat.corBolhasAssistente}
-                onChange={(v) => patchAparenciaChat({ corBolhasAssistente: v })}
+                label="Texto do usuário"
+                codeValue={fromCod.aparenciaChat?.corTextoBolhaUsuario}
+                value={aparenciaChat.corTextoBolhaUsuario}
+                onChange={(v) => patchAparenciaChat({ corTextoBolhaUsuario: v })}
               />
+              <SmartColor
+                label="Balão do agente"
+                codeValue={fromCod.aparenciaChat?.corBolhaAssistente}
+                value={aparenciaChat.corBolhaAssistente}
+                onChange={(v) => patchAparenciaChat({ corBolhaAssistente: v })}
+              />
+              <SmartColor
+                label="Texto do agente"
+                codeValue={fromCod.aparenciaChat?.corTextoBolha}
+                value={aparenciaChat.corTextoBolha}
+                onChange={(v) => patchAparenciaChat({ corTextoBolha: v })}
+              />
+              <SmartColor
+                label="Fundo do input"
+                codeValue={fromCod.aparenciaChat?.corFundoInput}
+                value={aparenciaChat.corFundoInput}
+                onChange={(v) => patchAparenciaChat({ corFundoInput: v })}
+              />
+              <SmartColor
+                label="Botão Enviar"
+                codeValue={fromCod.aparenciaChat?.corBotaoEnviar}
+                value={aparenciaChat.corBotaoEnviar}
+                onChange={(v) => patchAparenciaChat({ corBotaoEnviar: v })}
+              />
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[12px] font-medium text-foreground/80">Exibir avatares</span>
+                <Toggle
+                  checked={aparenciaChat.exibirAvatares}
+                  onChange={(v) => patchAparenciaChat({ exibirAvatares: v })}
+                />
+              </div>
+              <SmartField label="URL Avatar Usuário" codeValue={fromCod.aparenciaChat?.avatarUsuarioUrl}>
+                <TextInput
+                  value={aparenciaChat.avatarUsuarioUrl}
+                  onChange={(v) => patchAparenciaChat({ avatarUsuarioUrl: v })}
+                  placeholder="https://..."
+                />
+              </SmartField>
+              <SmartField label="URL Avatar Agente" codeValue={fromCod.aparenciaChat?.avatarAgenteUrl}>
+                <TextInput
+                  value={aparenciaChat.avatarAgenteUrl}
+                  onChange={(v) => patchAparenciaChat({ avatarAgenteUrl: v })}
+                  placeholder="https://..."
+                />
+              </SmartField>
             </AccordionContent>
           </>}
 
