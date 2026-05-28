@@ -1,4 +1,4 @@
-import { Activity, AlertCircle, AlertTriangle, Eye, Zap } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Clock, Hash, MousePointerClick } from 'lucide-react';
 import type { PythonEditorTheme } from '@/lib/storage';
 
 interface Props {
@@ -15,11 +15,17 @@ interface Props {
 }
 
 function VDivider() {
-  return <span className="mx-1.5 h-3 w-px bg-border" />;
+  return (
+    <span
+      aria-hidden
+      className="mx-3 hidden h-3 w-px shrink-0 rounded-full bg-border opacity-50 md:inline-block"
+    />
+  );
 }
 
 const THEME_LABELS: Record<string, string> = {
-  default: 'Padrão',
+  default: 'Python',
+  soft: 'Soft',
   dracula: 'Dracula',
   nord: 'Nord',
   monokai: 'Monokai',
@@ -40,67 +46,67 @@ export function StatusBar({
   pythonEditorTheme,
 }: Props) {
   return (
-    <div className="flex h-6 shrink-0 items-center justify-between border-t border-border bg-surface px-3 text-[11px] text-muted-foreground">
+    <div className="flex h-9 shrink-0 items-center justify-between border-t border-border bg-surface-elevated px-8 text-[11px] text-muted-foreground">
       {/* Left */}
       <div className="flex items-center">
         <span className="tabular-nums">
           Ln {line}, Col {col}
         </span>
         <VDivider />
-        <span className="tabular-nums">
-          {lineCount} {lineCount === 1 ? 'linha' : 'linhas'}
+        <span className="hidden items-center gap-1 sm:flex">
+          <Hash className="h-3 w-3" />
+          <span className="tabular-nums">{lineCount}</span> linha{lineCount === 1 ? '' : 's'}
         </span>
       </div>
 
       {/* Right */}
       <div className="flex items-center">
         {liveRender && (
-          <>
-            <span className="flex items-center gap-1">
-              <span className="pulse-dot" />
-              Ao Vivo
+          <span className="hidden items-center gap-1.5 text-[hsl(var(--success))] sm:inline-flex">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inset-0 rounded-full bg-[hsl(var(--success))] pulse-dot" />
             </span>
-            <VDivider />
-          </>
+            Ao Vivo
+          </span>
         )}
         {visualEditsEnabled && (
           <>
-            <span className="flex items-center gap-1 text-primary">
-              <Eye className="h-3 w-3" />
+            <VDivider />
+            <span className="hidden items-center gap-1 text-primary md:inline-flex">
+              <MousePointerClick className="h-3 w-3" />
               Visual Edits
             </span>
-            <VDivider />
           </>
         )}
         {errorCount > 0 && (
           <>
-            <span className="flex items-center gap-1 text-destructive">
-              <AlertCircle className="h-3 w-3" />
-              {errorCount} {errorCount === 1 ? 'erro' : 'erros'}
-            </span>
             <VDivider />
+            <span className="flex items-center gap-1 rounded bg-destructive/15 px-1.5 py-0.5 text-destructive">
+              <AlertCircle className="h-3 w-3" />
+              <span className="tabular-nums">{errorCount}</span> erro{errorCount === 1 ? '' : 's'}
+            </span>
           </>
         )}
         {warningCount > 0 && (
           <>
-            <span className="flex items-center gap-1 text-warning">
-              <AlertTriangle className="h-3 w-3" />
-              {warningCount} {warningCount === 1 ? 'aviso' : 'avisos'}
-            </span>
             <VDivider />
+            <span className="flex items-center gap-1 rounded bg-[hsl(var(--warning)/0.15)] px-1.5 py-0.5 text-[hsl(var(--warning))]">
+              <AlertTriangle className="h-3 w-3" />
+              <span className="tabular-nums">{warningCount}</span> aviso{warningCount === 1 ? '' : 's'}
+            </span>
           </>
         )}
         {lastRenderMs !== null && (
           <>
-            <span className="flex items-center gap-1 sm:flex hidden">
-              <Activity className="h-3 w-3" />
-              {lastRenderMs}ms
-            </span>
             <VDivider />
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span className="tabular-nums">{lastRenderMs}</span>ms
+            </span>
           </>
         )}
-        <span className="md:flex hidden items-center gap-1">
-          <Zap className="h-3 w-3" />
+        <VDivider />
+        <span className="hidden md:inline">
           {THEME_LABELS[pythonEditorTheme] ?? pythonEditorTheme} · {theme === 'dark' ? 'Escuro' : 'Claro'}
         </span>
       </div>

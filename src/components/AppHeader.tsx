@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { BookOpen, ChevronDown, Radio, Trash2, Zap } from 'lucide-react';
+import { ChevronDown, FileText, HelpCircle, Trash2, ZapOff, Radio } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dropdown';
 import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/cn';
 import type { Snippet } from '@/lib/storage';
 
 interface Props {
@@ -54,63 +54,74 @@ export function AppHeader({
 
   return (
     <TooltipProvider delayDuration={500}>
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-surface px-4 gap-3">
+      <header className="relative flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface-elevated px-8 shadow-card">
         {/* Brand */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-primary to-primary/70 text-white text-sm font-bold shadow-sm">
+        <div className="flex shrink-0 items-center gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-card text-xl">
             🐍
           </div>
-          <div className="leading-none">
-            <p className="text-sm font-semibold tracking-tight">Python Render</p>
-            <p className="text-[10px] text-muted-foreground">Python para HTML</p>
+          <div className="hidden flex-col leading-tight md:flex">
+            <span className="text-[15px] font-semibold tracking-tight">Python Render</span>
+            <span className="text-[12px] text-muted-foreground">Python para HTML</span>
           </div>
         </div>
 
         {/* Center */}
-        <div className="flex items-center gap-2">
-          {/* Live toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={onToggleLive}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                  liveRender
-                    ? 'bg-success/15 text-success ring-1 ring-success/40'
-                    : 'bg-muted text-muted-foreground hover:bg-accent'
-                }`}
-              >
-                {liveRender ? (
-                  <>
-                    <Radio className="h-3 w-3" />
-                    Ao Vivo
-                  </>
-                ) : (
-                  <>
-                    <Zap className="h-3 w-3" />
-                    Manual
-                  </>
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {liveRender ? 'Modo Ao Vivo — renderiza automaticamente' : 'Modo Manual — pressione Ctrl+Enter'}
-            </TooltipContent>
-          </Tooltip>
-
-          {/* Snippets / Rascunhos */}
+        <div className="flex flex-1 items-center justify-center gap-2">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs">
-                Rascunhos
-                {snippets.length > 0 && (
-                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/15 text-primary text-[10px] font-semibold px-1">
-                    {snippets.length}
-                  </span>
-                )}
-                <ChevronDown className="h-3 w-3 opacity-60" />
-              </Button>
-            </DropdownMenuTrigger>
+            <div className="inline-flex items-center gap-0.5 rounded-full border border-border bg-background/60 p-0.5 shadow-card">
+              {/* Live toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => { if (!liveRender && canRender) onRender(); onToggleLive(); }}
+                    aria-pressed={liveRender}
+                    className={cn(
+                      'inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors',
+                      liveRender
+                        ? 'bg-success/15 text-[hsl(var(--success))]'
+                        : 'bg-muted/30 text-muted-foreground',
+                    )}
+                  >
+                    {liveRender ? (
+                      <>
+                        <span className="relative flex h-2 w-2 shrink-0">
+                          <span className="absolute inset-0 rounded-full bg-[hsl(var(--success))] pulse-dot" />
+                        </span>
+                        <span className="hidden sm:inline">Ao Vivo</span>
+                      </>
+                    ) : (
+                      <>
+                        <ZapOff className="h-3 w-3" />
+                        <span className="hidden sm:inline">Manual</span>
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {liveRender ? 'Modo Ao Vivo — renderiza automaticamente' : 'Modo Manual — pressione Ctrl+Enter'}
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Snippets / Rascunhos */}
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-muted-foreground dark:text-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <FileText className="h-3 w-3" />
+                  <span>Rascunhos</span>
+                  {snippets.length > 0 && (
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/15 text-primary text-[10px] font-semibold px-1">
+                      {snippets.length}
+                    </span>
+                  )}
+                  <ChevronDown className="h-3 w-3 opacity-60" />
+                </button>
+              </DropdownMenuTrigger>
+            </div>
+
             <DropdownMenuContent align="center" className="w-72">
               {snippets.length > 1 && (
                 <>
@@ -166,16 +177,22 @@ export function AppHeader({
         </div>
 
         {/* Right */}
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1.5">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onHelp} aria-label="Ajuda">
-                <BookOpen className="h-4 w-4" />
-              </Button>
+              <button
+                onClick={onHelp}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                aria-label="Ajuda"
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+              </button>
             </TooltipTrigger>
             <TooltipContent>Ajuda</TooltipContent>
           </Tooltip>
-          <AnimatedThemeToggler isDark={theme === 'dark'} onToggle={onToggleTheme} />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent">
+            <AnimatedThemeToggler isDark={theme === 'dark'} onToggle={onToggleTheme} />
+          </div>
         </div>
       </header>
     </TooltipProvider>
