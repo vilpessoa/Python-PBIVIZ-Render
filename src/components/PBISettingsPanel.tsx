@@ -2,12 +2,10 @@ import { useState } from 'react';
 import {
   ChevronDown,
   ChevronRight,
-  X,
   Eye,
   EyeOff,
   RotateCcw,
   Search,
-  MoreHorizontal,
   ChevronsRight,
 } from 'lucide-react';
 import type { PBISettings } from '@/lib/storage';
@@ -158,13 +156,13 @@ function Toggle({
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`relative h-4 w-8 shrink-0 rounded-full transition-colors ${
-        checked ? 'bg-primary' : 'bg-muted'
+      className={`relative h-[18px] w-9 shrink-0 rounded-full border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+        checked ? 'border-primary bg-primary' : 'border-border bg-muted/60'
       }`}
     >
       <span
-        className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
-          checked ? 'translate-x-4' : 'translate-x-0.5'
+        className={`absolute top-[2px] h-[12px] w-[12px] rounded-full bg-white shadow-sm transition-transform duration-200 ${
+          checked ? 'translate-x-[18px]' : 'translate-x-[2px]'
         }`}
       />
     </button>
@@ -222,9 +220,9 @@ function ColorField({
           onChange={(e) => onChange(e.target.value)}
           className="sr-only"
         />
-        <div className="h-6 w-8" style={{ backgroundColor: value }} />
-        <div className="flex h-6 w-5 items-center justify-center border-l border-border">
-          <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
+        <div className="h-5 w-6" style={{ backgroundColor: value }} />
+        <div className="flex h-5 w-4 items-center justify-center border-l border-border">
+          <ChevronDown className="h-2 w-2 text-muted-foreground" />
         </div>
       </label>
     </div>
@@ -235,10 +233,7 @@ function Divider() {
   return <div className="mx-3 border-t border-border/60" />;
 }
 
-type Tab = 'visual' | 'propriedades';
-
 export function PBISettingsPanel({ settings, onChange, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('visual');
   const [searchQuery, setSearchQuery] = useState('');
   const [tamanhoOpen, setTamanhoOpen] = useState(false);
   const [tituloOpen, setTituloOpen] = useState(false);
@@ -319,35 +314,9 @@ export function PBISettingsPanel({ settings, onChange, onClose }: Props) {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex shrink-0 border-b border-border">
-        {(['visual', 'propriedades'] as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-1.5 text-[11px] font-medium capitalize transition-colors border-b-2 -mb-px ${
-              activeTab === tab
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {tab === 'visual' ? 'Visual' : 'Propriedades'}
-          </button>
-        ))}
-        <button
-          type="button"
-          className="px-2 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
-          title="Mais opções"
-        >
-          <MoreHorizontal className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'visual' ? (
-          <>
+        <>
             {/* ── Tamanho e estilo ── */}
             {show('Tamanho e estilo') && (
               <SectionHeader
@@ -551,12 +520,7 @@ export function PBISettingsPanel({ settings, onChange, onClose }: Props) {
                 </Field>
               </div>
             )}
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground/60">
-            <span className="text-xs">Nenhuma propriedade disponível.</span>
-          </div>
-        )}
+        </>
       </div>
 
       {/* Footer hint */}
