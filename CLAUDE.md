@@ -2,6 +2,64 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚡ Quick Start (Solo Workflow — GitHub + Vercel Auto-Deploy)
+
+**Setup:** Claude Code Web → GitHub repo → Vercel (no PRs, direct commits to main)
+
+### Session Flow
+```bash
+# Start
+cd ~/Python-PBIVIZ-Render
+git pull origin main
+
+# Edit code (use Claude Code UI normally)
+
+# Test locally
+npm install      (if added deps)
+npm run dev      # http://localhost:5173
+npm run lint     # syntax check
+
+# Commit & Push (auto-triggers Vercel deploy)
+git add .
+git commit -m "type: description (feat/fix/refactor/docs/style)"
+git push origin main
+
+# Deploy (2-5 min) — check https://vercel.com/vilpessoa/python-pbiviz-render
+```
+
+### Commit Message Examples
+- `feat: add Visual Edits debugging context menu`
+- `fix: Python parser handling for augmented assignment (+=)`
+- `refactor: split pythonParser into evaluator + htmlProcessor`
+- `docs: update CLAUDE.md with workflow`
+- `style: improve dark mode color contrast on error panel`
+
+### Pre-Push Checklist
+- ✓ `npm run lint` passes
+- ✓ `npm run build` succeeds
+- ✓ Tested in browser (localhost:5173) — works?
+- ✓ Commit message is clear
+- ✓ Ready to go live? (no revert without git revert + new commit)
+
+### Quick Revert (if mistake)
+```bash
+git revert HEAD          # Creates undo commit
+git push origin main     # Deploys previous version
+```
+
+### Useful Git Commands
+```bash
+git log --oneline -5           # Last 5 commits
+git diff HEAD                  # Unstaged changes
+git status                     # Current state
+git stash / git stash pop      # Temp save/restore
+```
+
+### Deploy URL
+**Live:** https://python-pbiviz-render.vercel.app
+
+---
+
 ## Project Overview
 
 **Python HTML Render** is a web editor for pragmatic Python code that generates HTML in real-time. It's a functional clone of DAX-HTML-Render but replaces the DAX parser with a custom Python evaluator. The UI is a split-pane editor (left) with HTML preview (right).
@@ -114,3 +172,16 @@ src/
 - **Pragmatic Python:** Only supports `var = expr`, `var += expr`, and `return expr`. No imports, loops, functions, or f-strings. Uses simple hand-written parser (not full Python AST).
 - **Copy to clipboard:** Use `navigator.clipboard` (fails gracefully with toast).
 - **Timezone:** No timezone handling; all timestamps are local.
+
+---
+
+## Deployment
+
+**Platform:** Vercel (auto-deploy on push to main)  
+**Trigger:** GitHub webhook (push to `main` → Vercel build → live)  
+**Build command:** `npm run build`  
+**Output dir:** `dist/`
+
+Vercel dashboard: https://vercel.com/vilpessoa/python-pbiviz-render
+
+No CI/CD configuration needed — Vercel auto-detects Vite + Node.js project.
