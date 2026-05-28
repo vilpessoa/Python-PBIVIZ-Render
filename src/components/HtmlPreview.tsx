@@ -177,10 +177,15 @@ export function HtmlPreview({
       <div className="flex h-full w-full flex-col bg-background">
         {/* Toolbar */}
         <div className="flex h-10 shrink-0 items-center border-b border-border bg-surface px-3">
-          {/* Left: Preview label */}
+          {/* Left: Preview label + size badge */}
           <div className="flex flex-1 items-center gap-2">
             <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs font-semibold text-foreground">Preview</span>
+            {viewport.preset === 'custom' && (
+              <Badge variant="default" className="ml-1 text-[10px] font-mono">
+                {viewport.width}×{viewport.height}
+              </Badge>
+            )}
           </div>
 
           {/* Right: viewport presets + settings + warnings + visual edits */}
@@ -191,56 +196,42 @@ export function HtmlPreview({
                 const Icon = p.icon;
                 const active = viewport.preset === p.id;
                 return (
-                  <Tooltip key={p.id}>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label={p.label}
-                        onClick={() =>
-                          onViewportChange({
-                            width: p.width,
-                            height: p.height,
-                            preset: p.id,
-                          })
-                        }
-                        className={`flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors ${
-                          active
-                            ? 'bg-primary/15 text-primary border-primary/40'
-                            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                        }`}
-                      >
-                        <Icon className="h-3.5 w-3.5" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>{p.label}</TooltipContent>
-                  </Tooltip>
-                );
-              })}
-              {viewport.preset === 'custom' && (
-                <span className="ml-1 text-[11px] tabular-nums text-muted-foreground">
-                  {viewport.width}×{viewport.height}
-                </span>
-              )}
-            </div>
-
-            {isPbiviz && (
-              <Tooltip>
-                <TooltipTrigger asChild>
                   <button
+                    key={p.id}
                     type="button"
-                    aria-label="Formato Visual"
-                    onClick={() => setShowSettings((v) => !v)}
+                    aria-label={p.label}
+                    onClick={() =>
+                      onViewportChange({
+                        width: p.width,
+                        height: p.height,
+                        preset: p.id,
+                      })
+                    }
                     className={`flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors ${
-                      showSettings
+                      active
                         ? 'bg-primary/15 text-primary border-primary/40'
                         : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                     }`}
                   >
-                    <Paintbrush2 className="h-3.5 w-3.5" />
+                    <Icon className="h-3.5 w-3.5" />
                   </button>
-                </TooltipTrigger>
-                <TooltipContent>Formato Visual</TooltipContent>
-              </Tooltip>
+                );
+              })}
+            </div>
+
+            {isPbiviz && (
+              <button
+                type="button"
+                aria-label="Formato Visual"
+                onClick={() => setShowSettings((v) => !v)}
+                className={`flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors ${
+                  showSettings
+                    ? 'bg-primary/15 text-primary border-primary/40'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                }`}
+              >
+                <Paintbrush2 className="h-3.5 w-3.5" />
+              </button>
             )}
 
             {warnings.length > 0 && !error && (
