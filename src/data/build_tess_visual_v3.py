@@ -1197,7 +1197,7 @@ def build_package_json():
 
 
 def main():
-    output_dir  = os.path.dirname(os.path.abspath(__file__))
+    output_dir  = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else os.getcwd()
     output_path = os.path.join(output_dir, "Power_IA_TESS_v3.pbiviz")
 
     pbiviz_json_content  = build_pbiviz_json()
