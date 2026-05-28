@@ -176,58 +176,58 @@ function buildOneTheme(isDark: boolean) {
   });
 }
 
-function buildGitHubDarkTheme() {
+function buildGitHubTheme(isDark: boolean) {
   return createTheme({
-    theme: 'dark',
+    theme: isDark ? 'dark' : 'light',
     settings: {
-      background: '#0d1117',
-      foreground: '#c9d1d9',
-      caret: '#58a6ff',
-      selection: 'rgba(88, 166, 255, 0.25)',
-      selectionMatch: 'rgba(88, 166, 255, 0.15)',
-      lineHighlight: '#161b22',
-      gutterBackground: '#0d1117',
-      gutterForeground: '#30363d',
+      background: isDark ? '#0d1117' : '#ffffff',
+      foreground: isDark ? '#c9d1d9' : '#24292f',
+      caret: isDark ? '#58a6ff' : '#0969da',
+      selection: isDark ? 'rgba(88, 166, 255, 0.25)' : 'rgba(9, 105, 218, 0.15)',
+      selectionMatch: isDark ? 'rgba(88, 166, 255, 0.15)' : 'rgba(9, 105, 218, 0.10)',
+      lineHighlight: isDark ? '#161b22' : '#f6f8fa',
+      gutterBackground: isDark ? '#0d1117' : '#ffffff',
+      gutterForeground: isDark ? '#30363d' : '#d0d7de',
     },
     styles: [
-      { tag: t.keyword, color: '#ff7b72' },
-      { tag: t.string, color: '#a5d6ff' },
-      { tag: t.comment, color: '#8b949e', fontStyle: 'italic' },
-      { tag: t.number, color: '#79c0ff' },
-      { tag: t.function(t.variableName), color: '#d2a8ff' },
-      { tag: t.variableName, color: '#c9d1d9' },
-      { tag: t.operator, color: '#ff7b72' },
-      { tag: t.bool, color: '#79c0ff' },
-      { tag: t.typeName, color: '#79c0ff' },
-      { tag: t.propertyName, color: '#79c0ff' },
+      { tag: t.keyword, color: isDark ? '#ff7b72' : '#d1242f' },
+      { tag: t.string, color: isDark ? '#a5d6ff' : '#0a3069' },
+      { tag: t.comment, color: isDark ? '#8b949e' : '#57606a', fontStyle: 'italic' },
+      { tag: t.number, color: isDark ? '#79c0ff' : '#0969da' },
+      { tag: t.function(t.variableName), color: isDark ? '#d2a8ff' : '#8250df' },
+      { tag: t.variableName, color: isDark ? '#c9d1d9' : '#24292f' },
+      { tag: t.operator, color: isDark ? '#ff7b72' : '#d1242f' },
+      { tag: t.bool, color: isDark ? '#79c0ff' : '#0969da' },
+      { tag: t.typeName, color: isDark ? '#79c0ff' : '#0969da' },
+      { tag: t.propertyName, color: isDark ? '#79c0ff' : '#0969da' },
     ],
   });
 }
 
-function buildGruvboxDarkTheme() {
+function buildGruvboxTheme(isDark: boolean) {
   return createTheme({
-    theme: 'dark',
+    theme: isDark ? 'dark' : 'light',
     settings: {
-      background: '#282828',
-      foreground: '#ebdbb2',
-      caret: '#83a598',
-      selection: 'rgba(131, 165, 152, 0.25)',
-      selectionMatch: 'rgba(131, 165, 152, 0.15)',
-      lineHighlight: '#32302f',
-      gutterBackground: '#282828',
-      gutterForeground: '#928374',
+      background: isDark ? '#282828' : '#fbf1c7',
+      foreground: isDark ? '#ebdbb2' : '#3c3836',
+      caret: isDark ? '#83a598' : '#8f3f2f',
+      selection: isDark ? 'rgba(131, 165, 152, 0.25)' : 'rgba(143, 63, 47, 0.15)',
+      selectionMatch: isDark ? 'rgba(131, 165, 152, 0.15)' : 'rgba(143, 63, 47, 0.10)',
+      lineHighlight: isDark ? '#32302f' : '#f3f1e8',
+      gutterBackground: isDark ? '#282828' : '#fbf1c7',
+      gutterForeground: isDark ? '#928374' : '#a89984',
     },
     styles: [
-      { tag: t.keyword, color: '#fb4934' },
-      { tag: t.string, color: '#b8bb26' },
-      { tag: t.comment, color: '#928374', fontStyle: 'italic' },
-      { tag: t.number, color: '#d3869b' },
-      { tag: t.function(t.variableName), color: '#83a598' },
-      { tag: t.variableName, color: '#ebdbb2' },
-      { tag: t.operator, color: '#fb4934' },
-      { tag: t.bool, color: '#d3869b' },
-      { tag: t.typeName, color: '#fabd2f' },
-      { tag: t.propertyName, color: '#8ec07c' },
+      { tag: t.keyword, color: isDark ? '#fb4934' : '#9d0006' },
+      { tag: t.string, color: isDark ? '#b8bb26' : '#79740e' },
+      { tag: t.comment, color: isDark ? '#928374' : '#a89984', fontStyle: 'italic' },
+      { tag: t.number, color: isDark ? '#d3869b' : '#b57614' },
+      { tag: t.function(t.variableName), color: isDark ? '#83a598' : '#076678' },
+      { tag: t.variableName, color: isDark ? '#ebdbb2' : '#3c3836' },
+      { tag: t.operator, color: isDark ? '#fb4934' : '#9d0006' },
+      { tag: t.bool, color: isDark ? '#d3869b' : '#b57614' },
+      { tag: t.typeName, color: isDark ? '#fabd2f' : '#b57614' },
+      { tag: t.propertyName, color: isDark ? '#8ec07c' : '#427b58' },
     ],
   });
 }
@@ -365,20 +365,19 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
     }, []);
 
     // Resolve active theme
+    const isDark = theme === 'dark';
     let resolvedTheme: unknown;
     if (pythonEditorTheme === 'dracula') resolvedTheme = dracula;
     else if (pythonEditorTheme === 'nord') resolvedTheme = nord;
     else if (pythonEditorTheme === 'monokai') resolvedTheme = monokai;
     else if (pythonEditorTheme === 'tokyo') resolvedTheme = tokyoNight;
     else if (pythonEditorTheme === 'soft-dark') resolvedTheme = buildSoftTheme(true);
-    else if (pythonEditorTheme === 'soft') resolvedTheme = buildSoftTheme(theme === 'dark');
-    else if (pythonEditorTheme === 'one-dark-pro') resolvedTheme = buildOneTheme(true);
-    else if (pythonEditorTheme === 'one-light') resolvedTheme = buildOneTheme(false);
-    else if (pythonEditorTheme === 'github-dark') resolvedTheme = buildGitHubDarkTheme();
-    else if (pythonEditorTheme === 'gruvbox-dark') resolvedTheme = buildGruvboxDarkTheme();
-    else if (pythonEditorTheme === 'ayu-dark') resolvedTheme = buildAyuTheme(true);
-    else if (pythonEditorTheme === 'ayu-light') resolvedTheme = buildAyuTheme(false);
-    else resolvedTheme = buildDefaultTheme(theme === 'dark');
+    else if (pythonEditorTheme === 'soft') resolvedTheme = buildSoftTheme(isDark);
+    else if (pythonEditorTheme === 'one-pro') resolvedTheme = buildOneTheme(isDark);
+    else if (pythonEditorTheme === 'github') resolvedTheme = buildGitHubTheme(isDark);
+    else if (pythonEditorTheme === 'gruvbox') resolvedTheme = buildGruvboxTheme(isDark);
+    else if (pythonEditorTheme === 'ayu') resolvedTheme = buildAyuTheme(isDark);
+    else resolvedTheme = buildDefaultTheme(isDark);
 
     const extensions = [
       python(),

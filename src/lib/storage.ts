@@ -20,12 +20,10 @@ export type PythonEditorTheme =
   | 'nord'
   | 'monokai'
   | 'tokyo'
-  | 'one-dark-pro'
-  | 'one-light'
-  | 'github-dark'
-  | 'gruvbox-dark'
-  | 'ayu-dark'
-  | 'ayu-light';
+  | 'one-pro'
+  | 'github'
+  | 'gruvbox'
+  | 'ayu';
 
 export interface PBIConexao {
   provedor: string;

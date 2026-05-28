@@ -69,7 +69,7 @@ export function HelpDialog({ open, onOpenChange }: Props) {
             <ul className="space-y-2 text-xs text-muted-foreground">
               <li>
                 <strong className="text-foreground">Temas do editor:</strong>{' '}
-                13 opções — Python, Soft, Soft Dark, One Dark Pro, One Light, Dracula, Nord, Monokai, Tokyo, GitHub Dark, Gruvbox Dark, Ayu Dark, Ayu Light
+                11 opções — Python, Soft, Soft Dark, One Pro, Dracula, Nord, Monokai, Tokyo, GitHub, Gruvbox, Ayu (todos com light/dark automático)
               </li>
               <li>
                 <strong className="text-foreground">Viewport:</strong>{' '}
