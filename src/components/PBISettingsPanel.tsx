@@ -6,7 +6,6 @@ import {
   EyeOff,
   RotateCcw,
   Search,
-  MoreHorizontal,
   ChevronsRight,
   Code2,
   Plus,
@@ -21,6 +20,7 @@ interface Props {
   settings: PBISettings;
   onChange: (s: PBISettings) => void;
   onClose: () => void;
+  onReset?: () => void;
   extractedFromCode?: ExtractedPbivizConfig;
 }
 
@@ -198,31 +198,10 @@ function PasswordField({ value, onChange, placeholder, disabled }: {
   );
 }
 
-/* ── Color picker ── */
-function ColorField({ value, onChange, label, disabled }: {
-  value: string; onChange: (v: string) => void; label: string; disabled?: boolean;
-}) {
+/* ── Field wrapper ── */
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="truncate text-[12px] font-medium text-foreground/80">{label}</span>
-      <label
-        className={`inline-flex cursor-pointer items-stretch overflow-hidden rounded border border-border bg-background transition-colors hover:border-foreground/40 ${disabled ? 'pointer-events-none opacity-50' : ''}`}
-        style={{ width: 'fit-content' }}
-      >
-        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="sr-only" disabled={disabled} />
-        <div className="h-7 w-7 shrink-0" style={{ backgroundColor: value }} />
-        <div className="flex h-7 w-9 items-center justify-center border-l border-border bg-background">
-          <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
-        </div>
-      </label>
-    </div>
-  );
-}
-
-/* ── Field wrapper ── */
-function Field({ label, children, row }: { label: string; children: React.ReactNode; row?: boolean }) {
-  return (
-    <div className={`flex flex-col gap-1.5 ${row ? 'flex-row items-center justify-between' : ''}`}>
       <span className="text-[12px] font-medium text-foreground/80">{label}</span>
       {children}
     </div>
@@ -317,8 +296,20 @@ function SmartColor({
 /* ════════════════════════════════════════
    ABA DADOS — colunas e medidas mock
    ════════════════════════════════════════ */
-function DadosTab({ settings, onChange }: { settings: PBISettings; onChange: (s: PBISettings) => void }) {
+function DadosTab({
+  settings,
+  onChange,
+  extractedFromCode,
+}: {
+  settings: PBISettings;
+  onChange: (s: PBISettings) => void;
+  extractedFromCode?: ExtractedPbivizConfig;
+}) {
   const { colunas, medidas } = settings.dados;
+  const roles = extractedFromCode?.capabilities?.dataRoles ?? [];
+  const groupingRoles = roles.filter((r) => r.kind === 'Grouping' || r.kind === 'GroupingOrMeasure');
+  const measureRoles  = roles.filter((r) => r.kind === 'Measure');
+  const hasRoles = roles.length > 0;
 
   function patchDados(patch: Partial<typeof settings.dados>) {
     onChange({ ...settings, dados: { ...settings.dados, ...patch } });
@@ -365,10 +356,36 @@ function DadosTab({ settings, onChange }: { settings: PBISettings; onChange: (s:
         </span>
       </div>
 
+      {/* Papéis do código (CAPABILITIES.dataRoles) */}
+      {hasRoles && (
+        <div className="border-b border-border bg-primary/5 px-4 py-2.5">
+          <div className="mb-2 flex items-center gap-1.5">
+            <Code2 className="h-3 w-3 text-primary" />
+            <span className="text-[11px] font-semibold text-primary">Papéis definidos no código</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {groupingRoles.map((r) => (
+              <span key={r.name} className="rounded border border-border bg-background px-2 py-0.5 text-[10px] text-foreground/70">
+                {r.displayName} <span className="text-muted-foreground/50">(agrupamento)</span>
+              </span>
+            ))}
+            {measureRoles.map((r) => (
+              <span key={r.name} className="rounded border border-border bg-background px-2 py-0.5 text-[10px] text-foreground/70">
+                {r.displayName} <span className="text-muted-foreground/50">(medida)</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Colunas */}
       <div className="border-b border-border">
         <div className="flex items-center justify-between px-4 py-2.5">
-          <span className="text-[13px] font-medium text-foreground">Colunas</span>
+          <span className="text-[13px] font-medium text-foreground">
+            {hasRoles && groupingRoles.length > 0
+              ? groupingRoles.map((r) => r.displayName).join(' / ')
+              : 'Colunas'}
+          </span>
           <button
             type="button"
             onClick={addColuna}
@@ -427,7 +444,11 @@ function DadosTab({ settings, onChange }: { settings: PBISettings; onChange: (s:
       {/* Medidas */}
       <div>
         <div className="flex items-center justify-between px-4 py-2.5">
-          <span className="text-[13px] font-medium text-foreground">Medidas</span>
+          <span className="text-[13px] font-medium text-foreground">
+            {hasRoles && measureRoles.length > 0
+              ? measureRoles.map((r) => r.displayName).join(' / ')
+              : 'Medidas'}
+          </span>
           <button
             type="button"
             onClick={addMedida}
@@ -489,13 +510,13 @@ function DadosTab({ settings, onChange }: { settings: PBISettings; onChange: (s:
 /* ══════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
    ══════════════════════════════════════════════════════════ */
-export function PBISettingsPanel({ settings, onChange, onClose, extractedFromCode }: Props) {
-  const [activeTab, setActiveTab] = useState<'formato' | 'dados'>('formato');
+export function PBISettingsPanel({ settings, onChange, onClose, onReset, extractedFromCode }: Props) {
+  const [activeTab, setActiveTab] = useState<'visual' | 'dados'>('visual');
   const [searchQuery, setSearchQuery] = useState('');
   const [tamanhoOpen, setTamanhoOpen] = useState(false);
   const [tituloOpen, setTituloOpen] = useState(false);
   const [conexaoOpen, setConexaoOpen] = useState(false);
-  const [aparenciaChatOpen, setAparenciaChatOpen] = useState(true);
+  const [aparenciaChatOpen, setAparenciaChatOpen] = useState(false);
   const [aparenciaTipografiaOpen, setAparenciaTipografiaOpen] = useState(false);
   const [aparenciaLayoutOpen, setAparenciaLayoutOpen] = useState(false);
 
@@ -512,7 +533,6 @@ export function PBISettingsPanel({ settings, onChange, onClose, extractedFromCod
   const { conexao, layout, aparenciaChat } = settings;
   const fromCod = extractedFromCode ?? {};
 
-  // Conta quantos campos estão sendo lidos do código Python
   const fromCodeCount = [
     fromCod.conexao?.apiKey, fromCod.conexao?.provedor, fromCod.conexao?.agentId,
     fromCod.conexao?.modelo, fromCod.conexao?.systemPrompt,
@@ -531,6 +551,14 @@ export function PBISettingsPanel({ settings, onChange, onClose, extractedFromCod
     : allSections;
   const show = (name: string) => filtered.includes(name);
 
+  function handleReset() {
+    if (onReset) {
+      onReset();
+    } else {
+      onChange(DEFAULT_PBI_SETTINGS);
+    }
+  }
+
   return (
     <div className="flex h-full w-[280px] shrink-0 flex-col bg-muted/30 shadow-lg">
 
@@ -548,18 +576,11 @@ export function PBISettingsPanel({ settings, onChange, onClose, extractedFromCod
         <div className="flex items-center gap-0.5">
           <button
             type="button"
-            onClick={() => onChange(DEFAULT_PBI_SETTINGS)}
+            onClick={handleReset}
             title="Restaurar padrões"
             className="flex h-8 w-8 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <RotateCcw className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            className="flex h-8 w-8 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            title="Mais opções"
-          >
-            <MoreHorizontal className="h-4 w-4" />
           </button>
           <button
             type="button"
@@ -576,14 +597,14 @@ export function PBISettingsPanel({ settings, onChange, onClose, extractedFromCod
       <div className="flex shrink-0 border-b border-border bg-background">
         <button
           type="button"
-          onClick={() => setActiveTab('formato')}
+          onClick={() => setActiveTab('visual')}
           className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-[12px] font-medium transition-colors ${
-            activeTab === 'formato'
+            activeTab === 'visual'
               ? 'border-b-2 border-primary text-primary'
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Formato
+          Visual
         </button>
         <button
           type="button"
@@ -602,205 +623,207 @@ export function PBISettingsPanel({ settings, onChange, onClose, extractedFromCod
       {/* ── Aba Dados ── */}
       {activeTab === 'dados' && (
         <div className="flex-1 overflow-hidden">
-          <DadosTab settings={settings} onChange={onChange} />
+          <DadosTab settings={settings} onChange={onChange} extractedFromCode={extractedFromCode} />
         </div>
       )}
 
-      {/* ── Aba Formato ── */}
-      {activeTab === 'formato' && <>
+      {/* ── Aba Visual ── */}
+      {activeTab === 'visual' && (
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
 
-        {/* Search */}
-        <div className="shrink-0 border-b border-border bg-background px-4 py-2.5">
-          <div className="flex items-center gap-2 rounded border border-border bg-muted/30 px-2.5 py-1.5 focus-within:border-primary/50 focus-within:bg-background transition-colors">
-            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Pesquisar"
-              className="flex-1 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-            />
+          {/* Search */}
+          <div className="shrink-0 border-b border-border bg-background px-4 py-2.5">
+            <div className="flex items-center gap-2 rounded border border-border bg-muted/30 px-2.5 py-1.5 focus-within:border-primary/50 focus-within:bg-background transition-colors">
+              <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Pesquisar"
+                className="flex-1 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Accordion sections */}
+          <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
+
+            {/* Tamanho e estilo */}
+            {show('Tamanho e estilo') && <>
+              <SectionHeader title="Tamanho e estilo" open={tamanhoOpen} onToggle={() => setTamanhoOpen(v => !v)} />
+              <AccordionContent open={tamanhoOpen}>
+                <Field label="Largura"><TextInput value="" onChange={() => {}} placeholder="Automático" /></Field>
+                <Field label="Altura"><TextInput value="" onChange={() => {}} placeholder="Automático" /></Field>
+              </AccordionContent>
+            </>}
+
+            {/* Título */}
+            {show('Título') && <>
+              <SectionHeader
+                title="Título"
+                open={tituloOpen}
+                onToggle={() => setTituloOpen(v => !v)}
+                toggleNode={<Toggle checked={layout.exibirTitulo} onChange={(v) => patchLayout({ exibirTitulo: v })} />}
+              />
+              <AccordionContent open={tituloOpen}>
+                <SmartField label="Texto do título" codeValue={fromCod.layout?.tituloChat}>
+                  <TextInput
+                    value={layout.tituloChat}
+                    onChange={(v) => patchLayout({ tituloChat: v })}
+                    placeholder="Assistente IA"
+                  />
+                </SmartField>
+              </AccordionContent>
+            </>}
+
+            {/* Conexão */}
+            {show('Conexão') && <>
+              <SectionHeader title="Conexão" open={conexaoOpen} onToggle={() => setConexaoOpen(v => !v)} />
+              <AccordionContent open={conexaoOpen}>
+                <SmartField label="Provedor" codeValue={fromCod.conexao?.provedor}>
+                  <SelectInput value={conexao.provedor} onChange={(v) => patchConexao({ provedor: v })} options={PROVEDORES} />
+                </SmartField>
+                <SmartPassword
+                  label="Chave de API"
+                  codeValue={fromCod.conexao?.apiKey}
+                  value={conexao.apiKey}
+                  onChange={(v) => patchConexao({ apiKey: v })}
+                />
+                <SmartField label="ID do Agente" codeValue={fromCod.conexao?.agentId}>
+                  <TextInput value={conexao.agentId} onChange={(v) => patchConexao({ agentId: v })} placeholder="agent-xxxxxxxx" />
+                </SmartField>
+                <SmartField label="Modelo" codeValue={fromCod.conexao?.modelo}>
+                  <TextInput value={conexao.modelo} onChange={(v) => patchConexao({ modelo: v })} placeholder={conexao.modeloSugerido || 'ex: gpt-4o'} />
+                </SmartField>
+                {fromCod.conexao?.systemPrompt !== undefined ? (
+                  <CodeField label="System Prompt" value={fromCod.conexao.systemPrompt} multiline />
+                ) : (
+                  <Field label="System Prompt">
+                    <TextArea value={conexao.systemPrompt} onChange={(v) => patchConexao({ systemPrompt: v })} placeholder="Instruções para o assistente..." rows={4} />
+                  </Field>
+                )}
+              </AccordionContent>
+            </>}
+
+            {/* Aparência - Chat */}
+            {show('Aparência - Chat') && <>
+              <SectionHeader title="Aparência - Chat" open={aparenciaChatOpen} onToggle={() => setAparenciaChatOpen(v => !v)} />
+              <AccordionContent open={aparenciaChatOpen}>
+                <SmartColor
+                  label="Fundo do topo"
+                  codeValue={fromCod.aparenciaChat?.corFundoHeader}
+                  value={aparenciaChat.corFundoHeader}
+                  onChange={(v) => patchAparenciaChat({ corFundoHeader: v })}
+                />
+                <SmartColor
+                  label="Texto do topo"
+                  codeValue={fromCod.aparenciaChat?.corTextoHeader}
+                  value={aparenciaChat.corTextoHeader}
+                  onChange={(v) => patchAparenciaChat({ corTextoHeader: v })}
+                />
+                <SmartColor
+                  label="Fundo do chat"
+                  codeValue={fromCod.aparenciaChat?.corFundoChat}
+                  value={aparenciaChat.corFundoChat}
+                  onChange={(v) => patchAparenciaChat({ corFundoChat: v })}
+                />
+                <SmartColor
+                  label="Balão do usuário"
+                  codeValue={fromCod.aparenciaChat?.corBolhaUsuario}
+                  value={aparenciaChat.corBolhaUsuario}
+                  onChange={(v) => patchAparenciaChat({ corBolhaUsuario: v })}
+                />
+                <SmartColor
+                  label="Texto do usuário"
+                  codeValue={fromCod.aparenciaChat?.corTextoBolhaUsuario}
+                  value={aparenciaChat.corTextoBolhaUsuario}
+                  onChange={(v) => patchAparenciaChat({ corTextoBolhaUsuario: v })}
+                />
+                <SmartColor
+                  label="Balão do agente"
+                  codeValue={fromCod.aparenciaChat?.corBolhaAssistente}
+                  value={aparenciaChat.corBolhaAssistente}
+                  onChange={(v) => patchAparenciaChat({ corBolhaAssistente: v })}
+                />
+                <SmartColor
+                  label="Texto do agente"
+                  codeValue={fromCod.aparenciaChat?.corTextoBolha}
+                  value={aparenciaChat.corTextoBolha}
+                  onChange={(v) => patchAparenciaChat({ corTextoBolha: v })}
+                />
+                <SmartColor
+                  label="Fundo do input"
+                  codeValue={fromCod.aparenciaChat?.corFundoInput}
+                  value={aparenciaChat.corFundoInput}
+                  onChange={(v) => patchAparenciaChat({ corFundoInput: v })}
+                />
+                <SmartColor
+                  label="Botão Enviar"
+                  codeValue={fromCod.aparenciaChat?.corBotaoEnviar}
+                  value={aparenciaChat.corBotaoEnviar}
+                  onChange={(v) => patchAparenciaChat({ corBotaoEnviar: v })}
+                />
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[12px] font-medium text-foreground/80">Exibir avatares</span>
+                  <Toggle
+                    checked={aparenciaChat.exibirAvatares}
+                    onChange={(v) => patchAparenciaChat({ exibirAvatares: v })}
+                  />
+                </div>
+                <SmartField label="URL Avatar Usuário" codeValue={fromCod.aparenciaChat?.avatarUsuarioUrl}>
+                  <TextInput
+                    value={aparenciaChat.avatarUsuarioUrl}
+                    onChange={(v) => patchAparenciaChat({ avatarUsuarioUrl: v })}
+                    placeholder="https://..."
+                  />
+                </SmartField>
+                <SmartField label="URL Avatar Agente" codeValue={fromCod.aparenciaChat?.avatarAgenteUrl}>
+                  <TextInput
+                    value={aparenciaChat.avatarAgenteUrl}
+                    onChange={(v) => patchAparenciaChat({ avatarAgenteUrl: v })}
+                    placeholder="https://..."
+                  />
+                </SmartField>
+              </AccordionContent>
+            </>}
+
+            {/* Aparência - Tipografia */}
+            {show('Aparência - Tipografia') && <>
+              <SectionHeader title="Aparência - Tipografia" open={aparenciaTipografiaOpen} onToggle={() => setAparenciaTipografiaOpen(v => !v)} />
+              <AccordionContent open={aparenciaTipografiaOpen}>
+                <Field label="Família de fonte">
+                  <SelectInput value="default" onChange={() => {}} options={[
+                    { value: 'default', label: 'Padrão' },
+                    { value: 'sans', label: 'Sans-serif' },
+                    { value: 'mono', label: 'Monospace' },
+                  ]} />
+                </Field>
+                <Field label="Tamanho da fonte">
+                  <TextInput value="12" onChange={() => {}} placeholder="12" />
+                </Field>
+              </AccordionContent>
+            </>}
+
+            {/* Aparência - Layout */}
+            {show('Aparência - Layout') && <>
+              <SectionHeader title="Aparência - Layout" open={aparenciaLayoutOpen} onToggle={() => setAparenciaLayoutOpen(v => !v)} />
+              <AccordionContent open={aparenciaLayoutOpen}>
+                <SmartField label="Placeholder do input" codeValue={fromCod.layout?.placeholderInput}>
+                  <TextInput value={layout.placeholderInput} onChange={(v) => patchLayout({ placeholderInput: v })} placeholder="Pergunte sobre os dados..." />
+                </SmartField>
+                <SmartField label="Texto do botão enviar" codeValue={fromCod.layout?.textoBotaoEnviar}>
+                  <TextInput value={layout.textoBotaoEnviar} onChange={(v) => patchLayout({ textoBotaoEnviar: v })} placeholder="Enviar" />
+                </SmartField>
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-medium text-foreground/80">Debug: exibir contexto</span>
+                  <Toggle checked={layout.debugExibirContexto} onChange={(v) => patchLayout({ debugExibirContexto: v })} />
+                </div>
+              </AccordionContent>
+            </>}
+
           </div>
         </div>
-
-        {/* Accordion sections */}
-        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
-
-          {/* Tamanho e estilo */}
-          {show('Tamanho e estilo') && <>
-            <SectionHeader title="Tamanho e estilo" open={tamanhoOpen} onToggle={() => setTamanhoOpen(v => !v)} />
-            <AccordionContent open={tamanhoOpen}>
-              <Field label="Largura"><TextInput value="" onChange={() => {}} placeholder="Automático" /></Field>
-              <Field label="Altura"><TextInput value="" onChange={() => {}} placeholder="Automático" /></Field>
-            </AccordionContent>
-          </>}
-
-          {/* Título */}
-          {show('Título') && <>
-            <SectionHeader
-              title="Título"
-              open={tituloOpen}
-              onToggle={() => setTituloOpen(v => !v)}
-              toggleNode={<Toggle checked={layout.exibirTitulo} onChange={(v) => patchLayout({ exibirTitulo: v })} />}
-            />
-            <AccordionContent open={tituloOpen}>
-              <SmartField label="Texto do título" codeValue={fromCod.layout?.tituloChat}>
-                <TextInput
-                  value={layout.tituloChat}
-                  onChange={(v) => patchLayout({ tituloChat: v })}
-                  placeholder="Assistente IA"
-                />
-              </SmartField>
-            </AccordionContent>
-          </>}
-
-          {/* Conexão */}
-          {show('Conexão') && <>
-            <SectionHeader title="Conexão" open={conexaoOpen} onToggle={() => setConexaoOpen(v => !v)} />
-            <AccordionContent open={conexaoOpen}>
-              <SmartField label="Provedor" codeValue={fromCod.conexao?.provedor}>
-                <SelectInput value={conexao.provedor} onChange={(v) => patchConexao({ provedor: v })} options={PROVEDORES} />
-              </SmartField>
-              <SmartPassword
-                label="Chave de API"
-                codeValue={fromCod.conexao?.apiKey}
-                value={conexao.apiKey}
-                onChange={(v) => patchConexao({ apiKey: v })}
-              />
-              <SmartField label="ID do Agente" codeValue={fromCod.conexao?.agentId}>
-                <TextInput value={conexao.agentId} onChange={(v) => patchConexao({ agentId: v })} placeholder="agent-xxxxxxxx" />
-              </SmartField>
-              <SmartField label="Modelo" codeValue={fromCod.conexao?.modelo}>
-                <TextInput value={conexao.modelo} onChange={(v) => patchConexao({ modelo: v })} placeholder={conexao.modeloSugerido || 'ex: gpt-4o'} />
-              </SmartField>
-              {fromCod.conexao?.systemPrompt !== undefined ? (
-                <CodeField label="System Prompt" value={fromCod.conexao.systemPrompt} multiline />
-              ) : (
-                <Field label="System Prompt">
-                  <TextArea value={conexao.systemPrompt} onChange={(v) => patchConexao({ systemPrompt: v })} placeholder="Instruções para o assistente..." rows={4} />
-                </Field>
-              )}
-            </AccordionContent>
-          </>}
-
-          {/* Aparência - Chat */}
-          {show('Aparência - Chat') && <>
-            <SectionHeader title="Aparência - Chat" open={aparenciaChatOpen} onToggle={() => setAparenciaChatOpen(v => !v)} />
-            <AccordionContent open={aparenciaChatOpen}>
-              <SmartColor
-                label="Fundo do topo"
-                codeValue={fromCod.aparenciaChat?.corFundoHeader}
-                value={aparenciaChat.corFundoHeader}
-                onChange={(v) => patchAparenciaChat({ corFundoHeader: v })}
-              />
-              <SmartColor
-                label="Texto do topo"
-                codeValue={fromCod.aparenciaChat?.corTextoHeader}
-                value={aparenciaChat.corTextoHeader}
-                onChange={(v) => patchAparenciaChat({ corTextoHeader: v })}
-              />
-              <SmartColor
-                label="Fundo do chat"
-                codeValue={fromCod.aparenciaChat?.corFundoChat}
-                value={aparenciaChat.corFundoChat}
-                onChange={(v) => patchAparenciaChat({ corFundoChat: v })}
-              />
-              <SmartColor
-                label="Balão do usuário"
-                codeValue={fromCod.aparenciaChat?.corBolhaUsuario}
-                value={aparenciaChat.corBolhaUsuario}
-                onChange={(v) => patchAparenciaChat({ corBolhaUsuario: v })}
-              />
-              <SmartColor
-                label="Texto do usuário"
-                codeValue={fromCod.aparenciaChat?.corTextoBolhaUsuario}
-                value={aparenciaChat.corTextoBolhaUsuario}
-                onChange={(v) => patchAparenciaChat({ corTextoBolhaUsuario: v })}
-              />
-              <SmartColor
-                label="Balão do agente"
-                codeValue={fromCod.aparenciaChat?.corBolhaAssistente}
-                value={aparenciaChat.corBolhaAssistente}
-                onChange={(v) => patchAparenciaChat({ corBolhaAssistente: v })}
-              />
-              <SmartColor
-                label="Texto do agente"
-                codeValue={fromCod.aparenciaChat?.corTextoBolha}
-                value={aparenciaChat.corTextoBolha}
-                onChange={(v) => patchAparenciaChat({ corTextoBolha: v })}
-              />
-              <SmartColor
-                label="Fundo do input"
-                codeValue={fromCod.aparenciaChat?.corFundoInput}
-                value={aparenciaChat.corFundoInput}
-                onChange={(v) => patchAparenciaChat({ corFundoInput: v })}
-              />
-              <SmartColor
-                label="Botão Enviar"
-                codeValue={fromCod.aparenciaChat?.corBotaoEnviar}
-                value={aparenciaChat.corBotaoEnviar}
-                onChange={(v) => patchAparenciaChat({ corBotaoEnviar: v })}
-              />
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-[12px] font-medium text-foreground/80">Exibir avatares</span>
-                <Toggle
-                  checked={aparenciaChat.exibirAvatares}
-                  onChange={(v) => patchAparenciaChat({ exibirAvatares: v })}
-                />
-              </div>
-              <SmartField label="URL Avatar Usuário" codeValue={fromCod.aparenciaChat?.avatarUsuarioUrl}>
-                <TextInput
-                  value={aparenciaChat.avatarUsuarioUrl}
-                  onChange={(v) => patchAparenciaChat({ avatarUsuarioUrl: v })}
-                  placeholder="https://..."
-                />
-              </SmartField>
-              <SmartField label="URL Avatar Agente" codeValue={fromCod.aparenciaChat?.avatarAgenteUrl}>
-                <TextInput
-                  value={aparenciaChat.avatarAgenteUrl}
-                  onChange={(v) => patchAparenciaChat({ avatarAgenteUrl: v })}
-                  placeholder="https://..."
-                />
-              </SmartField>
-            </AccordionContent>
-          </>}
-
-          {/* Aparência - Tipografia */}
-          {show('Aparência - Tipografia') && <>
-            <SectionHeader title="Aparência - Tipografia" open={aparenciaTipografiaOpen} onToggle={() => setAparenciaTipografiaOpen(v => !v)} />
-            <AccordionContent open={aparenciaTipografiaOpen}>
-              <Field label="Família de fonte">
-                <SelectInput value="default" onChange={() => {}} options={[
-                  { value: 'default', label: 'Padrão' },
-                  { value: 'sans', label: 'Sans-serif' },
-                  { value: 'mono', label: 'Monospace' },
-                ]} />
-              </Field>
-              <Field label="Tamanho da fonte">
-                <TextInput value="12" onChange={() => {}} placeholder="12" />
-              </Field>
-            </AccordionContent>
-          </>}
-
-          {/* Aparência - Layout */}
-          {show('Aparência - Layout') && <>
-            <SectionHeader title="Aparência - Layout" open={aparenciaLayoutOpen} onToggle={() => setAparenciaLayoutOpen(v => !v)} />
-            <AccordionContent open={aparenciaLayoutOpen}>
-              <SmartField label="Placeholder do input" codeValue={fromCod.layout?.placeholderInput}>
-                <TextInput value={layout.placeholderInput} onChange={(v) => patchLayout({ placeholderInput: v })} placeholder="Pergunte sobre os dados..." />
-              </SmartField>
-              <SmartField label="Texto do botão enviar" codeValue={fromCod.layout?.textoBotaoEnviar}>
-                <TextInput value={layout.textoBotaoEnviar} onChange={(v) => patchLayout({ textoBotaoEnviar: v })} placeholder="Enviar" />
-              </SmartField>
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-medium text-foreground/80">Debug: exibir contexto</span>
-                <Toggle checked={layout.debugExibirContexto} onChange={(v) => patchLayout({ debugExibirContexto: v })} />
-              </div>
-            </AccordionContent>
-          </>}
-
-        </div>
-      </>}
+      )}
     </div>
   );
 }

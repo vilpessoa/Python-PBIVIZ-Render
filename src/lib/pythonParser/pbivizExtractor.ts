@@ -11,7 +11,7 @@
  *   avatarUsuarioUrl, avatarAgenteUrl, exibirAvatares
  */
 
-import type { ExtractedPbivizConfig } from './types';
+import type { ExtractedPbivizConfig, CapabilitiesData } from './types';
 import type { PBISettings } from '../storage';
 import { DEFAULT_PBI_SETTINGS } from '../storage';
 
@@ -32,6 +32,42 @@ function extractScalarString(code: string, varName: string): string | null {
 
 function esc(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+/**
+ * Extrai CAPABILITIES do código Python usando brace-matching.
+ * Converte sintaxe Python (True/False/None, aspas simples, trailing commas) para JSON.
+ */
+export function extractCapabilities(code: string): CapabilitiesData | null {
+  const match = /\bCAPABILITIES\s*=\s*\{/.exec(code);
+  if (!match) return null;
+
+  const start = match.index + match[0].length - 1;
+  let depth = 0;
+  let end = -1;
+  for (let i = start; i < code.length; i++) {
+    if (code[i] === '{') depth++;
+    else if (code[i] === '}') {
+      depth--;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+  if (end === -1) return null;
+
+  const block = code.slice(start, end + 1);
+
+  const json = block
+    .replace(/'/g, '"')
+    .replace(/\bTrue\b/g, 'true')
+    .replace(/\bFalse\b/g, 'false')
+    .replace(/\bNone\b/g, 'null')
+    .replace(/,(\s*[}\]])/g, '$1');
+
+  try {
+    return JSON.parse(json) as CapabilitiesData;
+  } catch {
+    return null;
+  }
 }
 
 export function isPbivizScript(code: string): boolean {
@@ -121,6 +157,9 @@ export function extractPbivizConfig(code: string): ExtractedPbivizConfig {
     if (avatarUsuarioUrl !== null)     result.aparenciaChat.avatarUsuarioUrl = avatarUsuarioUrl;
     if (avatarAgenteUrl !== null)      result.aparenciaChat.avatarAgenteUrl = avatarAgenteUrl;
   }
+
+  const capabilities = extractCapabilities(code);
+  if (capabilities) result.capabilities = capabilities;
 
   return result;
 }

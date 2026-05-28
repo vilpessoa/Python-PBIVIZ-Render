@@ -16,6 +16,27 @@ export interface ContributorsEntry {
 
 export type ContributorIndex = Record<string, ContributorsEntry>;
 
+export interface DataRole {
+  name: string;
+  kind: 'Grouping' | 'Measure' | 'GroupingOrMeasure' | string;
+  displayName: string;
+}
+
+export interface CapProperty {
+  displayName: string;
+  type: Record<string, unknown>;
+}
+
+export interface CapObject {
+  displayName: string;
+  properties: Record<string, CapProperty>;
+}
+
+export interface CapabilitiesData {
+  dataRoles?: DataRole[];
+  objects?: Record<string, CapObject>;
+}
+
 export interface ExtractedPbivizConfig {
   conexao?: {
     provedor?: string;
@@ -43,6 +64,7 @@ export interface ExtractedPbivizConfig {
     avatarAgenteUrl?: string;
     exibirAvatares?: boolean;
   };
+  capabilities?: CapabilitiesData;
 }
 
 export interface ParseResult {

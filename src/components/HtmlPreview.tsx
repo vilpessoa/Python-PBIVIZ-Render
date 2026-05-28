@@ -40,6 +40,7 @@ interface Props {
   isPbiviz?: boolean;
   pbivizSettings: PBISettings;
   onPbivizSettingsChange: (s: PBISettings) => void;
+  onPbivizSettingsReset?: () => void;
   extractedPbivizConfig?: ExtractedPbivizConfig;
 }
 
@@ -82,6 +83,7 @@ export function HtmlPreview({
   isPbiviz,
   pbivizSettings,
   onPbivizSettingsChange,
+  onPbivizSettingsReset,
   extractedPbivizConfig,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -401,6 +403,7 @@ export function HtmlPreview({
               settings={pbivizSettings}
               onChange={onPbivizSettingsChange}
               onClose={() => setShowSettings(false)}
+              onReset={onPbivizSettingsReset}
               extractedFromCode={extractedPbivizConfig}
             />
           )}
