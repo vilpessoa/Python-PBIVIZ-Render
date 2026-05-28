@@ -12,20 +12,7 @@ export interface ViewportState {
   preset: string;
 }
 
-export type PythonEditorTheme =
-  | 'default'
-  | 'soft'
-  | 'soft-dark'
-  | 'dracula'
-  | 'nord'
-  | 'monokai'
-  | 'tokyo'
-  | 'one-dark-pro'
-  | 'one-light'
-  | 'github-dark'
-  | 'gruvbox-dark'
-  | 'ayu-dark'
-  | 'ayu-light';
+export type PythonEditorTheme = 'default' | 'soft' | 'dracula' | 'nord' | 'monokai' | 'tokyo' | 'soft-dark';
 
 export interface PBIConexao {
   provedor: string;
