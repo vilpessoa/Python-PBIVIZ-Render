@@ -28,6 +28,7 @@ export interface ParseResult {
   rawValue?: string;
   measureName?: string;
   contributors?: ContributorIndex;
+  isPbiviz?: boolean;
 }
 
 export class ParseError extends Error {

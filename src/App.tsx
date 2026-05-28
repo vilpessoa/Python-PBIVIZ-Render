@@ -18,6 +18,8 @@ import {
   type Snippet,
   type ViewportState,
   type PythonEditorTheme,
+  type PBISettings,
+  DEFAULT_PBI_SETTINGS,
 } from '@/lib/storage';
 import { parsePython } from '@/lib/pythonParser';
 import type { ParseResult } from '@/lib/pythonParser/types';
@@ -62,6 +64,9 @@ export default function App() {
   const [fontFamily] = useState<string>(initialState.fontFamily ?? 'space-grotesk');
   const [pythonEditorTheme, setPythonEditorTheme] = useState<PythonEditorTheme>(
     initialState.pythonEditorTheme ?? 'default',
+  );
+  const [pbivizSettings, setPbivizSettings] = useState<PBISettings>(
+    initialState.pbivizSettings ?? DEFAULT_PBI_SETTINGS,
   );
 
   const [cursor, setCursor] = useState<{ offset: number; line: number; col: number }>({
@@ -119,6 +124,7 @@ export default function App() {
       accentColor,
       fontFamily,
       pythonEditorTheme,
+      pbivizSettings,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedCode]);
@@ -137,6 +143,7 @@ export default function App() {
       accentColor,
       fontFamily,
       pythonEditorTheme,
+      pbivizSettings,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -150,10 +157,11 @@ export default function App() {
     accentColor,
     fontFamily,
     pythonEditorTheme,
+    pbivizSettings,
   ]);
 
   const renderCode = useCallback(
-    (source: string, opts: { showToast: boolean }) => {
+    (source: string, opts: { showToast: boolean }, settings?: PBISettings) => {
       const trimmed = source.trim();
       if (!trimmed) {
         setRendered(null);
@@ -161,7 +169,7 @@ export default function App() {
         return;
       }
       const t0 = performance.now();
-      const result = parsePython(source);
+      const result = parsePython(source, settings);
       const t1 = performance.now();
       setLastRenderMs(Math.round(t1 - t0));
       setRendered(result);
@@ -176,15 +184,24 @@ export default function App() {
   );
 
   const doRender = useCallback(() => {
-    renderCode(code, { showToast: true });
-  }, [renderCode, code]);
+    renderCode(code, { showToast: true }, pbivizSettings);
+  }, [renderCode, code, pbivizSettings]);
 
-  // Live auto-render
+  // Live auto-render (code changes)
   const liveDebouncedCode = useDebounce(code, 400);
   useEffect(() => {
     if (!liveRender) return;
-    renderCode(liveDebouncedCode, { showToast: false });
+    renderCode(liveDebouncedCode, { showToast: false }, pbivizSettings);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveDebouncedCode, liveRender, renderCode]);
+
+  // Re-render when pbiviz settings change
+  const debouncedSettings = useDebounce(pbivizSettings, 300);
+  useEffect(() => {
+    if (!rendered?.isPbiviz) return;
+    renderCode(code, { showToast: false }, debouncedSettings);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSettings]);
 
   const doCopy = useCallback(() => {
     if (!code.trim()) {
@@ -397,6 +414,9 @@ export default function App() {
               viewport={viewport}
               onViewportChange={setViewport}
               onLocate={onVisualEditsLocate}
+              isPbiviz={rendered?.isPbiviz}
+              pbivizSettings={pbivizSettings}
+              onPbivizSettingsChange={setPbivizSettings}
             />
           }
         />

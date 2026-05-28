@@ -8,13 +8,15 @@ import {
   Smartphone,
   Tablet,
   Maximize2,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { AnimatedVisualEditsButton } from '@/components/ui/animated-visual-edits-button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { enhancePythonError } from '@/lib/pythonParser/errorEnhancer';
 import { VE_OVERLAY_SCRIPT } from '@/lib/visualEdits';
-import type { ViewportState } from '@/lib/storage';
+import type { ViewportState, PBISettings } from '@/lib/storage';
+import { PBISettingsPanel } from '@/components/PBISettingsPanel';
 
 interface Props {
   html: string;
@@ -34,6 +36,9 @@ interface Props {
   viewport: ViewportState;
   onViewportChange: (v: ViewportState) => void;
   onLocate: (loc: string, screenX: number, screenY: number) => void;
+  isPbiviz?: boolean;
+  pbivizSettings: PBISettings;
+  onPbivizSettingsChange: (s: PBISettings) => void;
 }
 
 const PRESETS: { id: string; label: string; width: number; height: number; icon: React.ElementType }[] = [
@@ -71,13 +76,22 @@ export function HtmlPreview({
   viewport,
   onViewportChange,
   onLocate,
+  isPbiviz,
+  pbivizSettings,
+  onPbivizSettingsChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const [showWarnings, setShowWarnings] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [dragging, setDragging] = useState<'left' | 'right' | 'bottom' | 'corner' | null>(null);
   const dragStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
+
+  // Close settings panel when switching away from pbiviz
+  useEffect(() => {
+    if (!isPbiviz) setShowSettings(false);
+  }, [isPbiviz]);
 
   // Track container size
   useEffect(() => {
@@ -201,8 +215,28 @@ export function HtmlPreview({
             )}
           </div>
 
-          {/* Right: warnings badge + visual edits toggle */}
+          {/* Right: format button (pbiviz only) + warnings badge + visual edits toggle */}
           <div className="flex items-center gap-2">
+            {isPbiviz && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Formato Visual"
+                    onClick={() => setShowSettings((v) => !v)}
+                    className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
+                      showSettings
+                        ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    }`}
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Formato Visual</TooltipContent>
+              </Tooltip>
+            )}
+
             {warnings.length > 0 && (
               <button
                 type="button"
@@ -239,117 +273,129 @@ export function HtmlPreview({
           </div>
         )}
 
-        {/* Preview area */}
-        <div ref={containerRef} className="relative flex flex-1 min-h-0 items-start justify-center overflow-auto bg-preview-bg">
-          {error ? (
-            /* Error state */
-            <div className="m-auto max-w-lg w-full p-6">
-              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
-                  <span className="text-sm font-semibold text-destructive">
-                    {enhanced?.title ?? 'Erro de execução'}
-                  </span>
-                  {errorLine && (
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      Linha {errorLine}{errorCol ? `:${errorCol}` : ''}
+        {/* Main area: preview + optional settings panel */}
+        <div className="flex flex-1 min-h-0">
+          {/* Preview area */}
+          <div ref={containerRef} className="relative flex flex-1 min-h-0 min-w-0 items-start justify-center overflow-auto bg-preview-bg">
+            {error ? (
+              /* Error state */
+              <div className="m-auto max-w-lg w-full p-6">
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
+                    <span className="text-sm font-semibold text-destructive">
+                      {enhanced?.title ?? 'Erro de execução'}
                     </span>
+                    {errorLine && (
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        Linha {errorLine}{errorCol ? `:${errorCol}` : ''}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3 font-mono break-all">
+                    {enhanced?.message ?? error}
+                  </p>
+                  {enhanced?.snippet && (
+                    <pre className="text-xs bg-muted rounded p-2 overflow-x-auto mb-3 font-mono">
+                      {enhanced.snippet}
+                    </pre>
+                  )}
+                  {enhanced?.suggestion && (
+                    <p className="text-xs text-muted-foreground italic">{enhanced.suggestion}</p>
+                  )}
+                  {onJumpToError && (
+                    <button
+                      type="button"
+                      onClick={onJumpToError}
+                      className="mt-3 text-xs text-primary hover:underline"
+                    >
+                      Ir para o erro no editor
+                    </button>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mb-3 font-mono break-all">
-                  {enhanced?.message ?? error}
-                </p>
-                {enhanced?.snippet && (
-                  <pre className="text-xs bg-muted rounded p-2 overflow-x-auto mb-3 font-mono">
-                    {enhanced.snippet}
-                  </pre>
-                )}
-                {enhanced?.suggestion && (
-                  <p className="text-xs text-muted-foreground italic">{enhanced.suggestion}</p>
-                )}
-                {onJumpToError && (
-                  <button
-                    type="button"
-                    onClick={onJumpToError}
-                    className="mt-3 text-xs text-primary hover:underline"
-                  >
-                    Ir para o erro no editor
-                  </button>
-                )}
               </div>
-            </div>
-          ) : isPurePython && rawValue != null ? (
-            /* Pure Python scalar result */
-            <div className="m-auto max-w-sm w-full p-6">
-              <div className="rounded-xl border border-border bg-surface p-5 text-center">
-                <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">
-                  Resultado
+            ) : isPurePython && rawValue != null ? (
+              /* Pure Python scalar result */
+              <div className="m-auto max-w-sm w-full p-6">
+                <div className="rounded-xl border border-border bg-surface p-5 text-center">
+                  <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">
+                    Resultado
+                  </div>
+                  <div className="text-2xl font-bold font-mono break-all">{rawValue}</div>
                 </div>
-                <div className="text-2xl font-bold font-mono break-all">{rawValue}</div>
               </div>
-            </div>
-          ) : !hasRendered ? (
-            /* Empty state */
-            <div className="m-auto flex flex-col items-center gap-3 text-muted-foreground/60 p-6 text-center">
-              <div className="text-4xl">⚡</div>
-              <p className="text-sm">
-                Digite código Python e pressione{' '}
-                <kbd className="kbd">Ctrl+Enter</kbd>, ou ative o{' '}
-                <strong className="text-muted-foreground">Modo Ao Vivo</strong>.
-              </p>
-            </div>
-          ) : (
-            /* Iframe canvas */
-            <div
-              data-ve-anchor="preview-canvas"
-              className="relative shrink-0"
-              style={{
-                width: isFit ? '100%' : canvasW,
-                height: isFit ? '100%' : canvasH * scale,
-              }}
-            >
-              <iframe
-                ref={iframeRef}
-                title="Python HTML Preview"
-                srcDoc={srcDoc}
-                sandbox="allow-scripts allow-same-origin"
+            ) : !hasRendered ? (
+              /* Empty state */
+              <div className="m-auto flex flex-col items-center gap-3 text-muted-foreground/60 p-6 text-center">
+                <div className="text-4xl">⚡</div>
+                <p className="text-sm">
+                  Digite código Python e pressione{' '}
+                  <kbd className="kbd">Ctrl+Enter</kbd>, ou ative o{' '}
+                  <strong className="text-muted-foreground">Modo Ao Vivo</strong>.
+                </p>
+              </div>
+            ) : (
+              /* Iframe canvas */
+              <div
+                data-ve-anchor="preview-canvas"
+                className="relative shrink-0"
                 style={{
-                  width: isFit ? '100%' : viewport.width,
-                  height: isFit ? '100%' : viewport.height,
-                  transform: isFit ? undefined : `scale(${scale})`,
-                  transformOrigin: 'top left',
-                  border: 'none',
-                  display: 'block',
-                  pointerEvents: dragging ? 'none' : undefined,
+                  width: isFit ? '100%' : canvasW,
+                  height: isFit ? '100%' : canvasH * scale,
                 }}
-              />
+              >
+                <iframe
+                  ref={iframeRef}
+                  title="Python HTML Preview"
+                  srcDoc={srcDoc}
+                  sandbox="allow-scripts allow-same-origin"
+                  style={{
+                    width: isFit ? '100%' : viewport.width,
+                    height: isFit ? '100%' : viewport.height,
+                    transform: isFit ? undefined : `scale(${scale})`,
+                    transformOrigin: 'top left',
+                    border: 'none',
+                    display: 'block',
+                    pointerEvents: dragging ? 'none' : undefined,
+                  }}
+                />
 
-              {/* Resize handles (only in non-fit mode) */}
-              {!isFit && (
-                <>
-                  <div
-                    onMouseDown={(e) => startDrag('right', e)}
-                    className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize hover:bg-primary/40 transition-colors"
-                    style={{ transform: 'translateX(100%)' }}
-                  />
-                  <div
-                    onMouseDown={(e) => startDrag('left', e)}
-                    className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize hover:bg-primary/40 transition-colors"
-                    style={{ transform: 'translateX(-100%)' }}
-                  />
-                  <div
-                    onMouseDown={(e) => startDrag('bottom', e)}
-                    className="absolute bottom-0 left-0 w-full h-1.5 cursor-ns-resize hover:bg-primary/40 transition-colors"
-                    style={{ transform: 'translateY(100%)' }}
-                  />
-                  <div
-                    onMouseDown={(e) => startDrag('corner', e)}
-                    className="absolute bottom-0 right-0 w-3 h-3 cursor-nwse-resize hover:bg-primary/40 transition-colors rounded-tl"
-                    style={{ transform: 'translate(100%, 100%)' }}
-                  />
-                </>
-              )}
-            </div>
+                {/* Resize handles (only in non-fit mode) */}
+                {!isFit && (
+                  <>
+                    <div
+                      onMouseDown={(e) => startDrag('right', e)}
+                      className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize hover:bg-primary/40 transition-colors"
+                      style={{ transform: 'translateX(100%)' }}
+                    />
+                    <div
+                      onMouseDown={(e) => startDrag('left', e)}
+                      className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize hover:bg-primary/40 transition-colors"
+                      style={{ transform: 'translateX(-100%)' }}
+                    />
+                    <div
+                      onMouseDown={(e) => startDrag('bottom', e)}
+                      className="absolute bottom-0 left-0 w-full h-1.5 cursor-ns-resize hover:bg-primary/40 transition-colors"
+                      style={{ transform: 'translateY(100%)' }}
+                    />
+                    <div
+                      onMouseDown={(e) => startDrag('corner', e)}
+                      className="absolute bottom-0 right-0 w-3 h-3 cursor-nwse-resize hover:bg-primary/40 transition-colors rounded-tl"
+                      style={{ transform: 'translate(100%, 100%)' }}
+                    />
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* PBI Settings Panel */}
+          {showSettings && isPbiviz && (
+            <PBISettingsPanel
+              settings={pbivizSettings}
+              onChange={onPbivizSettingsChange}
+              onClose={() => setShowSettings(false)}
+            />
           )}
         </div>
       </div>
