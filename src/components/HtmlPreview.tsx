@@ -8,8 +8,7 @@ import {
   Smartphone,
   Tablet,
   Maximize2,
-  SlidersHorizontal,
-  Info,
+  Paintbrush2,
 } from 'lucide-react';
 import { AnimatedVisualEditsButton } from '@/components/ui/animated-visual-edits-button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -184,12 +183,6 @@ export function HtmlPreview({
             <span className="text-xs font-semibold text-foreground">Preview</span>
           </div>
 
-          {/* Center: mock data hint */}
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground/50 select-none">
-            <Info className="h-3 w-3" />
-            <span>dados fictícios</span>
-          </div>
-
           {/* Right: viewport presets + settings + warnings + visual edits */}
           <div className="flex flex-1 items-center justify-end gap-2">
             {/* Viewport presets */}
@@ -243,7 +236,7 @@ export function HtmlPreview({
                         : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                     }`}
                   >
-                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    <Paintbrush2 className="h-3.5 w-3.5" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>Formato Visual</TooltipContent>

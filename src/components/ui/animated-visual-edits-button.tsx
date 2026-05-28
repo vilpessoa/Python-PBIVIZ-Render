@@ -36,7 +36,7 @@ export function AnimatedVisualEditsButton({ enabled, onClick }: AnimatedVisualEd
       >
         <MousePointerClick className="h-3.5 w-3.5" />
       </motion.span>
-      <span className="hidden sm:inline">Visual Edits</span>
+      <span>Visual Edits</span>
     </motion.button>
   );
 }

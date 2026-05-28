@@ -31,9 +31,18 @@ export interface PBILayout {
   debugExibirContexto: boolean;
 }
 
+export interface PBIAparenciaChat {
+  corFundoCabecalho: string;
+  corTextoCabecalho: string;
+  corFundoChat: string;
+  corBolhasUsuario: string;
+  corBolhasAssistente: string;
+}
+
 export interface PBISettings {
   conexao: PBIConexao;
   layout: PBILayout;
+  aparenciaChat: PBIAparenciaChat;
 }
 
 export const DEFAULT_PBI_SETTINGS: PBISettings = {
@@ -51,6 +60,13 @@ export const DEFAULT_PBI_SETTINGS: PBISettings = {
     placeholderInput: 'Pergunte sobre os dados...',
     textoBotaoEnviar: 'Enviar',
     debugExibirContexto: false,
+  },
+  aparenciaChat: {
+    corFundoCabecalho: '#0078d4',
+    corTextoCabecalho: '#ffffff',
+    corFundoChat: '#ffffff',
+    corBolhasUsuario: '#0078d4',
+    corBolhasAssistente: '#f0f0f0',
   },
 };
 
@@ -99,6 +115,7 @@ export function loadState(): AppState {
       pbivizSettings: {
         conexao: { ...DEFAULT_PBI_SETTINGS.conexao, ...(parsed.pbivizSettings?.conexao ?? {}) },
         layout: { ...DEFAULT_PBI_SETTINGS.layout, ...(parsed.pbivizSettings?.layout ?? {}) },
+        aparenciaChat: { ...DEFAULT_PBI_SETTINGS.aparenciaChat, ...(parsed.pbivizSettings?.aparenciaChat ?? {}) },
       },
     };
   } catch {
