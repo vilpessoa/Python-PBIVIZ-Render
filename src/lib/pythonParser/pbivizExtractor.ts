@@ -158,6 +158,18 @@ export function extractPbivizConfig(code: string): ExtractedPbivizConfig {
     if (avatarAgenteUrl !== null)      result.aparenciaChat.avatarAgenteUrl = avatarAgenteUrl;
   }
 
+  // ── Tipografia ────────────────────────────────────────────────
+  const familiaFonte            = extractScalarString(code, 'FAMILIA_FONTE');
+  const tamanhoFonteMensagensRaw = extractScalarString(code, 'TAMANHO_FONTE_MENSAGENS');
+  const tamanhoFonteInputRaw    = extractScalarString(code, 'TAMANHO_FONTE_INPUT');
+
+  if (familiaFonte !== null || tamanhoFonteMensagensRaw !== null || tamanhoFonteInputRaw !== null) {
+    result.tipografia = {};
+    if (familiaFonte !== null)            result.tipografia.familiaFonte = familiaFonte;
+    if (tamanhoFonteMensagensRaw !== null) result.tipografia.tamanhoFonteMensagens = Number(tamanhoFonteMensagensRaw) || 13;
+    if (tamanhoFonteInputRaw !== null)    result.tipografia.tamanhoFonteInput = Number(tamanhoFonteInputRaw) || 12;
+  }
+
   const capabilities = extractCapabilities(code);
   if (capabilities) result.capabilities = capabilities;
 
@@ -170,6 +182,7 @@ function mergeWithExtracted(settings: PBISettings, extracted: ExtractedPbivizCon
     conexao:       { ...settings.conexao,       ...(extracted.conexao       ?? {}) },
     layout:        { ...settings.layout,        ...(extracted.layout        ?? {}) },
     aparenciaChat: { ...settings.aparenciaChat, ...(extracted.aparenciaChat ?? {}) },
+    tipografia:    { ...settings.tipografia,    ...(extracted.tipografia    ?? {}) },
   };
 }
 
@@ -203,7 +216,7 @@ function buildPreviewHtml({
   displayName: string;
   settings: PBISettings;
 }): string {
-  const { conexao, layout, aparenciaChat, dados } = settings;
+  const { conexao, layout, aparenciaChat, tipografia, dados } = settings;
 
   const safeDisplay     = esc(displayName);
   const safeApiKey      = esc(conexao.apiKey);
@@ -405,9 +418,15 @@ ${js}
         corTextoBolhaUsuario:   '${aparenciaChat.corTextoBolhaUsuario}',
         corFundoInput:          '${aparenciaChat.corFundoInput}',
         corBotaoEnviar:         '${aparenciaChat.corBotaoEnviar}',
+        corTextoBotao:          '${aparenciaChat.corTextoBotao ?? '#ffffff'}',
         avatarUsuarioUrl:       '${safeAvatarUser}',
         avatarAgenteUrl:        '${safeAvatarAgent}',
         exibirAvatares:         ${aparenciaChat.exibirAvatares}
+      },
+      tipografia: {
+        familiaFonte:          '${esc(tipografia?.familiaFonte ?? 'Inter')}',
+        tamanhoFonteMensagens: ${tipografia?.tamanhoFonteMensagens ?? 13},
+        tamanhoFonteInput:     ${tipografia?.tamanhoFonteInput ?? 12}
       }
     };
 
