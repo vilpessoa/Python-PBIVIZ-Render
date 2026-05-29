@@ -276,7 +276,7 @@ export function HtmlPreview({
         )}
 
         {/* Main area: preview + optional settings panel */}
-        <div className="flex flex-1 min-h-0">
+        <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Preview area */}
           <div ref={containerRef} className="relative flex flex-1 min-h-0 min-w-0 items-start justify-center overflow-auto bg-preview-bg">
             {showSettings && (

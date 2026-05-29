@@ -551,12 +551,15 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
     : allSections;
   const show = (name: string) => filtered.includes(name);
 
+  // Restaura apenas formatação — dados permanecem intactos
   function handleReset() {
-    if (onReset) {
-      onReset();
-    } else {
-      onChange(DEFAULT_PBI_SETTINGS);
-    }
+    onChange({
+      ...settings,
+      conexao: DEFAULT_PBI_SETTINGS.conexao,
+      layout: DEFAULT_PBI_SETTINGS.layout,
+      aparenciaChat: DEFAULT_PBI_SETTINGS.aparenciaChat,
+    });
+    onReset?.();
   }
 
   return (
@@ -566,7 +569,7 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
       <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-border bg-background px-4">
         <div className="flex items-center gap-2">
           <span className="text-[15px] font-semibold text-foreground">Formato</span>
-          {fromCodeCount > 0 && (
+          {fromCodeCount > 0 && activeTab === 'visual' && (
             <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
               <Code2 className="h-2.5 w-2.5" />
               {fromCodeCount} do código
