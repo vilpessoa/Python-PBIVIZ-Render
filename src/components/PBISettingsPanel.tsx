@@ -892,20 +892,24 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
                     <SmartColor label={propLabel('corTextoBolhaUsuario', 'Texto do usuário')} codeValue={fromCod.aparenciaChat?.corTextoBolhaUsuario} value={aparenciaChat.corTextoBolhaUsuario} onChange={(v) => patchAparenciaChat({ corTextoBolhaUsuario: v })} />
                     <SmartColor label={propLabel('corFundoInput', 'Fundo do input')} codeValue={fromCod.aparenciaChat?.corFundoInput} value={aparenciaChat.corFundoInput} onChange={(v) => patchAparenciaChat({ corFundoInput: v })} />
                     <SmartColor label={propLabel('corBotaoEnviar', 'Cor do botão Enviar')} codeValue={fromCod.aparenciaChat?.corBotaoEnviar} value={aparenciaChat.corBotaoEnviar} onChange={(v) => patchAparenciaChat({ corBotaoEnviar: v })} />
-                    <SmartColor label={propLabel('corTextoBotao', 'Texto do botão')} codeValue={undefined} value={aparenciaChat.corTextoBotao ?? '#ffffff'} onChange={(v) => patchAparenciaChat({ corTextoBotao: v })} />
-                    {!cap && (
-                      <>
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-[12px] font-medium text-foreground/80">Exibir avatares</span>
-                          <Toggle checked={aparenciaChat.exibirAvatares} onChange={(v) => patchAparenciaChat({ exibirAvatares: v })} />
-                        </div>
-                        <SmartField label="URL Avatar Usuário" codeValue={fromCod.aparenciaChat?.avatarUsuarioUrl}>
-                          <TextInput value={aparenciaChat.avatarUsuarioUrl} onChange={(v) => patchAparenciaChat({ avatarUsuarioUrl: v })} placeholder="https://..." />
-                        </SmartField>
-                        <SmartField label="URL Avatar Agente" codeValue={fromCod.aparenciaChat?.avatarAgenteUrl}>
-                          <TextInput value={aparenciaChat.avatarAgenteUrl} onChange={(v) => patchAparenciaChat({ avatarAgenteUrl: v })} placeholder="https://..." />
-                        </SmartField>
-                      </>
+                    {(!cap || cap.properties?.['corTextoBotao']) && (
+                      <SmartColor label={propLabel('corTextoBotao', 'Texto do botão')} codeValue={undefined} value={aparenciaChat.corTextoBotao ?? '#ffffff'} onChange={(v) => patchAparenciaChat({ corTextoBotao: v })} />
+                    )}
+                    {(!cap || cap.properties?.['exibirAvatares']) && (
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[12px] font-medium text-foreground/80">{propLabel('exibirAvatares', 'Exibir avatares')}</span>
+                        <Toggle checked={aparenciaChat.exibirAvatares} onChange={(v) => patchAparenciaChat({ exibirAvatares: v })} />
+                      </div>
+                    )}
+                    {(!cap || cap.properties?.['avatarUsuarioUrl']) && (
+                      <SmartField label={propLabel('avatarUsuarioUrl', 'URL Avatar Usuário')} codeValue={fromCod.aparenciaChat?.avatarUsuarioUrl}>
+                        <TextInput value={aparenciaChat.avatarUsuarioUrl} onChange={(v) => patchAparenciaChat({ avatarUsuarioUrl: v })} placeholder="https://..." />
+                      </SmartField>
+                    )}
+                    {(!cap || cap.properties?.['avatarAgenteUrl']) && (
+                      <SmartField label={propLabel('avatarAgenteUrl', 'URL Avatar Agente')} codeValue={fromCod.aparenciaChat?.avatarAgenteUrl}>
+                        <TextInput value={aparenciaChat.avatarAgenteUrl} onChange={(v) => patchAparenciaChat({ avatarAgenteUrl: v })} placeholder="https://..." />
+                      </SmartField>
                     )}
                   </AccordionContent>
                 </div>
@@ -979,16 +983,22 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
                         <span className="text-[12px] font-medium text-foreground/80">{propLabel('exibirTitulo', 'Exibir título')}</span>
                         <Toggle checked={layout.exibirTitulo} onChange={(v) => patchLayout({ exibirTitulo: v })} />
                       </div>
-                      <SmartField label={propLabel('placeholderInput', 'Placeholder do input')} codeValue={fromCod.layout?.placeholderInput}>
-                        <TextInput value={layout.placeholderInput} onChange={(v) => patchLayout({ placeholderInput: v })} placeholder="Pergunte sobre os dados..." />
-                      </SmartField>
-                      <SmartField label={propLabel('textoBotaoEnviar', 'Texto do botão Enviar')} codeValue={fromCod.layout?.textoBotaoEnviar}>
-                        <TextInput value={layout.textoBotaoEnviar} onChange={(v) => patchLayout({ textoBotaoEnviar: v })} placeholder="Enviar" />
-                      </SmartField>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-medium text-foreground/80">{propLabel('debugExibirContexto', 'Debug: exibir contexto')}</span>
-                        <Toggle checked={layout.debugExibirContexto} onChange={(v) => patchLayout({ debugExibirContexto: v })} />
-                      </div>
+                      {(!cap || cap.properties?.['placeholderInput']) && (
+                        <SmartField label={propLabel('placeholderInput', 'Placeholder do input')} codeValue={fromCod.layout?.placeholderInput}>
+                          <TextInput value={layout.placeholderInput} onChange={(v) => patchLayout({ placeholderInput: v })} placeholder="Pergunte sobre os dados..." />
+                        </SmartField>
+                      )}
+                      {(!cap || cap.properties?.['textoBotaoEnviar']) && (
+                        <SmartField label={propLabel('textoBotaoEnviar', 'Texto do botão Enviar')} codeValue={fromCod.layout?.textoBotaoEnviar}>
+                          <TextInput value={layout.textoBotaoEnviar} onChange={(v) => patchLayout({ textoBotaoEnviar: v })} placeholder="Enviar" />
+                        </SmartField>
+                      )}
+                      {(!cap || cap.properties?.['debugExibirContexto']) && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] font-medium text-foreground/80">{propLabel('debugExibirContexto', 'Debug: exibir contexto')}</span>
+                          <Toggle checked={layout.debugExibirContexto} onChange={(v) => patchLayout({ debugExibirContexto: v })} />
+                        </div>
+                      )}
                     </AccordionContent>
                   </div>
                 );
