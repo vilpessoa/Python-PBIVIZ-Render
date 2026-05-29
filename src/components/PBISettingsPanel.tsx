@@ -563,7 +563,7 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
   }
 
   return (
-    <div className="flex h-full w-[280px] shrink-0 flex-col bg-muted/30 shadow-lg">
+    <div className="flex h-full w-[280px] shrink-0 flex-col bg-muted/30 shadow-lg" data-panel="pbi-settings">
 
       {/* ── Header ── */}
       <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-border bg-background px-4">
