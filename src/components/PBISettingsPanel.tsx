@@ -7,7 +7,6 @@ import {
   RotateCcw,
   Search,
   ChevronsRight,
-  Code2,
   Plus,
   Trash2,
   Database,
@@ -362,44 +361,27 @@ function DadosTab({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Resumo */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-muted/20 px-4 py-2.5">
-        <Database className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-[12px] text-muted-foreground">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-background/60 px-4 py-2">
+        <Database className="h-3 w-3 text-muted-foreground" />
+        <span className="text-[11px] text-muted-foreground">
           {totalLinhas} linha{totalLinhas !== 1 ? 's' : ''} · {colunas.length} coluna{colunas.length !== 1 ? 's' : ''} · {medidas.length} medida{medidas.length !== 1 ? 's' : ''}
         </span>
-      </div>
-
-      {/* Papéis do código (CAPABILITIES.dataRoles) */}
-      <div className="shrink-0 border-b border-border bg-primary/5 px-4 py-2.5">
-        <div className="mb-2 flex items-center gap-1.5">
-          <Code2 className="h-3 w-3 text-primary" />
-          <span className="text-[11px] font-semibold text-primary">Papéis definidos no código</span>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {groupingRoles.map((r) => (
-            <span key={r.name} className="rounded border border-border bg-background px-2 py-0.5 text-[10px] text-foreground/70">
-              {r.displayName} <span className="text-muted-foreground/50">(agrupamento)</span>
-            </span>
-          ))}
-          {measureRoles.map((r) => (
-            <span key={r.name} className="rounded border border-border bg-background px-2 py-0.5 text-[10px] text-foreground/70">
-              {r.displayName} <span className="text-muted-foreground/50">(medida)</span>
-            </span>
-          ))}
-        </div>
       </div>
 
       {/* Conteúdo rolável */}
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-0">
 
-        {/* Colunas */}
+        {/* Colunas (campos de agrupamento) */}
         <div className="border-b border-border">
           <div className="flex items-center justify-between px-4 py-2.5">
-            <span className="text-[13px] font-medium text-foreground">
-              {groupingRoles.length > 0
-                ? groupingRoles.map((r) => r.displayName).join(' / ')
-                : 'Colunas'}
-            </span>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate text-[13px] font-medium text-foreground">
+                {groupingRoles.length > 0
+                  ? groupingRoles.map((r) => r.displayName).join(' / ')
+                  : 'Colunas'}
+              </span>
+              <span className="text-[10px] text-muted-foreground">valores de agrupamento (categorias)</span>
+            </div>
             <button
               type="button"
               onClick={addColuna}
@@ -455,14 +437,17 @@ function DadosTab({
           </div>
         </div>
 
-        {/* Medidas */}
+        {/* Medidas (campos de valor) */}
         <div>
           <div className="flex items-center justify-between px-4 py-2.5">
-            <span className="text-[13px] font-medium text-foreground">
-              {measureRoles.length > 0
-                ? measureRoles.map((r) => r.displayName).join(' / ')
-                : 'Medidas'}
-            </span>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate text-[13px] font-medium text-foreground">
+                {measureRoles.length > 0
+                  ? measureRoles.map((r) => r.displayName).join(' / ')
+                  : 'Medidas'}
+              </span>
+              <span className="text-[10px] text-muted-foreground">valores numéricos (medidas)</span>
+            </div>
             <button
               type="button"
               onClick={addMedida}
@@ -661,7 +646,7 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
     : dynamicSections;
 
   return (
-    <div className="relative flex h-full w-[280px] shrink-0 flex-col bg-muted/30 shadow-lg" data-panel="pbi-settings">
+    <div className="relative flex h-full w-[280px] shrink-0 flex-col border-l border-border bg-muted shadow-xl" data-panel="pbi-settings">
 
       {/* ── Header ── */}
       <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-border bg-background px-4">
