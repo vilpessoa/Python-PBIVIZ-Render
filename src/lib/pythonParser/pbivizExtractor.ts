@@ -35,8 +35,87 @@ function esc(s: string): string {
 }
 
 /**
- * Extrai CAPABILITIES do código Python usando brace-matching.
- * Converte sintaxe Python (True/False/None, aspas simples, trailing commas) para JSON.
+ * Decodifica escapes de string Python (\n, \t, \", \', \uXXXX, etc.) para os
+ * caracteres reais, para depois reencapsular como string JSON válida.
+ */
+function decodePyEscapes(s: string): string {
+  let res = '';
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '\\') {
+      const next = s[i + 1];
+      switch (next) {
+        case 'n': res += '\n'; i++; break;
+        case 't': res += '\t'; i++; break;
+        case 'r': res += '\r'; i++; break;
+        case 'b': res += '\b'; i++; break;
+        case 'f': res += '\f'; i++; break;
+        case '\\': res += '\\'; i++; break;
+        case '"': res += '"'; i++; break;
+        case "'": res += "'"; i++; break;
+        case '/': res += '/'; i++; break;
+        case 'u': {
+          const hex = s.slice(i + 2, i + 6);
+          res += String.fromCharCode(parseInt(hex, 16) || 0);
+          i += 5;
+          break;
+        }
+        default:
+          if (next !== undefined) { res += next; i++; } else { res += '\\'; }
+          break;
+      }
+    } else {
+      res += s[i];
+    }
+  }
+  return res;
+}
+
+/**
+ * Converte um literal de dict Python para JSON válido, respeitando os limites
+ * de string. Diferente de um replace ingênuo de aspas, este scanner não
+ * corrompe apóstrofos/aspas dentro do conteúdo das strings.
+ *
+ * - Strings (aspas simples ou duplas) → strings JSON com aspas duplas
+ * - True/False/None → true/false/null (apenas fora de strings)
+ * - Remove vírgulas finais (trailing commas)
+ */
+function pythonLiteralToJson(src: string): string {
+  let out = '';
+  let buf = '';
+  const flush = () => {
+    out += buf
+      .replace(/\bTrue\b/g, 'true')
+      .replace(/\bFalse\b/g, 'false')
+      .replace(/\bNone\b/g, 'null');
+    buf = '';
+  };
+  let i = 0;
+  const n = src.length;
+  while (i < n) {
+    const ch = src[i];
+    if (ch === '"' || ch === "'") {
+      flush();
+      const quote = ch;
+      i++;
+      let content = '';
+      while (i < n && src[i] !== quote) {
+        if (src[i] === '\\') { content += src[i] + (src[i + 1] ?? ''); i += 2; continue; }
+        content += src[i]; i++;
+      }
+      i++; // pula aspa de fechamento
+      out += JSON.stringify(decodePyEscapes(content));
+    } else {
+      buf += ch;
+      i++;
+    }
+  }
+  flush();
+  return out.replace(/,(\s*[}\]])/g, '$1');
+}
+
+/**
+ * Extrai CAPABILITIES do código Python usando brace-matching (ciente de
+ * strings) e converte sintaxe Python para JSON de forma robusta.
  */
 export function extractCapabilities(code: string): CapabilitiesData | null {
   const match = /\bCAPABILITIES\s*=\s*\{/.exec(code);
@@ -45,9 +124,18 @@ export function extractCapabilities(code: string): CapabilitiesData | null {
   const start = match.index + match[0].length - 1;
   let depth = 0;
   let end = -1;
+  let inStr = false;
+  let quote = '';
   for (let i = start; i < code.length; i++) {
-    if (code[i] === '{') depth++;
-    else if (code[i] === '}') {
+    const c = code[i];
+    if (inStr) {
+      if (c === '\\') { i++; continue; }
+      if (c === quote) inStr = false;
+      continue;
+    }
+    if (c === '"' || c === "'") { inStr = true; quote = c; continue; }
+    if (c === '{') depth++;
+    else if (c === '}') {
       depth--;
       if (depth === 0) { end = i; break; }
     }
@@ -56,15 +144,8 @@ export function extractCapabilities(code: string): CapabilitiesData | null {
 
   const block = code.slice(start, end + 1);
 
-  const json = block
-    .replace(/'/g, '"')
-    .replace(/\bTrue\b/g, 'true')
-    .replace(/\bFalse\b/g, 'false')
-    .replace(/\bNone\b/g, 'null')
-    .replace(/,(\s*[}\]])/g, '$1');
-
   try {
-    return JSON.parse(json) as CapabilitiesData;
+    return JSON.parse(pythonLiteralToJson(block)) as CapabilitiesData;
   } catch {
     return null;
   }

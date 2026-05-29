@@ -24,10 +24,6 @@ interface Props {
   extractedFromCode?: ExtractedPbivizConfig;
 }
 
-const STATIC_SECTIONS_FALLBACK = [
-  'Tamanho e estilo', 'Título', 'Conexão', 'Aparência - Chat', 'Aparência - Tipografia', 'Aparência - Layout',
-];
-
 const PROVEDORES_FALLBACK = [
   { value: 'tess', label: 'Tess AI' },
   { value: 'openai', label: 'OpenAI' },
@@ -297,95 +293,81 @@ function SmartColor({
   );
 }
 
-/* ── Resolve PBI property type ── */
-function resolvePropertyType(type: Record<string, unknown>): 'color' | 'bool' | 'numeric' | 'enumeration' | 'text' {
-  if (type.fill)        return 'color';
-  if (type.bool)        return 'bool';
-  if (type.numeric)     return 'numeric';
-  if (type.enumeration) return 'enumeration';
-  return 'text';
-}
-
-/* ── Generic field for unknown capabilities objects ── */
-function GenericPropertyField({
-  label, propType, value, onChange,
+/* ── DynamicField — renderiza UMA propriedade do CAPABILITIES escolhendo o
+      widget conforme o tipo PBI (fill/bool/enumeration/numeric/text) e
+      heurísticas pelo nome da propriedade (apiKey→senha, prompt→textarea). ── */
+function DynamicField({
+  propKey,
+  prop,
+  value,
+  codeValue,
+  onChange,
 }: {
-  label: string;
-  propType: Record<string, unknown>;
+  propKey: string;
+  prop: CapProperty;
   value: string | boolean | number | undefined;
+  codeValue: string | undefined;
   onChange: (v: string | boolean | number) => void;
 }) {
-  const kind = resolvePropertyType(propType);
+  const label = prop.displayName || propKey;
+  const t = (prop.type ?? {}) as Record<string, unknown>;
+  const lower = propKey.toLowerCase();
 
-  if (kind === 'color') {
-    const strVal = (value as string) ?? '#000000';
-    return <SmartColor label={label} codeValue={undefined} value={strVal} onChange={onChange as (v: string) => void} />;
+  // Senha — chave de API e afins
+  if (lower.includes('apikey') || lower.includes('senha') || lower.includes('password') || lower.includes('secret')) {
+    return <SmartPassword label={label} codeValue={codeValue} value={(value as string) ?? ''} onChange={onChange as (v: string) => void} />;
   }
-  if (kind === 'bool') {
-    const boolVal = (value as boolean) ?? false;
+
+  // Cor — fill.solid.color
+  if (t.fill) {
+    return <SmartColor label={label} codeValue={codeValue} value={(value as string) ?? '#000000'} onChange={onChange as (v: string) => void} />;
+  }
+
+  // Booleano — toggle
+  if (t.bool) {
     return (
       <div className="flex items-center justify-between pt-1">
         <span className="text-[12px] font-medium text-foreground/80">{label}</span>
-        <Toggle checked={boolVal} onChange={onChange as (v: boolean) => void} />
+        <Toggle checked={(value as boolean) ?? false} onChange={onChange as (v: boolean) => void} />
       </div>
     );
   }
-  if (kind === 'enumeration') {
-    const items = (propType.enumeration as { value: string; displayName: string }[]) ?? [];
+
+  // Enumeração — select com as opções do código
+  if (t.enumeration) {
+    const items = (t.enumeration as { value: string; displayName: string }[]) ?? [];
+    if (codeValue !== undefined) return <CodeField label={label} value={codeValue} />;
     const strVal = (value as string) ?? (items[0]?.value ?? '');
     return (
       <Field label={label}>
-        <SelectInput
-          value={strVal}
-          onChange={onChange as (v: string) => void}
-          options={items.map((i) => ({ value: i.value, label: i.displayName }))}
-        />
+        <SelectInput value={strVal} onChange={onChange as (v: string) => void} options={items.map((i) => ({ value: i.value, label: i.displayName }))} />
       </Field>
     );
   }
-  if (kind === 'numeric') {
-    const strVal = value !== undefined ? String(value) : '';
+
+  // Numérico
+  if (t.numeric) {
+    if (codeValue !== undefined) return <CodeField label={label} value={codeValue} />;
+    const strVal = value !== undefined && value !== '' ? String(value) : '';
     return (
       <Field label={label}>
-        <TextInput
-          value={strVal}
-          onChange={(v) => onChange(v === '' ? '' : (isNaN(Number(v)) ? v : Number(v)))}
-          placeholder="0"
-        />
+        <TextInput value={strVal} onChange={(v) => onChange(v === '' ? '' : (isNaN(Number(v)) ? v : Number(v)))} placeholder="0" />
       </Field>
     );
   }
-  // text (default)
+
+  // Texto — prompt longo vira textarea
+  const isLong = lower.includes('prompt');
+  if (codeValue !== undefined) return <CodeField label={label} value={codeValue} multiline={isLong} />;
   return (
     <Field label={label}>
-      <TextInput value={(value as string) ?? ''} onChange={onChange as (v: string) => void} />
+      {isLong
+        ? <TextArea value={(value as string) ?? ''} onChange={onChange as (v: string) => void} rows={4} placeholder="..." />
+        : <TextInput value={(value as string) ?? ''} onChange={onChange as (v: string) => void} />}
     </Field>
   );
 }
 
-/* ── Generic section for unknown capabilities object keys ── */
-function GenericSection({
-  objectKey, capObject, extras, onChangeExtras,
-}: {
-  objectKey: string;
-  capObject: CapObject;
-  extras: Record<string, string | boolean | number>;
-  onChangeExtras: (propKey: string, val: string | boolean | number) => void;
-}) {
-  return (
-    <>
-      {(Object.entries(capObject.properties) as [string, CapProperty][]).map(([propKey, prop]) => (
-        <GenericPropertyField
-          key={propKey}
-          label={prop.displayName}
-          propType={prop.type}
-          value={extras[propKey]}
-          onChange={(v) => onChangeExtras(propKey, v)}
-        />
-      ))}
-    </>
-  );
-}
 
 /* ════════════════════════════════════════
    ABA DADOS — colunas e medidas mock
@@ -637,6 +619,30 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
     onChange({ ...settings, extras: { ...cur, [objectKey]: { ...(cur[objectKey] ?? {}), [propKey]: val } } });
   }
 
+  // ── Acesso genérico a valores: objetos conhecidos usam os campos tipados
+  //    (as chaves do CAPABILITIES batem com os nomes em PBISettings); objetos
+  //    desconhecidos caem em settings.extras. ──
+  const SETTINGS_KEYS = new Set(['conexao', 'aparenciaChat', 'tipografia', 'layout']);
+  function getVal(objectKey: string, propKey: string): string | boolean | number | undefined {
+    if (SETTINGS_KEYS.has(objectKey)) {
+      const obj = (settings as unknown as Record<string, Record<string, string | boolean | number>>)[objectKey];
+      return obj ? obj[propKey] : undefined;
+    }
+    return settings.extras?.[objectKey]?.[propKey];
+  }
+  function setVal(objectKey: string, propKey: string, val: string | boolean | number) {
+    if (SETTINGS_KEYS.has(objectKey)) {
+      const obj = (settings as unknown as Record<string, Record<string, string | boolean | number>>)[objectKey] ?? {};
+      onChange({ ...settings, [objectKey]: { ...obj, [propKey]: val } });
+    } else {
+      patchExtras(objectKey, propKey, val);
+    }
+  }
+  function codeValOf(objectKey: string, propKey: string): string | undefined {
+    const fc = (fromCod as unknown as Record<string, Record<string, string | undefined>>)[objectKey];
+    return fc ? fc[propKey] : undefined;
+  }
+
   const { conexao, layout, aparenciaChat, tipografia } = settings;
   const fromCod = extractedFromCode ?? {};
 
@@ -802,25 +808,32 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
                 </div>
               );
 
-              // ── Objeto genérico (chave desconhecida) ────────────
-              if (section.kind === 'generic') {
-                const extrasForObj = settings.extras?.[section.objectKey!] ?? {};
+              // ── Caminho dinâmico: qualquer seção que tenha capObject
+              //    (conhecida OU desconhecida) é renderizada 100% a partir
+              //    das properties do CAPABILITIES, na ordem do código. ──
+              if (section.capObject) {
+                const co = section.capObject;
+                const oKeyD = section.objectKey!;
                 return (
                   <div key={section.key}>
                     <SectionHeader title={section.title} open={open} onToggle={toggle} />
                     <AccordionContent open={open}>
-                      <GenericSection
-                        objectKey={section.objectKey!}
-                        capObject={section.capObject!}
-                        extras={extrasForObj}
-                        onChangeExtras={(propKey, val) => patchExtras(section.objectKey!, propKey, val)}
-                      />
+                      {(Object.entries(co.properties) as [string, CapProperty][]).map(([pk, prop]) => (
+                        <DynamicField
+                          key={pk}
+                          propKey={pk}
+                          prop={prop}
+                          value={getVal(oKeyD, pk)}
+                          codeValue={codeValOf(oKeyD, pk)}
+                          onChange={(v) => setVal(oKeyD, pk, v)}
+                        />
+                      ))}
                     </AccordionContent>
                   </div>
                 );
               }
 
-              // ── Objetos conhecidos ──────────────────────────────
+              // ── Fallback (sem CAPABILITIES no código): seções estáticas ──
               const oKey = section.objectKey;
 
               if (oKey === 'conexao') {
@@ -892,20 +905,24 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
                     <SmartColor label={propLabel('corTextoBolhaUsuario', 'Texto do usuário')} codeValue={fromCod.aparenciaChat?.corTextoBolhaUsuario} value={aparenciaChat.corTextoBolhaUsuario} onChange={(v) => patchAparenciaChat({ corTextoBolhaUsuario: v })} />
                     <SmartColor label={propLabel('corFundoInput', 'Fundo do input')} codeValue={fromCod.aparenciaChat?.corFundoInput} value={aparenciaChat.corFundoInput} onChange={(v) => patchAparenciaChat({ corFundoInput: v })} />
                     <SmartColor label={propLabel('corBotaoEnviar', 'Cor do botão Enviar')} codeValue={fromCod.aparenciaChat?.corBotaoEnviar} value={aparenciaChat.corBotaoEnviar} onChange={(v) => patchAparenciaChat({ corBotaoEnviar: v })} />
-                    <SmartColor label={propLabel('corTextoBotao', 'Texto do botão')} codeValue={undefined} value={aparenciaChat.corTextoBotao ?? '#ffffff'} onChange={(v) => patchAparenciaChat({ corTextoBotao: v })} />
-                    {!cap && (
-                      <>
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-[12px] font-medium text-foreground/80">Exibir avatares</span>
-                          <Toggle checked={aparenciaChat.exibirAvatares} onChange={(v) => patchAparenciaChat({ exibirAvatares: v })} />
-                        </div>
-                        <SmartField label="URL Avatar Usuário" codeValue={fromCod.aparenciaChat?.avatarUsuarioUrl}>
-                          <TextInput value={aparenciaChat.avatarUsuarioUrl} onChange={(v) => patchAparenciaChat({ avatarUsuarioUrl: v })} placeholder="https://..." />
-                        </SmartField>
-                        <SmartField label="URL Avatar Agente" codeValue={fromCod.aparenciaChat?.avatarAgenteUrl}>
-                          <TextInput value={aparenciaChat.avatarAgenteUrl} onChange={(v) => patchAparenciaChat({ avatarAgenteUrl: v })} placeholder="https://..." />
-                        </SmartField>
-                      </>
+                    {(!cap || cap.properties?.['corTextoBotao']) && (
+                      <SmartColor label={propLabel('corTextoBotao', 'Texto do botão')} codeValue={undefined} value={aparenciaChat.corTextoBotao ?? '#ffffff'} onChange={(v) => patchAparenciaChat({ corTextoBotao: v })} />
+                    )}
+                    {(!cap || cap.properties?.['exibirAvatares']) && (
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[12px] font-medium text-foreground/80">{propLabel('exibirAvatares', 'Exibir avatares')}</span>
+                        <Toggle checked={aparenciaChat.exibirAvatares} onChange={(v) => patchAparenciaChat({ exibirAvatares: v })} />
+                      </div>
+                    )}
+                    {(!cap || cap.properties?.['avatarUsuarioUrl']) && (
+                      <SmartField label={propLabel('avatarUsuarioUrl', 'URL Avatar Usuário')} codeValue={fromCod.aparenciaChat?.avatarUsuarioUrl}>
+                        <TextInput value={aparenciaChat.avatarUsuarioUrl} onChange={(v) => patchAparenciaChat({ avatarUsuarioUrl: v })} placeholder="https://..." />
+                      </SmartField>
+                    )}
+                    {(!cap || cap.properties?.['avatarAgenteUrl']) && (
+                      <SmartField label={propLabel('avatarAgenteUrl', 'URL Avatar Agente')} codeValue={fromCod.aparenciaChat?.avatarAgenteUrl}>
+                        <TextInput value={aparenciaChat.avatarAgenteUrl} onChange={(v) => patchAparenciaChat({ avatarAgenteUrl: v })} placeholder="https://..." />
+                      </SmartField>
                     )}
                   </AccordionContent>
                 </div>
@@ -979,16 +996,22 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
                         <span className="text-[12px] font-medium text-foreground/80">{propLabel('exibirTitulo', 'Exibir título')}</span>
                         <Toggle checked={layout.exibirTitulo} onChange={(v) => patchLayout({ exibirTitulo: v })} />
                       </div>
-                      <SmartField label={propLabel('placeholderInput', 'Placeholder do input')} codeValue={fromCod.layout?.placeholderInput}>
-                        <TextInput value={layout.placeholderInput} onChange={(v) => patchLayout({ placeholderInput: v })} placeholder="Pergunte sobre os dados..." />
-                      </SmartField>
-                      <SmartField label={propLabel('textoBotaoEnviar', 'Texto do botão Enviar')} codeValue={fromCod.layout?.textoBotaoEnviar}>
-                        <TextInput value={layout.textoBotaoEnviar} onChange={(v) => patchLayout({ textoBotaoEnviar: v })} placeholder="Enviar" />
-                      </SmartField>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-medium text-foreground/80">{propLabel('debugExibirContexto', 'Debug: exibir contexto')}</span>
-                        <Toggle checked={layout.debugExibirContexto} onChange={(v) => patchLayout({ debugExibirContexto: v })} />
-                      </div>
+                      {(!cap || cap.properties?.['placeholderInput']) && (
+                        <SmartField label={propLabel('placeholderInput', 'Placeholder do input')} codeValue={fromCod.layout?.placeholderInput}>
+                          <TextInput value={layout.placeholderInput} onChange={(v) => patchLayout({ placeholderInput: v })} placeholder="Pergunte sobre os dados..." />
+                        </SmartField>
+                      )}
+                      {(!cap || cap.properties?.['textoBotaoEnviar']) && (
+                        <SmartField label={propLabel('textoBotaoEnviar', 'Texto do botão Enviar')} codeValue={fromCod.layout?.textoBotaoEnviar}>
+                          <TextInput value={layout.textoBotaoEnviar} onChange={(v) => patchLayout({ textoBotaoEnviar: v })} placeholder="Enviar" />
+                        </SmartField>
+                      )}
+                      {(!cap || cap.properties?.['debugExibirContexto']) && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] font-medium text-foreground/80">{propLabel('debugExibirContexto', 'Debug: exibir contexto')}</span>
+                          <Toggle checked={layout.debugExibirContexto} onChange={(v) => patchLayout({ debugExibirContexto: v })} />
+                        </div>
+                      )}
                     </AccordionContent>
                   </div>
                 );
