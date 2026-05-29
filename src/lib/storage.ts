@@ -53,9 +53,16 @@ export interface PBIAparenciaChat {
   corTextoBolhaUsuario: string;
   corFundoInput: string;
   corBotaoEnviar: string;
+  corTextoBotao: string;
   avatarUsuarioUrl: string;
   avatarAgenteUrl: string;
   exibirAvatares: boolean;
+}
+
+export interface PBITipografia {
+  familiaFonte: string;
+  tamanhoFonteMensagens: number;
+  tamanhoFonteInput: number;
 }
 
 export interface PBIDadosColuna {
@@ -80,7 +87,9 @@ export interface PBISettings {
   conexao: PBIConexao;
   layout: PBILayout;
   aparenciaChat: PBIAparenciaChat;
+  tipografia: PBITipografia;
   dados: PBIDados;
+  extras?: Record<string, Record<string, string | boolean | number>>;
 }
 
 export const DEFAULT_PBI_DADOS: PBIDados = {
@@ -120,9 +129,15 @@ export const DEFAULT_PBI_SETTINGS: PBISettings = {
     corTextoBolhaUsuario: '#FFFFFF',
     corFundoInput:        '#F9FAFB',
     corBotaoEnviar:       '#0B5FFF',
+    corTextoBotao:        '#FFFFFF',
     avatarUsuarioUrl:     '',
     avatarAgenteUrl:      '',
     exibirAvatares:       true,
+  },
+  tipografia: {
+    familiaFonte:          'Inter',
+    tamanhoFonteMensagens: 13,
+    tamanhoFonteInput:     12,
   },
   dados: DEFAULT_PBI_DADOS,
 };
@@ -173,10 +188,12 @@ export function loadState(): AppState {
         conexao: { ...DEFAULT_PBI_SETTINGS.conexao, ...(parsed.pbivizSettings?.conexao ?? {}) },
         layout: { ...DEFAULT_PBI_SETTINGS.layout, ...(parsed.pbivizSettings?.layout ?? {}) },
         aparenciaChat: { ...DEFAULT_PBI_SETTINGS.aparenciaChat, ...(parsed.pbivizSettings?.aparenciaChat ?? {}) },
+        tipografia: { ...DEFAULT_PBI_SETTINGS.tipografia, ...(parsed.pbivizSettings?.tipografia ?? {}) },
         dados: {
           colunas: parsed.pbivizSettings?.dados?.colunas ?? DEFAULT_PBI_DADOS.colunas,
           medidas: parsed.pbivizSettings?.dados?.medidas ?? DEFAULT_PBI_DADOS.medidas,
         },
+        extras: parsed.pbivizSettings?.extras ?? {},
       },
     };
   } catch {

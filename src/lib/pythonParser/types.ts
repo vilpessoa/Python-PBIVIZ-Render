@@ -64,6 +64,11 @@ export interface ExtractedPbivizConfig {
     avatarAgenteUrl?: string;
     exibirAvatares?: boolean;
   };
+  tipografia?: {
+    familiaFonte?: string;
+    tamanhoFonteMensagens?: number;
+    tamanhoFonteInput?: number;
+  };
   capabilities?: CapabilitiesData;
 }
 

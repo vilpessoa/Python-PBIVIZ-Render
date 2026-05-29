@@ -12,9 +12,9 @@ import {
   Trash2,
   Database,
 } from 'lucide-react';
-import type { PBISettings, PBIDadosColuna, PBIDadosMedida } from '@/lib/storage';
+import type { PBISettings, PBIDadosColuna, PBIDadosMedida, PBITipografia } from '@/lib/storage';
 import { DEFAULT_PBI_SETTINGS, DEFAULT_PBI_DADOS } from '@/lib/storage';
-import type { ExtractedPbivizConfig } from '@/lib/pythonParser/types';
+import type { ExtractedPbivizConfig, CapObject, CapProperty } from '@/lib/pythonParser/types';
 
 interface Props {
   settings: PBISettings;
@@ -24,7 +24,11 @@ interface Props {
   extractedFromCode?: ExtractedPbivizConfig;
 }
 
-const PROVEDORES = [
+const STATIC_SECTIONS_FALLBACK = [
+  'Tamanho e estilo', 'Título', 'Conexão', 'Aparência - Chat', 'Aparência - Tipografia', 'Aparência - Layout',
+];
+
+const PROVEDORES_FALLBACK = [
   { value: 'tess', label: 'Tess AI' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'azure', label: 'Azure OpenAI' },
@@ -293,6 +297,96 @@ function SmartColor({
   );
 }
 
+/* ── Resolve PBI property type ── */
+function resolvePropertyType(type: Record<string, unknown>): 'color' | 'bool' | 'numeric' | 'enumeration' | 'text' {
+  if (type.fill)        return 'color';
+  if (type.bool)        return 'bool';
+  if (type.numeric)     return 'numeric';
+  if (type.enumeration) return 'enumeration';
+  return 'text';
+}
+
+/* ── Generic field for unknown capabilities objects ── */
+function GenericPropertyField({
+  label, propType, value, onChange,
+}: {
+  label: string;
+  propType: Record<string, unknown>;
+  value: string | boolean | number | undefined;
+  onChange: (v: string | boolean | number) => void;
+}) {
+  const kind = resolvePropertyType(propType);
+
+  if (kind === 'color') {
+    const strVal = (value as string) ?? '#000000';
+    return <SmartColor label={label} codeValue={undefined} value={strVal} onChange={onChange as (v: string) => void} />;
+  }
+  if (kind === 'bool') {
+    const boolVal = (value as boolean) ?? false;
+    return (
+      <div className="flex items-center justify-between pt-1">
+        <span className="text-[12px] font-medium text-foreground/80">{label}</span>
+        <Toggle checked={boolVal} onChange={onChange as (v: boolean) => void} />
+      </div>
+    );
+  }
+  if (kind === 'enumeration') {
+    const items = (propType.enumeration as { value: string; displayName: string }[]) ?? [];
+    const strVal = (value as string) ?? (items[0]?.value ?? '');
+    return (
+      <Field label={label}>
+        <SelectInput
+          value={strVal}
+          onChange={onChange as (v: string) => void}
+          options={items.map((i) => ({ value: i.value, label: i.displayName }))}
+        />
+      </Field>
+    );
+  }
+  if (kind === 'numeric') {
+    const strVal = value !== undefined ? String(value) : '';
+    return (
+      <Field label={label}>
+        <TextInput
+          value={strVal}
+          onChange={(v) => onChange(v === '' ? '' : (isNaN(Number(v)) ? v : Number(v)))}
+          placeholder="0"
+        />
+      </Field>
+    );
+  }
+  // text (default)
+  return (
+    <Field label={label}>
+      <TextInput value={(value as string) ?? ''} onChange={onChange as (v: string) => void} />
+    </Field>
+  );
+}
+
+/* ── Generic section for unknown capabilities object keys ── */
+function GenericSection({
+  objectKey, capObject, extras, onChangeExtras,
+}: {
+  objectKey: string;
+  capObject: CapObject;
+  extras: Record<string, string | boolean | number>;
+  onChangeExtras: (propKey: string, val: string | boolean | number) => void;
+}) {
+  return (
+    <>
+      {(Object.entries(capObject.properties) as [string, CapProperty][]).map(([propKey, prop]) => (
+        <GenericPropertyField
+          key={propKey}
+          label={prop.displayName}
+          propType={prop.type}
+          value={extras[propKey]}
+          onChange={(v) => onChangeExtras(propKey, v)}
+        />
+      ))}
+    </>
+  );
+}
+
 /* ════════════════════════════════════════
    ABA DADOS — colunas e medidas mock
    ════════════════════════════════════════ */
@@ -510,15 +604,21 @@ function DadosTab({
 /* ══════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
    ══════════════════════════════════════════════════════════ */
+type SectionDescriptor = {
+  key: string;
+  title: string;
+  kind: 'tamanho' | 'known' | 'generic';
+  objectKey?: string;
+  capObject?: CapObject;
+};
+
 export function PBISettingsPanel({ settings, onChange, onClose, onReset, extractedFromCode }: Props) {
   const [activeTab, setActiveTab] = useState<'visual' | 'dados'>('visual');
   const [searchQuery, setSearchQuery] = useState('');
-  const [tamanhoOpen, setTamanhoOpen] = useState(false);
-  const [tituloOpen, setTituloOpen] = useState(false);
-  const [conexaoOpen, setConexaoOpen] = useState(false);
-  const [aparenciaChatOpen, setAparenciaChatOpen] = useState(false);
-  const [aparenciaTipografiaOpen, setAparenciaTipografiaOpen] = useState(false);
-  const [aparenciaLayoutOpen, setAparenciaLayoutOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+
+  const isSectionOpen = (key: string) => openSections[key] ?? false;
+  const toggleSection = (key: string) => setOpenSections((p) => ({ ...p, [key]: !p[key] }));
 
   function patchConexao(patch: Partial<typeof settings.conexao>) {
     onChange({ ...settings, conexao: { ...settings.conexao, ...patch } });
@@ -529,8 +629,15 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
   function patchAparenciaChat(patch: Partial<typeof settings.aparenciaChat>) {
     onChange({ ...settings, aparenciaChat: { ...settings.aparenciaChat, ...patch } });
   }
+  function patchTipografia(patch: Partial<PBITipografia>) {
+    onChange({ ...settings, tipografia: { ...settings.tipografia, ...patch } });
+  }
+  function patchExtras(objectKey: string, propKey: string, val: string | boolean | number) {
+    const cur = settings.extras ?? {};
+    onChange({ ...settings, extras: { ...cur, [objectKey]: { ...(cur[objectKey] ?? {}), [propKey]: val } } });
+  }
 
-  const { conexao, layout, aparenciaChat } = settings;
+  const { conexao, layout, aparenciaChat, tipografia } = settings;
   const fromCod = extractedFromCode ?? {};
 
   const fromCodeCount = [
@@ -543,13 +650,37 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
     fromCod.aparenciaChat?.corTextoBolhaUsuario, fromCod.aparenciaChat?.corFundoInput,
     fromCod.aparenciaChat?.corBotaoEnviar, fromCod.aparenciaChat?.avatarUsuarioUrl,
     fromCod.aparenciaChat?.avatarAgenteUrl,
+    fromCod.tipografia?.familiaFonte, fromCod.tipografia?.tamanhoFonteMensagens,
+    fromCod.tipografia?.tamanhoFonteInput,
   ].filter((v) => v !== undefined).length;
 
-  const allSections = ['Tamanho e estilo', 'Título', 'Conexão', 'Aparência - Chat', 'Aparência - Tipografia', 'Aparência - Layout'];
-  const filtered = searchQuery.trim()
-    ? allSections.filter((s) => s.toLowerCase().includes(searchQuery.toLowerCase()))
-    : allSections;
-  const show = (name: string) => filtered.includes(name);
+  // Seções dinâmicas baseadas em CAPABILITIES.objects (quando presentes)
+  const KNOWN_KEYS = new Set(['conexao', 'aparenciaChat', 'tipografia', 'layout']);
+  const capObjects = extractedFromCode?.capabilities?.objects;
+
+  const dynamicSections: SectionDescriptor[] = capObjects
+    ? [
+        { key: 'tamanho', title: 'Tamanho e estilo', kind: 'tamanho' },
+        ...Object.entries(capObjects).map(([oKey, capObj]) => ({
+          key: oKey,
+          title: capObj.displayName,
+          kind: KNOWN_KEYS.has(oKey) ? 'known' as const : 'generic' as const,
+          objectKey: oKey,
+          capObject: capObj,
+        })),
+      ]
+    : [
+        { key: 'tamanho',       title: 'Tamanho e estilo',       kind: 'tamanho' as const,                              },
+        { key: 'titulo',        title: 'Título',                  kind: 'known'   as const, objectKey: 'layout'          },
+        { key: 'conexao',       title: 'Conexão',                 kind: 'known'   as const, objectKey: 'conexao'         },
+        { key: 'aparenciaChat', title: 'Aparência - Chat',        kind: 'known'   as const, objectKey: 'aparenciaChat'   },
+        { key: 'tipografia',    title: 'Aparência - Tipografia',  kind: 'known'   as const, objectKey: 'tipografia'      },
+        { key: 'layout',        title: 'Aparência - Layout',      kind: 'known'   as const, objectKey: 'layout'          },
+      ];
+
+  const filteredSections = searchQuery.trim()
+    ? dynamicSections.filter((s) => s.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    : dynamicSections;
 
   // Restaura apenas formatação — dados permanecem intactos
   function handleReset() {
@@ -558,6 +689,8 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
       conexao: DEFAULT_PBI_SETTINGS.conexao,
       layout: DEFAULT_PBI_SETTINGS.layout,
       aparenciaChat: DEFAULT_PBI_SETTINGS.aparenciaChat,
+      tipografia: DEFAULT_PBI_SETTINGS.tipografia,
+      extras: {},
     });
     onReset?.();
   }
@@ -648,182 +781,221 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
             </div>
           </div>
 
-          {/* Accordion sections */}
+          {/* Accordion sections — dinâmico via CAPABILITIES.objects */}
           <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
+            {filteredSections.map((section) => {
+              const open   = isSectionOpen(section.key);
+              const toggle = () => toggleSection(section.key);
+              // Label helper: usa displayName do capabilities se disponível, senão fallback hardcoded
+              const cap = capObjects?.[section.objectKey ?? ''];
+              const propLabel = (propKey: string, fallback: string) =>
+                cap?.properties?.[propKey]?.displayName ?? fallback;
 
-            {/* Tamanho e estilo */}
-            {show('Tamanho e estilo') && <>
-              <SectionHeader title="Tamanho e estilo" open={tamanhoOpen} onToggle={() => setTamanhoOpen(v => !v)} />
-              <AccordionContent open={tamanhoOpen}>
-                <Field label="Largura"><TextInput value="" onChange={() => {}} placeholder="Automático" /></Field>
-                <Field label="Altura"><TextInput value="" onChange={() => {}} placeholder="Automático" /></Field>
-              </AccordionContent>
-            </>}
-
-            {/* Título */}
-            {show('Título') && <>
-              <SectionHeader
-                title="Título"
-                open={tituloOpen}
-                onToggle={() => setTituloOpen(v => !v)}
-                toggleNode={<Toggle checked={layout.exibirTitulo} onChange={(v) => patchLayout({ exibirTitulo: v })} />}
-              />
-              <AccordionContent open={tituloOpen}>
-                <SmartField label="Texto do título" codeValue={fromCod.layout?.tituloChat}>
-                  <TextInput
-                    value={layout.tituloChat}
-                    onChange={(v) => patchLayout({ tituloChat: v })}
-                    placeholder="Assistente IA"
-                  />
-                </SmartField>
-              </AccordionContent>
-            </>}
-
-            {/* Conexão */}
-            {show('Conexão') && <>
-              <SectionHeader title="Conexão" open={conexaoOpen} onToggle={() => setConexaoOpen(v => !v)} />
-              <AccordionContent open={conexaoOpen}>
-                <SmartField label="Provedor" codeValue={fromCod.conexao?.provedor}>
-                  <SelectInput value={conexao.provedor} onChange={(v) => patchConexao({ provedor: v })} options={PROVEDORES} />
-                </SmartField>
-                <SmartPassword
-                  label="Chave de API"
-                  codeValue={fromCod.conexao?.apiKey}
-                  value={conexao.apiKey}
-                  onChange={(v) => patchConexao({ apiKey: v })}
-                />
-                <SmartField label="ID do Agente" codeValue={fromCod.conexao?.agentId}>
-                  <TextInput value={conexao.agentId} onChange={(v) => patchConexao({ agentId: v })} placeholder="agent-xxxxxxxx" />
-                </SmartField>
-                <SmartField label="Modelo" codeValue={fromCod.conexao?.modelo}>
-                  <TextInput value={conexao.modelo} onChange={(v) => patchConexao({ modelo: v })} placeholder={conexao.modeloSugerido || 'ex: gpt-4o'} />
-                </SmartField>
-                {fromCod.conexao?.systemPrompt !== undefined ? (
-                  <CodeField label="System Prompt" value={fromCod.conexao.systemPrompt} multiline />
-                ) : (
-                  <Field label="System Prompt">
-                    <TextArea value={conexao.systemPrompt} onChange={(v) => patchConexao({ systemPrompt: v })} placeholder="Instruções para o assistente..." rows={4} />
-                  </Field>
-                )}
-              </AccordionContent>
-            </>}
-
-            {/* Aparência - Chat */}
-            {show('Aparência - Chat') && <>
-              <SectionHeader title="Aparência - Chat" open={aparenciaChatOpen} onToggle={() => setAparenciaChatOpen(v => !v)} />
-              <AccordionContent open={aparenciaChatOpen}>
-                <SmartColor
-                  label="Fundo do topo"
-                  codeValue={fromCod.aparenciaChat?.corFundoHeader}
-                  value={aparenciaChat.corFundoHeader}
-                  onChange={(v) => patchAparenciaChat({ corFundoHeader: v })}
-                />
-                <SmartColor
-                  label="Texto do topo"
-                  codeValue={fromCod.aparenciaChat?.corTextoHeader}
-                  value={aparenciaChat.corTextoHeader}
-                  onChange={(v) => patchAparenciaChat({ corTextoHeader: v })}
-                />
-                <SmartColor
-                  label="Fundo do chat"
-                  codeValue={fromCod.aparenciaChat?.corFundoChat}
-                  value={aparenciaChat.corFundoChat}
-                  onChange={(v) => patchAparenciaChat({ corFundoChat: v })}
-                />
-                <SmartColor
-                  label="Balão do usuário"
-                  codeValue={fromCod.aparenciaChat?.corBolhaUsuario}
-                  value={aparenciaChat.corBolhaUsuario}
-                  onChange={(v) => patchAparenciaChat({ corBolhaUsuario: v })}
-                />
-                <SmartColor
-                  label="Texto do usuário"
-                  codeValue={fromCod.aparenciaChat?.corTextoBolhaUsuario}
-                  value={aparenciaChat.corTextoBolhaUsuario}
-                  onChange={(v) => patchAparenciaChat({ corTextoBolhaUsuario: v })}
-                />
-                <SmartColor
-                  label="Balão do agente"
-                  codeValue={fromCod.aparenciaChat?.corBolhaAssistente}
-                  value={aparenciaChat.corBolhaAssistente}
-                  onChange={(v) => patchAparenciaChat({ corBolhaAssistente: v })}
-                />
-                <SmartColor
-                  label="Texto do agente"
-                  codeValue={fromCod.aparenciaChat?.corTextoBolha}
-                  value={aparenciaChat.corTextoBolha}
-                  onChange={(v) => patchAparenciaChat({ corTextoBolha: v })}
-                />
-                <SmartColor
-                  label="Fundo do input"
-                  codeValue={fromCod.aparenciaChat?.corFundoInput}
-                  value={aparenciaChat.corFundoInput}
-                  onChange={(v) => patchAparenciaChat({ corFundoInput: v })}
-                />
-                <SmartColor
-                  label="Botão Enviar"
-                  codeValue={fromCod.aparenciaChat?.corBotaoEnviar}
-                  value={aparenciaChat.corBotaoEnviar}
-                  onChange={(v) => patchAparenciaChat({ corBotaoEnviar: v })}
-                />
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[12px] font-medium text-foreground/80">Exibir avatares</span>
-                  <Toggle
-                    checked={aparenciaChat.exibirAvatares}
-                    onChange={(v) => patchAparenciaChat({ exibirAvatares: v })}
-                  />
+              // ── Tamanho e estilo (sempre estático) ──────────────
+              if (section.kind === 'tamanho') return (
+                <div key={section.key}>
+                  <SectionHeader title={section.title} open={open} onToggle={toggle} />
+                  <AccordionContent open={open}>
+                    <Field label="Largura"><TextInput value="" onChange={() => {}} placeholder="Automático" /></Field>
+                    <Field label="Altura"><TextInput value="" onChange={() => {}} placeholder="Automático" /></Field>
+                  </AccordionContent>
                 </div>
-                <SmartField label="URL Avatar Usuário" codeValue={fromCod.aparenciaChat?.avatarUsuarioUrl}>
-                  <TextInput
-                    value={aparenciaChat.avatarUsuarioUrl}
-                    onChange={(v) => patchAparenciaChat({ avatarUsuarioUrl: v })}
-                    placeholder="https://..."
-                  />
-                </SmartField>
-                <SmartField label="URL Avatar Agente" codeValue={fromCod.aparenciaChat?.avatarAgenteUrl}>
-                  <TextInput
-                    value={aparenciaChat.avatarAgenteUrl}
-                    onChange={(v) => patchAparenciaChat({ avatarAgenteUrl: v })}
-                    placeholder="https://..."
-                  />
-                </SmartField>
-              </AccordionContent>
-            </>}
+              );
 
-            {/* Aparência - Tipografia */}
-            {show('Aparência - Tipografia') && <>
-              <SectionHeader title="Aparência - Tipografia" open={aparenciaTipografiaOpen} onToggle={() => setAparenciaTipografiaOpen(v => !v)} />
-              <AccordionContent open={aparenciaTipografiaOpen}>
-                <Field label="Família de fonte">
-                  <SelectInput value="default" onChange={() => {}} options={[
-                    { value: 'default', label: 'Padrão' },
-                    { value: 'sans', label: 'Sans-serif' },
-                    { value: 'mono', label: 'Monospace' },
-                  ]} />
-                </Field>
-                <Field label="Tamanho da fonte">
-                  <TextInput value="12" onChange={() => {}} placeholder="12" />
-                </Field>
-              </AccordionContent>
-            </>}
+              // ── Objeto genérico (chave desconhecida) ────────────
+              if (section.kind === 'generic') {
+                const extrasForObj = settings.extras?.[section.objectKey!] ?? {};
+                return (
+                  <div key={section.key}>
+                    <SectionHeader title={section.title} open={open} onToggle={toggle} />
+                    <AccordionContent open={open}>
+                      <GenericSection
+                        objectKey={section.objectKey!}
+                        capObject={section.capObject!}
+                        extras={extrasForObj}
+                        onChangeExtras={(propKey, val) => patchExtras(section.objectKey!, propKey, val)}
+                      />
+                    </AccordionContent>
+                  </div>
+                );
+              }
 
-            {/* Aparência - Layout */}
-            {show('Aparência - Layout') && <>
-              <SectionHeader title="Aparência - Layout" open={aparenciaLayoutOpen} onToggle={() => setAparenciaLayoutOpen(v => !v)} />
-              <AccordionContent open={aparenciaLayoutOpen}>
-                <SmartField label="Placeholder do input" codeValue={fromCod.layout?.placeholderInput}>
-                  <TextInput value={layout.placeholderInput} onChange={(v) => patchLayout({ placeholderInput: v })} placeholder="Pergunte sobre os dados..." />
-                </SmartField>
-                <SmartField label="Texto do botão enviar" codeValue={fromCod.layout?.textoBotaoEnviar}>
-                  <TextInput value={layout.textoBotaoEnviar} onChange={(v) => patchLayout({ textoBotaoEnviar: v })} placeholder="Enviar" />
-                </SmartField>
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-medium text-foreground/80">Debug: exibir contexto</span>
-                  <Toggle checked={layout.debugExibirContexto} onChange={(v) => patchLayout({ debugExibirContexto: v })} />
+              // ── Objetos conhecidos ──────────────────────────────
+              const oKey = section.objectKey;
+
+              if (oKey === 'conexao') {
+                // Opções de provedor: usa enumeration do capabilities se disponível
+                const provedorProp = cap?.properties?.['provedor'];
+                const provedorOpts = provedorProp?.type?.enumeration
+                  ? (provedorProp.type.enumeration as { value: string; displayName: string }[]).map(
+                      (e) => ({ value: e.value, label: e.displayName })
+                    )
+                  : PROVEDORES_FALLBACK;
+                // Opções de modeloSugerido
+                const modeloSugProp = cap?.properties?.['modeloSugerido'];
+                const modeloSugOpts = modeloSugProp?.type?.enumeration
+                  ? (modeloSugProp.type.enumeration as { value: string; displayName: string }[]).map(
+                      (e) => ({ value: e.value, label: e.displayName })
+                    )
+                  : null;
+
+                return (
+                  <div key={section.key}>
+                    <SectionHeader title={section.title} open={open} onToggle={toggle} />
+                    <AccordionContent open={open}>
+                      <SmartField label={propLabel('provedor', 'Provedor')} codeValue={fromCod.conexao?.provedor}>
+                        <SelectInput value={conexao.provedor} onChange={(v) => patchConexao({ provedor: v })} options={provedorOpts} />
+                      </SmartField>
+                      <SmartPassword
+                        label={propLabel('apiKey', 'Chave de API')}
+                        codeValue={fromCod.conexao?.apiKey}
+                        value={conexao.apiKey}
+                        onChange={(v) => patchConexao({ apiKey: v })}
+                      />
+                      <SmartField label={propLabel('agentId', 'ID do Agente')} codeValue={fromCod.conexao?.agentId}>
+                        <TextInput value={conexao.agentId} onChange={(v) => patchConexao({ agentId: v })} placeholder="agent-xxxxxxxx" />
+                      </SmartField>
+                      {modeloSugOpts && (
+                        <Field label={propLabel('modeloSugerido', 'Modelo sugerido')}>
+                          <SelectInput
+                            value={conexao.modeloSugerido}
+                            onChange={(v) => patchConexao({ modeloSugerido: v })}
+                            options={modeloSugOpts}
+                          />
+                        </Field>
+                      )}
+                      <SmartField label={propLabel('modelo', 'Modelo personalizado')} codeValue={fromCod.conexao?.modelo}>
+                        <TextInput value={conexao.modelo} onChange={(v) => patchConexao({ modelo: v })} placeholder={conexao.modeloSugerido || 'ex: gpt-4o'} />
+                      </SmartField>
+                      {fromCod.conexao?.systemPrompt !== undefined ? (
+                        <CodeField label={propLabel('systemPrompt', 'System Prompt')} value={fromCod.conexao.systemPrompt} multiline />
+                      ) : (
+                        <Field label={propLabel('systemPrompt', 'System Prompt')}>
+                          <TextArea value={conexao.systemPrompt} onChange={(v) => patchConexao({ systemPrompt: v })} placeholder="Instruções para o assistente..." rows={4} />
+                        </Field>
+                      )}
+                    </AccordionContent>
+                  </div>
+                );
+              }
+
+              if (oKey === 'aparenciaChat') return (
+                <div key={section.key}>
+                  <SectionHeader title={section.title} open={open} onToggle={toggle} />
+                  <AccordionContent open={open}>
+                    <SmartColor label={propLabel('corFundoHeader', 'Fundo do topo')} codeValue={fromCod.aparenciaChat?.corFundoHeader} value={aparenciaChat.corFundoHeader} onChange={(v) => patchAparenciaChat({ corFundoHeader: v })} />
+                    <SmartColor label={propLabel('corTextoHeader', 'Texto do topo')} codeValue={fromCod.aparenciaChat?.corTextoHeader} value={aparenciaChat.corTextoHeader} onChange={(v) => patchAparenciaChat({ corTextoHeader: v })} />
+                    <SmartColor label={propLabel('corFundoChat', 'Fundo do chat')} codeValue={fromCod.aparenciaChat?.corFundoChat} value={aparenciaChat.corFundoChat} onChange={(v) => patchAparenciaChat({ corFundoChat: v })} />
+                    <SmartColor label={propLabel('corBolhaUsuario', 'Balão do usuário')} codeValue={fromCod.aparenciaChat?.corBolhaUsuario} value={aparenciaChat.corBolhaUsuario} onChange={(v) => patchAparenciaChat({ corBolhaUsuario: v })} />
+                    <SmartColor label={propLabel('corBolhaAssistente', 'Balão do agente')} codeValue={fromCod.aparenciaChat?.corBolhaAssistente} value={aparenciaChat.corBolhaAssistente} onChange={(v) => patchAparenciaChat({ corBolhaAssistente: v })} />
+                    <SmartColor label={propLabel('corTextoBolha', 'Texto do agente')} codeValue={fromCod.aparenciaChat?.corTextoBolha} value={aparenciaChat.corTextoBolha} onChange={(v) => patchAparenciaChat({ corTextoBolha: v })} />
+                    <SmartColor label={propLabel('corTextoBolhaUsuario', 'Texto do usuário')} codeValue={fromCod.aparenciaChat?.corTextoBolhaUsuario} value={aparenciaChat.corTextoBolhaUsuario} onChange={(v) => patchAparenciaChat({ corTextoBolhaUsuario: v })} />
+                    <SmartColor label={propLabel('corFundoInput', 'Fundo do input')} codeValue={fromCod.aparenciaChat?.corFundoInput} value={aparenciaChat.corFundoInput} onChange={(v) => patchAparenciaChat({ corFundoInput: v })} />
+                    <SmartColor label={propLabel('corBotaoEnviar', 'Cor do botão Enviar')} codeValue={fromCod.aparenciaChat?.corBotaoEnviar} value={aparenciaChat.corBotaoEnviar} onChange={(v) => patchAparenciaChat({ corBotaoEnviar: v })} />
+                    <SmartColor label={propLabel('corTextoBotao', 'Texto do botão')} codeValue={undefined} value={aparenciaChat.corTextoBotao ?? '#ffffff'} onChange={(v) => patchAparenciaChat({ corTextoBotao: v })} />
+                    {!cap && (
+                      <>
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[12px] font-medium text-foreground/80">Exibir avatares</span>
+                          <Toggle checked={aparenciaChat.exibirAvatares} onChange={(v) => patchAparenciaChat({ exibirAvatares: v })} />
+                        </div>
+                        <SmartField label="URL Avatar Usuário" codeValue={fromCod.aparenciaChat?.avatarUsuarioUrl}>
+                          <TextInput value={aparenciaChat.avatarUsuarioUrl} onChange={(v) => patchAparenciaChat({ avatarUsuarioUrl: v })} placeholder="https://..." />
+                        </SmartField>
+                        <SmartField label="URL Avatar Agente" codeValue={fromCod.aparenciaChat?.avatarAgenteUrl}>
+                          <TextInput value={aparenciaChat.avatarAgenteUrl} onChange={(v) => patchAparenciaChat({ avatarAgenteUrl: v })} placeholder="https://..." />
+                        </SmartField>
+                      </>
+                    )}
+                  </AccordionContent>
                 </div>
-              </AccordionContent>
-            </>}
+              );
 
+              if (oKey === 'tipografia') {
+                const fonteProp  = cap?.properties?.['familiaFonte'];
+                const fonteOpts  = fonteProp?.type?.enumeration
+                  ? (fonteProp.type.enumeration as { value: string; displayName: string }[]).map(
+                      (e) => ({ value: e.value, label: e.displayName })
+                    )
+                  : [
+                      { value: 'Inter',    label: 'Inter' },
+                      { value: 'Segoe UI', label: 'Segoe UI' },
+                      { value: 'Arial',    label: 'Arial' },
+                      { value: 'Roboto',   label: 'Roboto' },
+                    ];
+                return (
+                  <div key={section.key}>
+                    <SectionHeader title={section.title} open={open} onToggle={toggle} />
+                    <AccordionContent open={open}>
+                      <Field label={propLabel('familiaFonte', 'Família de fonte')}>
+                        <SelectInput value={tipografia?.familiaFonte ?? 'Inter'} onChange={(v) => patchTipografia({ familiaFonte: v })} options={fonteOpts} />
+                      </Field>
+                      <Field label={propLabel('tamanhoFonteMensagens', 'Tamanho fonte mensagens')}>
+                        <TextInput
+                          value={String(tipografia?.tamanhoFonteMensagens ?? 13)}
+                          onChange={(v) => patchTipografia({ tamanhoFonteMensagens: Number(v) || 13 })}
+                          placeholder="13"
+                        />
+                      </Field>
+                      <Field label={propLabel('tamanhoFonteInput', 'Tamanho fonte input')}>
+                        <TextInput
+                          value={String(tipografia?.tamanhoFonteInput ?? 12)}
+                          onChange={(v) => patchTipografia({ tamanhoFonteInput: Number(v) || 12 })}
+                          placeholder="12"
+                        />
+                      </Field>
+                    </AccordionContent>
+                  </div>
+                );
+              }
+
+              if (oKey === 'layout') {
+                // Seção "Título" no fallback (key='titulo', objectKey='layout')
+                if (section.key === 'titulo') {
+                  return (
+                    <div key={section.key}>
+                      <SectionHeader
+                        title={section.title}
+                        open={open}
+                        onToggle={toggle}
+                        toggleNode={<Toggle checked={layout.exibirTitulo} onChange={(v) => patchLayout({ exibirTitulo: v })} />}
+                      />
+                      <AccordionContent open={open}>
+                        <SmartField label={propLabel('tituloChat', 'Texto do título')} codeValue={fromCod.layout?.tituloChat}>
+                          <TextInput value={layout.tituloChat} onChange={(v) => patchLayout({ tituloChat: v })} placeholder="Assistente IA" />
+                        </SmartField>
+                      </AccordionContent>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={section.key}>
+                    <SectionHeader title={section.title} open={open} onToggle={toggle} />
+                    <AccordionContent open={open}>
+                      <SmartField label={propLabel('tituloChat', 'Título do chat')} codeValue={fromCod.layout?.tituloChat}>
+                        <TextInput value={layout.tituloChat} onChange={(v) => patchLayout({ tituloChat: v })} placeholder="Assistente IA" />
+                      </SmartField>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] font-medium text-foreground/80">{propLabel('exibirTitulo', 'Exibir título')}</span>
+                        <Toggle checked={layout.exibirTitulo} onChange={(v) => patchLayout({ exibirTitulo: v })} />
+                      </div>
+                      <SmartField label={propLabel('placeholderInput', 'Placeholder do input')} codeValue={fromCod.layout?.placeholderInput}>
+                        <TextInput value={layout.placeholderInput} onChange={(v) => patchLayout({ placeholderInput: v })} placeholder="Pergunte sobre os dados..." />
+                      </SmartField>
+                      <SmartField label={propLabel('textoBotaoEnviar', 'Texto do botão Enviar')} codeValue={fromCod.layout?.textoBotaoEnviar}>
+                        <TextInput value={layout.textoBotaoEnviar} onChange={(v) => patchLayout({ textoBotaoEnviar: v })} placeholder="Enviar" />
+                      </SmartField>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] font-medium text-foreground/80">{propLabel('debugExibirContexto', 'Debug: exibir contexto')}</span>
+                        <Toggle checked={layout.debugExibirContexto} onChange={(v) => patchLayout({ debugExibirContexto: v })} />
+                      </div>
+                    </AccordionContent>
+                  </div>
+                );
+              }
+
+              return null;
+            })}
           </div>
         </div>
       )}
