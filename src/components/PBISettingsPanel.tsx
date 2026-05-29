@@ -646,7 +646,23 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
     : dynamicSections;
 
   return (
-    <div className="relative flex h-full w-[280px] shrink-0 flex-col border-l border-border bg-muted shadow-xl" data-panel="pbi-settings">
+    <div
+      className="relative flex h-full w-[280px] shrink-0 flex-col border-l shadow-xl"
+      data-panel="pbi-settings"
+      style={{
+        /* Força paleta PBI light independente do tema do app */
+        '--background':        '0 0% 100%',
+        '--foreground':        '270 8% 19%',
+        '--muted':             '0 0% 96%',
+        '--muted-foreground':  '0 0% 43%',
+        '--border':            '0 0% 87%',
+        '--accent':            '0 0% 93%',
+        '--accent-foreground': '270 8% 19%',
+        borderColor:           '#e0e0e0',
+        backgroundColor:       '#f5f5f5',
+        color:                 '#312d35',
+      } as React.CSSProperties}
+    >
 
       {/* ── Header ── */}
       <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-border bg-background px-4">
