@@ -276,7 +276,7 @@ export function HtmlPreview({
         )}
 
         {/* Main area: preview + optional settings panel */}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="relative flex flex-1 min-h-0 overflow-hidden">
           {/* Preview area */}
           <div ref={containerRef} className="relative flex flex-1 min-h-0 min-w-0 items-start justify-center overflow-auto bg-preview-bg">
             {showSettings && (
@@ -397,15 +397,17 @@ export function HtmlPreview({
             )}
           </div>
 
-          {/* PBI Settings Panel */}
+          {/* PBI Settings Panel — posicionado absolutamente para não afetar o layout externo */}
           {showSettings && isPbiviz && (
-            <PBISettingsPanel
-              settings={pbivizSettings}
-              onChange={onPbivizSettingsChange}
-              onClose={() => setShowSettings(false)}
-              onReset={onPbivizSettingsReset}
-              extractedFromCode={extractedPbivizConfig}
-            />
+            <div className="absolute right-0 top-0 bottom-0 z-20 flex h-full shadow-xl">
+              <PBISettingsPanel
+                settings={pbivizSettings}
+                onChange={onPbivizSettingsChange}
+                onClose={() => setShowSettings(false)}
+                onReset={onPbivizSettingsReset}
+                extractedFromCode={extractedPbivizConfig}
+              />
+            </div>
           )}
         </div>
       </div>
