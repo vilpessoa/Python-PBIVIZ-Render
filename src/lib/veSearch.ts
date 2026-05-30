@@ -160,3 +160,49 @@ export function searchPythonSource(src: string, tokens: VELocateTokens): VEMatch
   results.sort((a, b) => b.score - a.score);
   return results.slice(0, 8); // keep top-8
 }
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Search Python `src` for lines that assign or reference `varName`.
+ * Handles top-level assignment (VAR_NAME = ...) and dict key ("varName": ...).
+ */
+export function searchPythonSourceByVarName(src: string, varName: string): VEMatch[] {
+  const lines = src.split(/\r?\n/);
+  const results: VEMatch[] = [];
+  let offset = 0;
+
+  const escaped = escapeRegex(varName);
+  const reAssign = new RegExp(`\\b${escaped}\\s*(?:\\+?=)`, 'i');
+  const reKey = new RegExp(`['"]${escaped}['"]\\s*:`);
+  const reStrVal = new RegExp(`['"]${escaped}['"]`);
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineStart = offset;
+    const lineEnd = offset + line.length;
+    offset += line.length + 1;
+
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+
+    let score = 0;
+    if (reAssign.test(line)) {
+      score = /^\s*[A-Za-z_][A-Za-z0-9_]*\s*(?:\+?=)/.test(line) ? 100 : 80;
+    } else if (reKey.test(line)) {
+      score = 70;
+    } else if (reStrVal.test(line)) {
+      score = 55;
+    }
+
+    if (score > 0) {
+      const { label, kind } = friendlyLabel(line);
+      results.push({ label, kind, start: lineStart, end: lineEnd, line: i + 1, score });
+    }
+  }
+
+  results.sort((a, b) => b.score - a.score);
+  return results.slice(0, 8);
+}

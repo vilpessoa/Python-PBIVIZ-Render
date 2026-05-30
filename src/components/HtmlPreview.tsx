@@ -42,6 +42,7 @@ interface Props {
   onPbivizSettingsChange: (s: PBISettings) => void;
   onPbivizSettingsReset?: () => void;
   extractedPbivizConfig?: ExtractedPbivizConfig;
+  onPbivizFieldLocate?: (varName: string, fieldLabel: string, x: number, y: number) => void;
 }
 
 const PRESETS: { id: string; label: string; width: number; height: number; icon: React.ElementType }[] = [
@@ -85,6 +86,7 @@ export function HtmlPreview({
   onPbivizSettingsChange,
   onPbivizSettingsReset,
   extractedPbivizConfig,
+  onPbivizFieldLocate,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -423,6 +425,7 @@ export function HtmlPreview({
                 onClose={() => setShowSettings(false)}
                 onReset={onPbivizSettingsReset}
                 extractedFromCode={extractedPbivizConfig}
+                onFieldLocate={onPbivizFieldLocate}
               />
             </div>
           )}
