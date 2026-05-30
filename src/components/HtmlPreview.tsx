@@ -17,6 +17,7 @@ import { exportPbiviz, downloadBlob } from '@/lib/pbivizExporter';
 import { AnimatedVisualEditsButton } from '@/components/ui/animated-visual-edits-button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown';
 import { enhancePythonError } from '@/lib/pythonParser/errorEnhancer';
 import { VE_OVERLAY_SCRIPT, type VELocateTokens } from '@/lib/visualEdits';
 import type { ViewportState, PBISettings } from '@/lib/storage';
@@ -67,6 +68,10 @@ function buildSrcdoc(html: string, visualEdits: boolean): string {
     return html;
   }
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${html}${visualEdits ? VE_OVERLAY_SCRIPT : ''}</body></html>`;
+}
+
+function VDivider() {
+  return <span aria-hidden className="mx-0.5 inline-block h-3 w-px shrink-0 rounded-full bg-border opacity-60" />;
 }
 
 export function HtmlPreview({
@@ -199,7 +204,7 @@ export function HtmlPreview({
   const enhanced = error ? enhancePythonError(error, undefined, errorPos, errorLine) : null;
 
   return (
-    <TooltipProvider delayDuration={500}>
+    <TooltipProvider delayDuration={0}>
       <div className="flex h-full w-full flex-col bg-background">
         {/* Toolbar */}
         <div className="relative flex h-10 shrink-0 items-center border-b border-border bg-surface px-3">
@@ -208,104 +213,88 @@ export function HtmlPreview({
             <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs font-semibold text-foreground">Preview</span>
             {isPbiviz && (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="Configurações do Visual"
-                      onClick={() => setShowSettings((v) => !v)}
-                      className={`flex h-6 w-6 items-center justify-center rounded border border-border/50 transition-colors ${
-                        showSettings
-                          ? 'bg-primary/15 text-primary border-primary/40'
-                          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                      }`}
-                    >
-                      <Settings2 className="h-3 w-3" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Configurações do Visual</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="Exportar .pbiviz"
-                      onClick={handleExportPbiviz}
-                      disabled={exportStatus !== 'idle'}
-                      className={`flex h-6 items-center justify-center gap-1 rounded border border-border/50 px-2 text-[11px] font-medium transition-colors ${
-                        exportStatus === 'done'
-                          ? 'bg-green-500/15 text-green-600 border-green-400/40'
-                          : exportStatus === 'generating'
-                          ? 'text-muted-foreground cursor-not-allowed'
-                          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                      }`}
-                    >
-                      {exportStatus === 'generating' ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : exportStatus === 'done' ? (
-                        <CheckCircle className="h-3 w-3" />
-                      ) : (
-                        <Download className="h-3 w-3" />
-                      )}
-                      {exportStatus === 'done' ? 'Baixado!' : '.pbiviz'}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Exportar .pbiviz para Power BI</TooltipContent>
-                </Tooltip>
-              </>
+              <button
+                type="button"
+                aria-label="Exportar .pbiviz"
+                onClick={handleExportPbiviz}
+                disabled={exportStatus !== 'idle'}
+                className={`flex h-7 items-center justify-center gap-1 rounded-full border px-2.5 text-[11px] font-medium transition-colors duration-200 active:scale-95 ${
+                  exportStatus === 'done'
+                    ? 'bg-green-500/15 text-green-600 border-green-400/40 animate-pulse'
+                    : exportStatus === 'generating'
+                    ? 'text-muted-foreground border-border/50 cursor-not-allowed'
+                    : 'text-muted-foreground border-border/60 hover:text-foreground hover:border-primary/30'
+                }`}
+              >
+                {exportStatus === 'generating' ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : exportStatus === 'done' ? (
+                  <CheckCircle className="h-3 w-3" />
+                ) : (
+                  <Download className="h-3 w-3" />
+                )}
+                {exportStatus === 'done' ? 'Baixado!' : '.pbiviz'}
+              </button>
             )}
           </div>
 
           {/* Center: screen size badge */}
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
-            <Badge
-              variant="outline"
-              className="text-[10px] font-mono tabular-nums px-2 py-0.5 select-none"
-            >
+            <span className="text-[10px] font-mono tabular-nums px-2 py-0.5 select-none text-muted-foreground/60">
               {isFit
                 ? containerSize.w > 0
                   ? `${Math.round(containerSize.w)}×${Math.round(containerSize.h)}`
                   : 'Fit'
                 : `${viewport.width}×${viewport.height}`}
-            </Badge>
+            </span>
           </div>
 
           {/* Right: viewport presets + warnings + visual edits */}
           <div className="flex flex-1 items-center justify-end gap-2">
-            {/* Viewport presets */}
-            <div className="flex items-center gap-0.5">
-              {PRESETS.map((p) => {
-                const Icon = p.icon;
-                const active = viewport.preset === p.id;
-                return (
-                  <Tooltip key={p.id}>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label={p.label}
-                        onClick={() =>
-                          onViewportChange({
-                            width: p.width,
-                            height: p.height,
-                            preset: p.id,
-                          })
-                        }
-                        className={`flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors ${
-                          active
-                            ? 'bg-primary/15 text-primary border-primary/40'
-                            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                        }`}
-                      >
-                        <Icon className="h-3.5 w-3.5" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>{p.label}</TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </div>
+            {/* Viewport presets dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Tamanho da tela"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border/60 transition-colors duration-200 active:scale-95 text-muted-foreground hover:text-foreground hover:border-primary/30 focus-visible:outline-none"
+                >
+                  {(() => {
+                    const preset = PRESETS.find((p) => p.id === viewport.preset);
+                    const Icon = preset?.icon || Maximize2;
+                    return <Icon className="h-3.5 w-3.5" />;
+                  })()}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {PRESETS.map((p) => {
+                  const Icon = p.icon;
+                  const isActive = viewport.preset === p.id;
+                  const label = p.id === 'fit' ? 'Fit' : `${p.label.split(' ')[0]} ${p.width}×${p.height}`;
+                  return (
+                    <DropdownMenuItem
+                      key={p.id}
+                      onClick={() =>
+                        onViewportChange({
+                          width: p.width,
+                          height: p.height,
+                          preset: p.id,
+                        })
+                      }
+                      className={`flex items-center gap-2 cursor-pointer text-xs ${
+                        isActive ? 'bg-primary/15 text-primary font-medium' : ''
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      <span>{label}</span>
+                      {isActive && <span className="ml-auto">✓</span>}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <VDivider />
 
             {warnings.length > 0 && !error && (
               <button
@@ -329,6 +318,26 @@ export function HtmlPreview({
               enabled={visualEditsEnabled}
               onClick={onToggleVisualEdits}
             />
+
+            {isPbiviz && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Configurações do Visual"
+                    onClick={() => setShowSettings((v) => !v)}
+                    className={`flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors active:scale-95 ${
+                      showSettings
+                        ? 'bg-primary/15 text-primary border-primary/40'
+                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    }`}
+                  >
+                    <Settings2 className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="px-2 py-1 text-xs">Configurações do Visual</TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </div>
 
