@@ -16,7 +16,7 @@ Responda em português brasileiro. Este repositório segue padrão PT-BR em mens
 **NÃO criar Pull Requests. NÃO fazer merge. Commits diretos na branch `main`.**
 Vercel detecta automaticamente e faz deploy. Simples assim.
 
-**Segunda via, sempre após um PR retorne junto o link de Preview da Vercel**
+**Fluxo Segunda via, sempre após um PR retorne junto o link de Preview da Vercel. Pergunte ao usuário se ele aprova ou não a modificação, se ele responder 'Sim' ou 'S' faça o merge imediatamente**
 
 ### Fluxo de Sessão
 ```bash
