@@ -31,17 +31,15 @@ interface Props {
 }
 
 const THEMES: { id: PythonEditorTheme; label: string; dot1: string; dot2: string }[] = [
-  { id: 'default',     label: 'Python',      dot1: '#4CA64C', dot2: '#BB5252' },
-  { id: 'soft',        label: 'Soft',        dot1: '#7d61a9', dot2: '#b6dbd5' },
-  { id: 'soft-dark',   label: 'Soft Dark',   dot1: '#1e2030', dot2: '#4abca6' },
+  { id: 'github',      label: 'GitHub',      dot1: '#ff7b72', dot2: '#d2a8ff' },
+  { id: 'catppuccin',  label: 'Catppuccin',  dot1: '#cba6f7', dot2: '#a6e3a1' },
+  { id: 'rose-pine',   label: 'Rosé Pine',   dot1: '#c4a7e7', dot2: '#9ccfd8' },
+  { id: 'dracula',     label: 'Dracula',     dot1: '#bd93f9', dot2: '#50fa7b' },
+  { id: 'tokyo',       label: 'Tokyo Night', dot1: '#bb9af7', dot2: '#7aa2f7' },
   { id: 'one-pro',     label: 'One Pro',     dot1: '#c678dd', dot2: '#61afef' },
-  { id: 'dracula',     label: 'Dracula',     dot1: '#bd93f9', dot2: '#ff79c6' },
-  { id: 'nord',        label: 'Nord',        dot1: '#7C99BB', dot2: '#BED0B3' },
-  { id: 'monokai',     label: 'Monokai',     dot1: '#EEE9B6', dot2: '#F9B9CF' },
-  { id: 'tokyo',       label: 'Tokyo',       dot1: '#894FEE', dot2: '#5ECDB7' },
-  { id: 'github',      label: 'GitHub',      dot1: '#ff7b72', dot2: '#0969da' },
-  { id: 'gruvbox',     label: 'Gruvbox',     dot1: '#fb4934', dot2: '#076678' },
-  { id: 'ayu',         label: 'Ayu',         dot1: '#f07178', dot2: '#55b4d4' },
+  { id: 'nord',        label: 'Nord',        dot1: '#88c0d0', dot2: '#a3be8c' },
+  { id: 'ayu',         label: 'Ayu',         dot1: '#ff7733', dot2: '#59c2ff' },
+  { id: 'gruvbox',     label: 'Gruvbox',     dot1: '#fb4934', dot2: '#b8bb26' },
 ];
 
 function VDivider() {

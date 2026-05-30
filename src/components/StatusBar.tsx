@@ -24,17 +24,15 @@ function VDivider() {
 }
 
 const THEME_LABELS: Record<string, string> = {
-  default: 'Python',
-  soft: 'Soft',
-  'soft-dark': 'Soft Dark',
-  'one-pro': 'One Pro',
-  dracula: 'Dracula',
-  nord: 'Nord',
-  monokai: 'Monokai',
-  tokyo: 'Tokyo',
   github: 'GitHub',
-  gruvbox: 'Gruvbox',
+  catppuccin: 'Catppuccin',
+  'rose-pine': 'Rosé Pine',
+  dracula: 'Dracula',
+  tokyo: 'Tokyo Night',
+  'one-pro': 'One Pro',
+  nord: 'Nord',
   ayu: 'Ayu',
+  gruvbox: 'Gruvbox',
 };
 
 export function StatusBar({
