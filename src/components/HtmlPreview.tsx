@@ -8,7 +8,7 @@ import {
   Smartphone,
   Tablet,
   Maximize2,
-  Paintbrush2,
+  Settings2,
 } from 'lucide-react';
 import { AnimatedVisualEditsButton } from '@/components/ui/animated-visual-edits-button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -180,19 +180,47 @@ export function HtmlPreview({
     <TooltipProvider delayDuration={500}>
       <div className="flex h-full w-full flex-col bg-background">
         {/* Toolbar */}
-        <div className="flex h-10 shrink-0 items-center border-b border-border bg-surface px-3">
-          {/* Left: Preview label + size badge */}
+        <div className="relative flex h-10 shrink-0 items-center border-b border-border bg-surface px-3">
+          {/* Left: Preview label + PBI settings button */}
           <div className="flex flex-1 items-center gap-2">
             <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs font-semibold text-foreground">Preview</span>
-            {viewport.preset === 'custom' && (
-              <Badge variant="default" className="ml-1 text-[10px] font-mono">
-                {viewport.width}×{viewport.height}
-              </Badge>
+            {isPbiviz && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Configurações do Visual"
+                    onClick={() => setShowSettings((v) => !v)}
+                    className={`flex h-6 w-6 items-center justify-center rounded border border-border/50 transition-colors ${
+                      showSettings
+                        ? 'bg-primary/15 text-primary border-primary/40'
+                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    }`}
+                  >
+                    <Settings2 className="h-3 w-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Configurações do Visual</TooltipContent>
+              </Tooltip>
             )}
           </div>
 
-          {/* Right: viewport presets + settings + warnings + visual edits */}
+          {/* Center: screen size badge */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
+            <Badge
+              variant="outline"
+              className="text-[10px] font-mono tabular-nums px-2 py-0.5 select-none"
+            >
+              {isFit
+                ? containerSize.w > 0
+                  ? `${Math.round(containerSize.w)}×${Math.round(containerSize.h)}`
+                  : 'Fit'
+                : `${viewport.width}×${viewport.height}`}
+            </Badge>
+          </div>
+
+          {/* Right: viewport presets + warnings + visual edits */}
           <div className="flex flex-1 items-center justify-end gap-2">
             {/* Viewport presets */}
             <div className="flex items-center gap-0.5">
@@ -200,43 +228,32 @@ export function HtmlPreview({
                 const Icon = p.icon;
                 const active = viewport.preset === p.id;
                 return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    aria-label={p.label}
-                    onClick={() =>
-                      onViewportChange({
-                        width: p.width,
-                        height: p.height,
-                        preset: p.id,
-                      })
-                    }
-                    className={`flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors ${
-                      active
-                        ? 'bg-primary/15 text-primary border-primary/40'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                  </button>
+                  <Tooltip key={p.id}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={p.label}
+                        onClick={() =>
+                          onViewportChange({
+                            width: p.width,
+                            height: p.height,
+                            preset: p.id,
+                          })
+                        }
+                        className={`flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors ${
+                          active
+                            ? 'bg-primary/15 text-primary border-primary/40'
+                            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{p.label}</TooltipContent>
+                  </Tooltip>
                 );
               })}
             </div>
-
-            {isPbiviz && (
-              <button
-                type="button"
-                aria-label="Formato Visual"
-                onClick={() => setShowSettings((v) => !v)}
-                className={`flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors ${
-                  showSettings
-                    ? 'bg-primary/15 text-primary border-primary/40'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                }`}
-              >
-                <Paintbrush2 className="h-3.5 w-3.5" />
-              </button>
-            )}
 
             {warnings.length > 0 && !error && (
               <button
