@@ -13,17 +13,18 @@ export interface ViewportState {
 }
 
 export type PythonEditorTheme =
-  | 'default'
-  | 'soft'
-  | 'soft-dark'
+  | 'github'
+  | 'catppuccin'
+  | 'rose-pine'
   | 'dracula'
-  | 'nord'
-  | 'monokai'
   | 'tokyo'
   | 'one-pro'
-  | 'github'
+  | 'nord'
+  | 'ayu'
   | 'gruvbox'
-  | 'ayu';
+  | 'moonlight'
+  | 'kanagawa'
+  | 'poimandres';
 
 export interface PBIConexao {
   provedor: string;
@@ -170,7 +171,7 @@ const DEFAULT_STATE: AppState = {
   viewport: { width: 1280, height: 800, preset: 'fit' },
   accentColor: 'blue',
   fontFamily: 'space-grotesk',
-  pythonEditorTheme: 'default',
+  pythonEditorTheme: 'github',
   pbivizSettings: DEFAULT_PBI_SETTINGS,
 };
 
@@ -180,9 +181,14 @@ export function loadState(): AppState {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { ...DEFAULT_STATE };
     const parsed = JSON.parse(raw) as Partial<AppState>;
+    const VALID_THEMES: PythonEditorTheme[] = ['github','catppuccin','rose-pine','dracula','tokyo','one-pro','nord','ayu','gruvbox','moonlight','kanagawa','poimandres'];
+    const migratedTheme: PythonEditorTheme = VALID_THEMES.includes(parsed.pythonEditorTheme as PythonEditorTheme)
+      ? (parsed.pythonEditorTheme as PythonEditorTheme)
+      : 'github';
     return {
       ...DEFAULT_STATE,
       ...parsed,
+      pythonEditorTheme: migratedTheme,
       viewport: { ...DEFAULT_STATE.viewport, ...(parsed.viewport ?? {}) },
       pbivizSettings: {
         conexao: { ...DEFAULT_PBI_SETTINGS.conexao, ...(parsed.pbivizSettings?.conexao ?? {}) },

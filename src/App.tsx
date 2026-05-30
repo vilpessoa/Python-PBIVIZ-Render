@@ -65,7 +65,7 @@ export default function App() {
   const [accentColor] = useState<string>(initialState.accentColor ?? 'blue');
   const [fontFamily] = useState<string>(initialState.fontFamily ?? 'space-grotesk');
   const [pythonEditorTheme, setPythonEditorTheme] = useState<PythonEditorTheme>(
-    initialState.pythonEditorTheme ?? 'default',
+    initialState.pythonEditorTheme ?? 'github',
   );
   const [pbivizSettings, setPbivizSettings] = useState<PBISettings>(
     initialState.pbivizSettings ?? DEFAULT_PBI_SETTINGS,

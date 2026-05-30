@@ -9,10 +9,6 @@ import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { EditorView, Decoration, type DecorationSet, keymap } from '@codemirror/view';
 import { StateField, StateEffect, RangeSetBuilder } from '@codemirror/state';
 import { python } from '@codemirror/lang-python';
-import { dracula } from '@uiw/codemirror-theme-dracula';
-import { nord } from '@uiw/codemirror-theme-nord';
-import { monokai } from '@uiw/codemirror-theme-monokai';
-import { tokyoNight } from '@uiw/codemirror-theme-tokyo-night';
 import { createTheme } from '@uiw/codemirror-themes';
 import { tags as t } from '@lezer/highlight';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
@@ -90,60 +86,157 @@ const errorField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
-function buildDefaultTheme(isDark: boolean) {
+function buildGitHubTheme(isDark: boolean) {
   return createTheme({
     theme: isDark ? 'dark' : 'light',
     settings: {
-      background: isDark ? 'hsl(230 15% 10%)' : 'hsl(0 0% 100%)',
-      foreground: isDark ? 'hsl(230 20% 90%)' : 'hsl(230 15% 10%)',
-      caret: 'hsl(var(--primary))',
-      selection: isDark ? 'hsl(217 91% 50% / 30%)' : 'hsl(217 91% 50% / 20%)',
-      selectionMatch: isDark ? 'hsl(217 91% 50% / 15%)' : 'hsl(217 91% 50% / 10%)',
-      lineHighlight: isDark ? 'hsl(230 15% 14%)' : 'hsl(230 20% 97%)',
-      gutterBackground: isDark ? 'hsl(230 15% 10%)' : 'hsl(230 20% 99%)',
-      gutterForeground: isDark ? 'hsl(230 10% 40%)' : 'hsl(230 10% 65%)',
+      background: isDark ? '#0d1117' : '#ffffff',
+      foreground: isDark ? '#c9d1d9' : '#24292f',
+      caret: isDark ? '#58a6ff' : '#0969da',
+      selection: isDark ? 'rgba(88,166,255,0.25)' : 'rgba(9,105,218,0.15)',
+      selectionMatch: isDark ? 'rgba(88,166,255,0.15)' : 'rgba(9,105,218,0.08)',
+      lineHighlight: isDark ? '#161b22' : '#f6f8fa',
+      gutterBackground: isDark ? '#0d1117' : '#f6f8fa',
+      gutterForeground: isDark ? '#484f58' : '#8c959f',
     },
     styles: [
-      { tag: t.keyword, color: isDark ? '#ff79c6' : '#d63384' },
-      { tag: t.string, color: isDark ? '#f1fa8c' : '#e3760c' },
-      { tag: t.comment, color: isDark ? '#6272a4' : '#8a9ba8', fontStyle: 'italic' },
-      { tag: t.number, color: isDark ? '#bd93f9' : '#7c3aed' },
-      { tag: t.operator, color: isDark ? '#ff79c6' : '#d63384' },
-      { tag: t.function(t.variableName), color: isDark ? '#50fa7b' : '#1d7c3c' },
-      { tag: t.variableName, color: isDark ? '#f8f8f2' : '#1e293b' },
-      { tag: t.definition(t.variableName), color: isDark ? '#8be9fd' : '#0369a1' },
-      { tag: t.typeName, color: isDark ? '#8be9fd' : '#0369a1' },
-      { tag: t.bool, color: isDark ? '#bd93f9' : '#7c3aed' },
-      { tag: t.null, color: isDark ? '#bd93f9' : '#7c3aed' },
-      { tag: t.punctuation, color: isDark ? '#f8f8f2' : '#475569' },
-      { tag: t.propertyName, color: isDark ? '#66d9e8' : '#0891b2' },
+      { tag: t.keyword, color: isDark ? '#ff7b72' : '#cf222e' },
+      { tag: t.string, color: isDark ? '#a5d6ff' : '#0a3069' },
+      { tag: t.comment, color: isDark ? '#8b949e' : '#6e7781', fontStyle: 'italic' },
+      { tag: t.number, color: isDark ? '#79c0ff' : '#0550ae' },
+      { tag: t.function(t.variableName), color: isDark ? '#d2a8ff' : '#8250df' },
+      { tag: t.variableName, color: isDark ? '#c9d1d9' : '#24292f' },
+      { tag: t.definition(t.variableName), color: isDark ? '#ffa657' : '#953800' },
+      { tag: t.operator, color: isDark ? '#ff7b72' : '#cf222e' },
+      { tag: t.bool, color: isDark ? '#79c0ff' : '#0550ae' },
+      { tag: t.null, color: isDark ? '#79c0ff' : '#0550ae' },
+      { tag: t.typeName, color: isDark ? '#79c0ff' : '#0550ae' },
+      { tag: t.propertyName, color: isDark ? '#79c0ff' : '#0550ae' },
+      { tag: t.punctuation, color: isDark ? '#c9d1d9' : '#24292f' },
     ],
   });
 }
 
-function buildSoftTheme(isDark: boolean) {
+function buildCatppuccinTheme(isDark: boolean) {
   return createTheme({
     theme: isDark ? 'dark' : 'light',
     settings: {
-      background: isDark ? '#1a1b26' : '#f8f7f4',
-      foreground: isDark ? '#c0caf5' : '#3d3d3d',
-      caret: '#7aa2f7',
-      selection: isDark ? 'rgba(122,162,247,0.25)' : 'rgba(122,162,247,0.18)',
-      selectionMatch: isDark ? 'rgba(122,162,247,0.15)' : 'rgba(122,162,247,0.10)',
-      lineHighlight: isDark ? '#1e2030' : '#f0ede6',
-      gutterBackground: isDark ? '#1a1b26' : '#f8f7f4',
-      gutterForeground: isDark ? '#545c7e' : '#9b8fa6',
+      background: isDark ? '#1e1e2e' : '#eff1f5',
+      foreground: isDark ? '#cdd6f4' : '#4c4f69',
+      caret: isDark ? '#f5e0dc' : '#dc8a78',
+      selection: isDark ? 'rgba(203,166,247,0.22)' : 'rgba(136,57,239,0.15)',
+      selectionMatch: isDark ? 'rgba(203,166,247,0.12)' : 'rgba(136,57,239,0.08)',
+      lineHighlight: isDark ? '#181825' : '#e6e9f0',
+      gutterBackground: isDark ? '#1e1e2e' : '#eff1f5',
+      gutterForeground: isDark ? '#585b70' : '#8c8fa1',
     },
     styles: [
-      { tag: t.keyword, color: isDark ? '#bb9af7' : '#8839ef' },
-      { tag: t.string, color: isDark ? '#9ece6a' : '#40a02b' },
-      { tag: t.comment, color: isDark ? '#565f89' : '#8c8fa1', fontStyle: 'italic' },
-      { tag: t.number, color: isDark ? '#ff9e64' : '#fe640b' },
-      { tag: t.function(t.variableName), color: isDark ? '#7aa2f7' : '#1e66f5' },
-      { tag: t.variableName, color: isDark ? '#c0caf5' : '#3d3d3d' },
-      { tag: t.typeName, color: isDark ? '#2ac3de' : '#209fb5' },
-      { tag: t.bool, color: isDark ? '#ff9e64' : '#fe640b' },
-      { tag: t.operator, color: isDark ? '#89ddff' : '#04a5e5' },
+      { tag: t.keyword, color: isDark ? '#cba6f7' : '#8839ef' },
+      { tag: t.string, color: isDark ? '#a6e3a1' : '#40a02b' },
+      { tag: t.comment, color: isDark ? '#6c7086' : '#9ca0b0', fontStyle: 'italic' },
+      { tag: t.number, color: isDark ? '#fab387' : '#fe640b' },
+      { tag: t.function(t.variableName), color: isDark ? '#89b4fa' : '#1e66f5' },
+      { tag: t.variableName, color: isDark ? '#cdd6f4' : '#4c4f69' },
+      { tag: t.definition(t.variableName), color: isDark ? '#89dceb' : '#209fb5' },
+      { tag: t.operator, color: isDark ? '#89dceb' : '#04a5e5' },
+      { tag: t.bool, color: isDark ? '#fab387' : '#fe640b' },
+      { tag: t.null, color: isDark ? '#f38ba8' : '#d20f39' },
+      { tag: t.typeName, color: isDark ? '#f5c2e7' : '#ea76cb' },
+      { tag: t.propertyName, color: isDark ? '#89dceb' : '#209fb5' },
+      { tag: t.punctuation, color: isDark ? '#9399b2' : '#7c7f93' },
+    ],
+  });
+}
+
+function buildRosePineTheme(isDark: boolean) {
+  return createTheme({
+    theme: isDark ? 'dark' : 'light',
+    settings: {
+      background: isDark ? '#232136' : '#faf4ed',
+      foreground: isDark ? '#e0def4' : '#575279',
+      caret: isDark ? '#c4a7e7' : '#b4637a',
+      selection: isDark ? 'rgba(196,167,231,0.20)' : 'rgba(180,99,122,0.12)',
+      selectionMatch: isDark ? 'rgba(196,167,231,0.10)' : 'rgba(180,99,122,0.07)',
+      lineHighlight: isDark ? '#2a273f' : '#f2e9e1',
+      gutterBackground: isDark ? '#232136' : '#faf4ed',
+      gutterForeground: isDark ? '#59546d' : '#9893a5',
+    },
+    styles: [
+      { tag: t.keyword, color: isDark ? '#c4a7e7' : '#b4637a' },
+      { tag: t.string, color: isDark ? '#9ccfd8' : '#56949f' },
+      { tag: t.comment, color: isDark ? '#59546d' : '#9893a5', fontStyle: 'italic' },
+      { tag: t.number, color: isDark ? '#eb6f92' : '#d7827a' },
+      { tag: t.function(t.variableName), color: isDark ? '#3e8fb0' : '#286983' },
+      { tag: t.variableName, color: isDark ? '#e0def4' : '#575279' },
+      { tag: t.definition(t.variableName), color: isDark ? '#f6c177' : '#ea9d34' },
+      { tag: t.operator, color: isDark ? '#908caa' : '#907aa9' },
+      { tag: t.bool, color: isDark ? '#eb6f92' : '#d7827a' },
+      { tag: t.null, color: isDark ? '#908caa' : '#907aa9' },
+      { tag: t.typeName, color: isDark ? '#ea9a97' : '#b4637a' },
+      { tag: t.propertyName, color: isDark ? '#9ccfd8' : '#56949f' },
+      { tag: t.punctuation, color: isDark ? '#908caa' : '#797593' },
+    ],
+  });
+}
+
+function buildDraculaTheme(isDark: boolean) {
+  return createTheme({
+    theme: isDark ? 'dark' : 'light',
+    settings: {
+      background: isDark ? '#282a36' : '#f8f8f2',
+      foreground: isDark ? '#f8f8f2' : '#282a36',
+      caret: isDark ? '#f8f8f0' : '#6272a4',
+      selection: isDark ? 'rgba(68,71,90,0.7)' : 'rgba(98,114,164,0.20)',
+      selectionMatch: isDark ? 'rgba(68,71,90,0.5)' : 'rgba(98,114,164,0.12)',
+      lineHighlight: isDark ? '#44475a' : '#f0f0f4',
+      gutterBackground: isDark ? '#282a36' : '#f8f8f2',
+      gutterForeground: isDark ? '#6272a4' : '#a0a8c4',
+    },
+    styles: [
+      { tag: t.keyword, color: isDark ? '#ff79c6' : '#c4366e' },
+      { tag: t.string, color: isDark ? '#f1fa8c' : '#c07c1a' },
+      { tag: t.comment, color: isDark ? '#6272a4' : '#7b8fa1', fontStyle: 'italic' },
+      { tag: t.number, color: isDark ? '#bd93f9' : '#7c3aed' },
+      { tag: t.function(t.variableName), color: isDark ? '#50fa7b' : '#2da94f' },
+      { tag: t.variableName, color: isDark ? '#f8f8f2' : '#282a36' },
+      { tag: t.definition(t.variableName), color: isDark ? '#8be9fd' : '#0369a1' },
+      { tag: t.operator, color: isDark ? '#ff79c6' : '#c4366e' },
+      { tag: t.bool, color: isDark ? '#bd93f9' : '#7c3aed' },
+      { tag: t.null, color: isDark ? '#bd93f9' : '#7c3aed' },
+      { tag: t.typeName, color: isDark ? '#8be9fd' : '#0369a1' },
+      { tag: t.propertyName, color: isDark ? '#66d9e8' : '#0891b2' },
+      { tag: t.punctuation, color: isDark ? '#f8f8f2' : '#44475a' },
+    ],
+  });
+}
+
+function buildTokyoTheme(isDark: boolean) {
+  return createTheme({
+    theme: isDark ? 'dark' : 'light',
+    settings: {
+      background: isDark ? '#24283b' : '#e1e2e7',
+      foreground: isDark ? '#c0caf5' : '#3760bf',
+      caret: isDark ? '#c0caf5' : '#3760bf',
+      selection: isDark ? 'rgba(187,154,247,0.22)' : 'rgba(55,96,191,0.15)',
+      selectionMatch: isDark ? 'rgba(187,154,247,0.12)' : 'rgba(55,96,191,0.08)',
+      lineHighlight: isDark ? '#292e42' : '#d5d6db',
+      gutterBackground: isDark ? '#24283b' : '#e1e2e7',
+      gutterForeground: isDark ? '#565f89' : '#9699a9',
+    },
+    styles: [
+      { tag: t.keyword, color: isDark ? '#bb9af7' : '#9854f1' },
+      { tag: t.string, color: isDark ? '#9ece6a' : '#587539' },
+      { tag: t.comment, color: isDark ? '#565f89' : '#848cb8', fontStyle: 'italic' },
+      { tag: t.number, color: isDark ? '#ff9e64' : '#b15c00' },
+      { tag: t.function(t.variableName), color: isDark ? '#7aa2f7' : '#2e7de9' },
+      { tag: t.variableName, color: isDark ? '#c0caf5' : '#3760bf' },
+      { tag: t.definition(t.variableName), color: isDark ? '#e0af68' : '#8c6c3e' },
+      { tag: t.operator, color: isDark ? '#89ddff' : '#007197' },
+      { tag: t.bool, color: isDark ? '#ff9e64' : '#b15c00' },
+      { tag: t.null, color: isDark ? '#bb9af7' : '#9854f1' },
+      { tag: t.typeName, color: isDark ? '#2ac3de' : '#007197' },
+      { tag: t.propertyName, color: isDark ? '#73daca' : '#387068' },
+      { tag: t.punctuation, color: isDark ? '#89ddff' : '#007197' },
     ],
   });
 }
@@ -154,52 +247,58 @@ function buildOneTheme(isDark: boolean) {
     settings: {
       background: isDark ? '#282c34' : '#fafafa',
       foreground: isDark ? '#abb2bf' : '#383a42',
-      caret: isDark ? '#61afef' : '#0184bc',
-      selection: isDark ? 'rgba(97, 175, 239, 0.25)' : 'rgba(1, 132, 188, 0.15)',
-      selectionMatch: isDark ? 'rgba(97, 175, 239, 0.15)' : 'rgba(1, 132, 188, 0.10)',
-      lineHighlight: isDark ? '#2c313c' : '#f5f5f5',
+      caret: isDark ? '#61afef' : '#4078f2',
+      selection: isDark ? 'rgba(97,175,239,0.25)' : 'rgba(64,120,242,0.15)',
+      selectionMatch: isDark ? 'rgba(97,175,239,0.12)' : 'rgba(64,120,242,0.08)',
+      lineHighlight: isDark ? '#2c313c' : '#f4f4f4',
       gutterBackground: isDark ? '#282c34' : '#fafafa',
-      gutterForeground: isDark ? '#5c6370' : '#a0a1a7',
+      gutterForeground: isDark ? '#5c6370' : '#9d9d9f',
     },
     styles: [
       { tag: t.keyword, color: isDark ? '#c678dd' : '#a626a4' },
       { tag: t.string, color: isDark ? '#98c379' : '#50a14f' },
       { tag: t.comment, color: isDark ? '#5c6370' : '#a0a1a7', fontStyle: 'italic' },
       { tag: t.number, color: isDark ? '#d19a66' : '#986801' },
-      { tag: t.function(t.variableName), color: isDark ? '#61afef' : '#0184bc' },
+      { tag: t.function(t.variableName), color: isDark ? '#61afef' : '#4078f2' },
       { tag: t.variableName, color: isDark ? '#abb2bf' : '#383a42' },
+      { tag: t.definition(t.variableName), color: isDark ? '#e06c75' : '#e45649' },
       { tag: t.operator, color: isDark ? '#56b6c2' : '#0184bc' },
       { tag: t.bool, color: isDark ? '#d19a66' : '#986801' },
+      { tag: t.null, color: isDark ? '#d19a66' : '#986801' },
       { tag: t.typeName, color: isDark ? '#e06c75' : '#e45649' },
       { tag: t.propertyName, color: isDark ? '#e06c75' : '#e45649' },
+      { tag: t.punctuation, color: isDark ? '#abb2bf' : '#383a42' },
     ],
   });
 }
 
-function buildGitHubTheme(isDark: boolean) {
+function buildNordTheme(isDark: boolean) {
   return createTheme({
     theme: isDark ? 'dark' : 'light',
     settings: {
-      background: isDark ? '#0d1117' : '#ffffff',
-      foreground: isDark ? '#c9d1d9' : '#24292f',
-      caret: isDark ? '#58a6ff' : '#0969da',
-      selection: isDark ? 'rgba(88, 166, 255, 0.25)' : 'rgba(9, 105, 218, 0.15)',
-      selectionMatch: isDark ? 'rgba(88, 166, 255, 0.15)' : 'rgba(9, 105, 218, 0.10)',
-      lineHighlight: isDark ? '#161b22' : '#f6f8fa',
-      gutterBackground: isDark ? '#0d1117' : '#ffffff',
-      gutterForeground: isDark ? '#30363d' : '#d0d7de',
+      background: isDark ? '#2e3440' : '#eceff4',
+      foreground: isDark ? '#d8dee9' : '#2e3440',
+      caret: isDark ? '#88c0d0' : '#5e81ac',
+      selection: isDark ? 'rgba(136,192,208,0.22)' : 'rgba(94,129,172,0.18)',
+      selectionMatch: isDark ? 'rgba(136,192,208,0.12)' : 'rgba(94,129,172,0.10)',
+      lineHighlight: isDark ? '#3b4252' : '#e5e9f0',
+      gutterBackground: isDark ? '#2e3440' : '#eceff4',
+      gutterForeground: isDark ? '#4c566a' : '#8994a6',
     },
     styles: [
-      { tag: t.keyword, color: isDark ? '#ff7b72' : '#d1242f' },
-      { tag: t.string, color: isDark ? '#a5d6ff' : '#0a3069' },
-      { tag: t.comment, color: isDark ? '#8b949e' : '#57606a', fontStyle: 'italic' },
-      { tag: t.number, color: isDark ? '#79c0ff' : '#0969da' },
-      { tag: t.function(t.variableName), color: isDark ? '#d2a8ff' : '#8250df' },
-      { tag: t.variableName, color: isDark ? '#c9d1d9' : '#24292f' },
-      { tag: t.operator, color: isDark ? '#ff7b72' : '#d1242f' },
-      { tag: t.bool, color: isDark ? '#79c0ff' : '#0969da' },
-      { tag: t.typeName, color: isDark ? '#79c0ff' : '#0969da' },
-      { tag: t.propertyName, color: isDark ? '#79c0ff' : '#0969da' },
+      { tag: t.keyword, color: isDark ? '#81a1c1' : '#5e81ac' },
+      { tag: t.string, color: isDark ? '#a3be8c' : '#4c9a52' },
+      { tag: t.comment, color: isDark ? '#616e88' : '#7e8fa6', fontStyle: 'italic' },
+      { tag: t.number, color: isDark ? '#b48ead' : '#9457a0' },
+      { tag: t.function(t.variableName), color: isDark ? '#88c0d0' : '#4c7db3' },
+      { tag: t.variableName, color: isDark ? '#d8dee9' : '#2e3440' },
+      { tag: t.definition(t.variableName), color: isDark ? '#8fbcbb' : '#3e7d7a' },
+      { tag: t.operator, color: isDark ? '#81a1c1' : '#5e81ac' },
+      { tag: t.bool, color: isDark ? '#b48ead' : '#9457a0' },
+      { tag: t.null, color: isDark ? '#b48ead' : '#9457a0' },
+      { tag: t.typeName, color: isDark ? '#8fbcbb' : '#3e7d7a' },
+      { tag: t.propertyName, color: isDark ? '#88c0d0' : '#4c7db3' },
+      { tag: t.punctuation, color: isDark ? '#eceff4' : '#4c566a' },
     ],
   });
 }
@@ -256,6 +355,101 @@ function buildAyuTheme(isDark: boolean) {
       { tag: t.bool, color: isDark ? '#ffb454' : '#f5a623' },
       { tag: t.typeName, color: isDark ? '#59c2ff' : '#55b4d4' },
       { tag: t.propertyName, color: isDark ? '#a37acc' : '#a37acc' },
+    ],
+  });
+}
+
+// Always-dark themes — stay dark regardless of app light/dark mode
+
+function buildMoonlightTheme(_isDark: boolean) {
+  return createTheme({
+    theme: 'dark',
+    settings: {
+      background: '#212337',
+      foreground: '#c8d3f5',
+      caret: '#c099ff',
+      selection: 'rgba(192,153,255,0.20)',
+      selectionMatch: 'rgba(192,153,255,0.12)',
+      lineHighlight: '#1e2030',
+      gutterBackground: '#212337',
+      gutterForeground: '#444a73',
+    },
+    styles: [
+      { tag: t.keyword, color: '#c099ff' },
+      { tag: t.string, color: '#c3e88d' },
+      { tag: t.comment, color: '#636da6', fontStyle: 'italic' },
+      { tag: t.number, color: '#ff966c' },
+      { tag: t.function(t.variableName), color: '#82aaff' },
+      { tag: t.variableName, color: '#c8d3f5' },
+      { tag: t.definition(t.variableName), color: '#4fd6be' },
+      { tag: t.operator, color: '#86e1fc' },
+      { tag: t.bool, color: '#ff966c' },
+      { tag: t.null, color: '#c099ff' },
+      { tag: t.typeName, color: '#ffc777' },
+      { tag: t.propertyName, color: '#4fd6be' },
+      { tag: t.punctuation, color: '#89ddff' },
+    ],
+  });
+}
+
+function buildKanagawaTheme(_isDark: boolean) {
+  return createTheme({
+    theme: 'dark',
+    settings: {
+      background: '#1f1f28',
+      foreground: '#dcd7ba',
+      caret: '#c8c093',
+      selection: 'rgba(200,192,147,0.18)',
+      selectionMatch: 'rgba(200,192,147,0.10)',
+      lineHighlight: '#2a2a37',
+      gutterBackground: '#1f1f28',
+      gutterForeground: '#54546d',
+    },
+    styles: [
+      { tag: t.keyword, color: '#957fb8' },
+      { tag: t.string, color: '#98bb6c' },
+      { tag: t.comment, color: '#727169', fontStyle: 'italic' },
+      { tag: t.number, color: '#d27e99' },
+      { tag: t.function(t.variableName), color: '#7e9cd8' },
+      { tag: t.variableName, color: '#dcd7ba' },
+      { tag: t.definition(t.variableName), color: '#e6c384' },
+      { tag: t.operator, color: '#c0a36e' },
+      { tag: t.bool, color: '#d27e99' },
+      { tag: t.null, color: '#957fb8' },
+      { tag: t.typeName, color: '#7fb4ca' },
+      { tag: t.propertyName, color: '#7aa89f' },
+      { tag: t.punctuation, color: '#9cabca' },
+    ],
+  });
+}
+
+function buildPoimandresTheme(_isDark: boolean) {
+  return createTheme({
+    theme: 'dark',
+    settings: {
+      background: '#1b1e28',
+      foreground: '#a6accd',
+      caret: '#5de4c7',
+      selection: 'rgba(93,228,199,0.18)',
+      selectionMatch: 'rgba(93,228,199,0.10)',
+      lineHighlight: '#1f2233',
+      gutterBackground: '#1b1e28',
+      gutterForeground: '#3d4463',
+    },
+    styles: [
+      { tag: t.keyword, color: '#5de4c7' },
+      { tag: t.string, color: '#5de4c7' },
+      { tag: t.comment, color: '#4a4f76', fontStyle: 'italic' },
+      { tag: t.number, color: '#f087bd' },
+      { tag: t.function(t.variableName), color: '#add7ff' },
+      { tag: t.variableName, color: '#a6accd' },
+      { tag: t.definition(t.variableName), color: '#e4f0fb' },
+      { tag: t.operator, color: '#89ddff' },
+      { tag: t.bool, color: '#f087bd' },
+      { tag: t.null, color: '#91b4d5' },
+      { tag: t.typeName, color: '#add7ff' },
+      { tag: t.propertyName, color: '#5de4c7' },
+      { tag: t.punctuation, color: '#767c9d' },
     ],
   });
 }
@@ -366,18 +560,23 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
 
     // Resolve active theme
     const isDark = theme === 'dark';
-    let resolvedTheme: unknown;
-    if (pythonEditorTheme === 'dracula') resolvedTheme = dracula;
-    else if (pythonEditorTheme === 'nord') resolvedTheme = nord;
-    else if (pythonEditorTheme === 'monokai') resolvedTheme = monokai;
-    else if (pythonEditorTheme === 'tokyo') resolvedTheme = tokyoNight;
-    else if (pythonEditorTheme === 'soft-dark') resolvedTheme = buildSoftTheme(true);
-    else if (pythonEditorTheme === 'soft') resolvedTheme = buildSoftTheme(isDark);
-    else if (pythonEditorTheme === 'one-pro') resolvedTheme = buildOneTheme(isDark);
-    else if (pythonEditorTheme === 'github') resolvedTheme = buildGitHubTheme(isDark);
-    else if (pythonEditorTheme === 'gruvbox') resolvedTheme = buildGruvboxTheme(isDark);
-    else if (pythonEditorTheme === 'ayu') resolvedTheme = buildAyuTheme(isDark);
-    else resolvedTheme = buildDefaultTheme(isDark);
+    const ALWAYS_DARK_THEMES = new Set(['moonlight', 'kanagawa', 'poimandres']);
+    const themeBuilders: Record<string, (d: boolean) => unknown> = {
+      github: buildGitHubTheme,
+      catppuccin: buildCatppuccinTheme,
+      'rose-pine': buildRosePineTheme,
+      dracula: buildDraculaTheme,
+      tokyo: buildTokyoTheme,
+      'one-pro': buildOneTheme,
+      nord: buildNordTheme,
+      ayu: buildAyuTheme,
+      gruvbox: buildGruvboxTheme,
+      moonlight: buildMoonlightTheme,
+      kanagawa: buildKanagawaTheme,
+      poimandres: buildPoimandresTheme,
+    };
+    const effectiveDark = ALWAYS_DARK_THEMES.has(pythonEditorTheme) ? true : isDark;
+    const resolvedTheme = (themeBuilders[pythonEditorTheme] ?? buildGitHubTheme)(effectiveDark);
 
     const extensions = [
       python(),

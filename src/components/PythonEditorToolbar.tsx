@@ -1,10 +1,11 @@
-import { Check, Copy, Palette, RotateCcw, Save, Search, Trash2, Minus, Plus, Upload } from 'lucide-react';
+import { Check, Copy, Moon, Palette, RotateCcw, Save, Search, Trash2, Minus, Plus, Upload } from 'lucide-react';
 import { useRef } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown';
 import * as DM from '@radix-ui/react-dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -31,17 +32,21 @@ interface Props {
 }
 
 const THEMES: { id: PythonEditorTheme; label: string; dot1: string; dot2: string }[] = [
-  { id: 'default',     label: 'Python',      dot1: '#4CA64C', dot2: '#BB5252' },
-  { id: 'soft',        label: 'Soft',        dot1: '#7d61a9', dot2: '#b6dbd5' },
-  { id: 'soft-dark',   label: 'Soft Dark',   dot1: '#1e2030', dot2: '#4abca6' },
-  { id: 'one-pro',     label: 'One Pro',     dot1: '#c678dd', dot2: '#61afef' },
-  { id: 'dracula',     label: 'Dracula',     dot1: '#bd93f9', dot2: '#ff79c6' },
-  { id: 'nord',        label: 'Nord',        dot1: '#7C99BB', dot2: '#BED0B3' },
-  { id: 'monokai',     label: 'Monokai',     dot1: '#EEE9B6', dot2: '#F9B9CF' },
-  { id: 'tokyo',       label: 'Tokyo',       dot1: '#894FEE', dot2: '#5ECDB7' },
-  { id: 'github',      label: 'GitHub',      dot1: '#ff7b72', dot2: '#0969da' },
-  { id: 'gruvbox',     label: 'Gruvbox',     dot1: '#fb4934', dot2: '#076678' },
-  { id: 'ayu',         label: 'Ayu',         dot1: '#f07178', dot2: '#55b4d4' },
+  { id: 'github',      label: 'GitHub',      dot1: '#ff7b72', dot2: '#a5d6ff' },
+  { id: 'catppuccin',  label: 'Catppuccin',  dot1: '#cba6f7', dot2: '#a6e3a1' },
+  { id: 'rose-pine',   label: 'Rosé Pine',   dot1: '#eb6f92', dot2: '#9ccfd8' },
+  { id: 'dracula',     label: 'Dracula',     dot1: '#ff79c6', dot2: '#f1fa8c' },
+  { id: 'tokyo',       label: 'Tokyo Night', dot1: '#bb9af7', dot2: '#9ece6a' },
+  { id: 'one-pro',     label: 'One Pro',     dot1: '#c678dd', dot2: '#98c379' },
+  { id: 'nord',        label: 'Nord',        dot1: '#81a1c1', dot2: '#a3be8c' },
+  { id: 'ayu',         label: 'Ayu',         dot1: '#ff7733', dot2: '#b8cc52' },
+  { id: 'gruvbox',     label: 'Gruvbox',     dot1: '#fb4934', dot2: '#fabd2f' },
+];
+
+const ALWAYS_DARK_THEMES: { id: PythonEditorTheme; label: string; dot1: string; dot2: string }[] = [
+  { id: 'moonlight',   label: 'Moonlight',   dot1: '#c099ff', dot2: '#c3e88d' },
+  { id: 'kanagawa',    label: 'Kanagawa',    dot1: '#957fb8', dot2: '#98bb6c' },
+  { id: 'poimandres',  label: 'Poimandres',  dot1: '#5de4c7', dot2: '#f087bd' },
 ];
 
 function VDivider() {
@@ -237,9 +242,34 @@ export function PythonEditorToolbar({
                 Tema do editor
               </TooltipContent>
             </Tooltip>
-            <DropdownMenuContent align="end" className="min-w-[10rem]">
+            <DropdownMenuContent align="end" className="min-w-[11rem]">
               <DropdownMenuLabel>Tema do Editor</DropdownMenuLabel>
               {THEMES.map((t) => (
+                <DropdownMenuItem
+                  key={t.id}
+                  onSelect={() => onPythonEditorThemeChange(t.id)}
+                  className="gap-2"
+                >
+                  <span className="relative shrink-0 w-5 h-3">
+                    <span
+                      className="absolute left-0 top-0 h-3 w-3 rounded-full border border-background/40"
+                      style={{ backgroundColor: t.dot1 }}
+                    />
+                    <span
+                      className="absolute left-2 top-0 h-3 w-3 rounded-full border border-background/40"
+                      style={{ backgroundColor: t.dot2 }}
+                    />
+                  </span>
+                  <span className="flex-1">{t.label}</span>
+                  {pythonEditorTheme === t.id && <Check className="h-3.5 w-3.5 text-primary" />}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 font-normal">
+                <Moon className="h-3 w-3" />
+                Sempre Dark
+              </DropdownMenuLabel>
+              {ALWAYS_DARK_THEMES.map((t) => (
                 <DropdownMenuItem
                   key={t.id}
                   onSelect={() => onPythonEditorThemeChange(t.id)}
