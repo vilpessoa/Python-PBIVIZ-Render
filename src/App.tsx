@@ -392,6 +392,10 @@ export default function App() {
                 onToggleSearch={() => setSearchOpen((v) => !v)}
                 code={code}
                 onAiApply={setCode}
+                onFileLoad={(content) => {
+                  setCode(content);
+                  toast.success('Arquivo carregado');
+                }}
               />
               <AnimatePresence>
                 {searchOpen && (
@@ -450,6 +454,7 @@ export default function App() {
               onPbivizSettingsReset={() => setPbivizSettings(DEFAULT_PBI_SETTINGS)}
               extractedPbivizConfig={rendered?.extractedPbivizConfig}
               onPbivizFieldLocate={visualEditsEnabled ? onPbivizFieldLocate : undefined}
+              code={code}
             />
           }
         />

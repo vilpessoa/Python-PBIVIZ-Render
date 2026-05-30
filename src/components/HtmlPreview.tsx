@@ -9,7 +9,11 @@ import {
   Tablet,
   Maximize2,
   Settings2,
+  Download,
+  Loader2,
+  CheckCircle,
 } from 'lucide-react';
+import { exportPbiviz, downloadBlob } from '@/lib/pbivizExporter';
 import { AnimatedVisualEditsButton } from '@/components/ui/animated-visual-edits-button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +47,7 @@ interface Props {
   onPbivizSettingsReset?: () => void;
   extractedPbivizConfig?: ExtractedPbivizConfig;
   onPbivizFieldLocate?: (varName: string, fieldLabel: string, x: number, y: number) => void;
+  code?: string;
 }
 
 const PRESETS: { id: string; label: string; width: number; height: number; icon: React.ElementType }[] = [
@@ -87,6 +92,7 @@ export function HtmlPreview({
   onPbivizSettingsReset,
   extractedPbivizConfig,
   onPbivizFieldLocate,
+  code,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -95,6 +101,20 @@ export function HtmlPreview({
   const [showSettings, setShowSettings] = useState(false);
   const [dragging, setDragging] = useState<'left' | 'right' | 'bottom' | 'corner' | null>(null);
   const dragStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
+  const [exportStatus, setExportStatus] = useState<'idle' | 'generating' | 'done'>('idle');
+
+  async function handleExportPbiviz() {
+    if (!code || exportStatus !== 'idle') return;
+    setExportStatus('generating');
+    try {
+      const blob = await exportPbiviz(code);
+      downloadBlob(blob, 'visual.pbiviz');
+      setExportStatus('done');
+      setTimeout(() => setExportStatus('idle'), 2000);
+    } catch {
+      setExportStatus('idle');
+    }
+  }
 
   // Close settings panel when switching away from pbiviz
   useEffect(() => {
@@ -188,23 +208,53 @@ export function HtmlPreview({
             <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs font-semibold text-foreground">Preview</span>
             {isPbiviz && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Configurações do Visual"
-                    onClick={() => setShowSettings((v) => !v)}
-                    className={`flex h-6 w-6 items-center justify-center rounded border border-border/50 transition-colors ${
-                      showSettings
-                        ? 'bg-primary/15 text-primary border-primary/40'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                    }`}
-                  >
-                    <Settings2 className="h-3 w-3" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Configurações do Visual</TooltipContent>
-              </Tooltip>
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Configurações do Visual"
+                      onClick={() => setShowSettings((v) => !v)}
+                      className={`flex h-6 w-6 items-center justify-center rounded border border-border/50 transition-colors ${
+                        showSettings
+                          ? 'bg-primary/15 text-primary border-primary/40'
+                          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                      }`}
+                    >
+                      <Settings2 className="h-3 w-3" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Configurações do Visual</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Exportar .pbiviz"
+                      onClick={handleExportPbiviz}
+                      disabled={exportStatus !== 'idle'}
+                      className={`flex h-6 items-center justify-center gap-1 rounded border border-border/50 px-2 text-[11px] font-medium transition-colors ${
+                        exportStatus === 'done'
+                          ? 'bg-green-500/15 text-green-600 border-green-400/40'
+                          : exportStatus === 'generating'
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                      }`}
+                    >
+                      {exportStatus === 'generating' ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : exportStatus === 'done' ? (
+                        <CheckCircle className="h-3 w-3" />
+                      ) : (
+                        <Download className="h-3 w-3" />
+                      )}
+                      {exportStatus === 'done' ? 'Baixado!' : '.pbiviz'}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Exportar .pbiviz para Power BI</TooltipContent>
+                </Tooltip>
+              </>
             )}
           </div>
 
