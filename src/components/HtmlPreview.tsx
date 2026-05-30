@@ -213,33 +213,28 @@ export function HtmlPreview({
             <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs font-semibold text-foreground">Preview</span>
             {isPbiviz && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Exportar .pbiviz"
-                    onClick={handleExportPbiviz}
-                    disabled={exportStatus !== 'idle'}
-                    className={`flex h-7 items-center justify-center gap-1 rounded-full border border-border/50 px-2.5 text-[11px] font-medium transition-all duration-200 active:scale-95 ${
-                      exportStatus === 'done'
-                        ? 'bg-green-500/15 text-green-600 border-green-400/40 animate-pulse'
-                        : exportStatus === 'generating'
-                        ? 'text-muted-foreground cursor-not-allowed'
-                        : 'text-muted-foreground hover:bg-accent/20 hover:border-accent/40'
-                    }`}
-                  >
-                    {exportStatus === 'generating' ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : exportStatus === 'done' ? (
-                      <CheckCircle className="h-3 w-3" />
-                    ) : (
-                      <Download className="h-3 w-3" />
-                    )}
-                    {exportStatus === 'done' ? 'Baixado!' : '.pbiviz'}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="px-2 py-1 text-xs">Exportar .pbiviz para Power BI</TooltipContent>
-              </Tooltip>
+              <button
+                type="button"
+                aria-label="Exportar .pbiviz"
+                onClick={handleExportPbiviz}
+                disabled={exportStatus !== 'idle'}
+                className={`flex h-7 items-center justify-center gap-1 rounded-full border border-border/50 px-2.5 text-[11px] font-medium transition-all duration-200 active:scale-95 ${
+                  exportStatus === 'done'
+                    ? 'bg-green-500/15 text-green-600 border-green-400/40 animate-pulse'
+                    : exportStatus === 'generating'
+                    ? 'text-muted-foreground cursor-not-allowed'
+                    : 'text-muted-foreground hover:bg-accent/20 hover:border-accent/40'
+                }`}
+              >
+                {exportStatus === 'generating' ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : exportStatus === 'done' ? (
+                  <CheckCircle className="h-3 w-3" />
+                ) : (
+                  <Download className="h-3 w-3" />
+                )}
+                {exportStatus === 'done' ? 'Baixado!' : '.pbiviz'}
+              </button>
             )}
           </div>
 
@@ -265,7 +260,7 @@ export function HtmlPreview({
                 <button
                   type="button"
                   aria-label="Tamanho da tela"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors active:scale-95 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors active:scale-95 text-muted-foreground"
                 >
                   {(() => {
                     const preset = PRESETS.find((p) => p.id === viewport.preset);
@@ -289,13 +284,13 @@ export function HtmlPreview({
                           preset: p.id,
                         })
                       }
-                      className={`flex items-center gap-2 cursor-pointer ${
-                        isActive ? 'bg-primary/15 text-primary' : ''
+                      className={`flex items-center gap-2 cursor-pointer text-xs ${
+                        isActive ? 'bg-primary/15 text-primary font-medium' : ''
                       }`}
                     >
-                      <Icon className="h-4 w-4" />
-                      <span className="text-xs">{label}</span>
-                      {isActive && <span className="ml-auto text-xs">✓</span>}
+                      <Icon className="h-3.5 w-3.5" />
+                      <span>{label}</span>
+                      {isActive && <span className="ml-auto">✓</span>}
                     </DropdownMenuItem>
                   );
                 })}
