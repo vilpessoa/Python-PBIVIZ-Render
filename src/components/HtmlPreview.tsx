@@ -112,8 +112,9 @@ export function HtmlPreview({
     if (!code || exportStatus !== 'idle') return;
     setExportStatus('generating');
     try {
-      const blob = await exportPbiviz(code);
-      downloadBlob(blob, 'visual.pbiviz');
+      const { blob, displayName } = await exportPbiviz(code);
+      const safeName = displayName.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_') || 'visual';
+      downloadBlob(blob, `${safeName}.pbiviz`);
       setExportStatus('done');
       setTimeout(() => setExportStatus('idle'), 2000);
     } catch {
