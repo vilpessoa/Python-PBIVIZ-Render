@@ -20,7 +20,7 @@ function extractScalar(code: string, varName: string): string | null {
   return m ? m[1] : null;
 }
 
-export async function exportPbiviz(code: string): Promise<Blob> {
+export async function exportPbiviz(code: string): Promise<{ blob: Blob; displayName: string }> {
   const css = extractTripleQuotedBlock(code, 'CSS');
   const js  = extractTripleQuotedBlock(code, 'JS');
 
@@ -68,7 +68,8 @@ export async function exportPbiviz(code: string): Promise<Blob> {
   zip.file('resources/visual.css', css);
   zip.file('assets/icon.png', ICON_PNG_BASE64, { base64: true });
 
-  return zip.generateAsync({ type: 'blob' });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  return { blob, displayName };
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {
