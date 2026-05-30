@@ -177,6 +177,7 @@ export function searchPythonSourceByVarName(src: string, varName: string): VEMat
   const escaped = escapeRegex(varName);
   const reAssign = new RegExp(`\\b${escaped}\\s*(?:\\+?=)`, 'i');
   const reKey = new RegExp(`['"]${escaped}['"]\\s*:`);
+  const reStrVal = new RegExp(`['"]${escaped}['"]`);
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -192,6 +193,8 @@ export function searchPythonSourceByVarName(src: string, varName: string): VEMat
       score = /^\s*[A-Za-z_][A-Za-z0-9_]*\s*(?:\+?=)/.test(line) ? 100 : 80;
     } else if (reKey.test(line)) {
       score = 70;
+    } else if (reStrVal.test(line)) {
+      score = 55;
     }
 
     if (score > 0) {

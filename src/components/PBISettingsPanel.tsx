@@ -329,16 +329,26 @@ function DadosTab({
   settings,
   onChange,
   extractedFromCode,
+  onFieldLocate,
 }: {
   settings: PBISettings;
   onChange: (s: PBISettings) => void;
   extractedFromCode?: ExtractedPbivizConfig;
+  onFieldLocate?: (varName: string, fieldLabel: string, x: number, y: number) => void;
 }) {
   const { colunas, medidas } = settings.dados;
   const roles = extractedFromCode?.capabilities?.dataRoles ?? [];
   const groupingRoles = roles.filter((r) => r.kind === 'Grouping' || r.kind === 'GroupingOrMeasure');
   const measureRoles  = roles.filter((r) => r.kind === 'Measure');
   const hasRoles = roles.length > 0;
+
+  function mkLocate(varName: string, label: string) {
+    if (!onFieldLocate) return undefined;
+    return (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onFieldLocate(varName, label, e.clientX, e.clientY);
+    };
+  }
 
   function patchDados(patch: Partial<typeof settings.dados>) {
     onChange({ ...settings, dados: { ...settings.dados, ...patch } });
@@ -387,6 +397,14 @@ function DadosTab({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
+      {/* Banner Visual Edits ativo */}
+      {onFieldLocate && (
+        <div className="shrink-0 flex items-center gap-2 border-b border-primary/25 bg-primary/8 px-4 py-2">
+          <Navigation className="h-3 w-3 shrink-0 text-primary/70" />
+          <span className="text-[11px] font-medium text-primary/80">Visual Edits — clique para localizar no código</span>
+        </div>
+      )}
+
       {/* Resumo */}
       <div className="flex shrink-0 items-center gap-2 border-b border-border bg-background/60 px-4 py-2">
         <Database className="h-3 w-3 text-muted-foreground" />
@@ -401,11 +419,16 @@ function DadosTab({
         {/* Seções dinâmicas para cada Grouping role */}
         {groupingRoles.map((role, idx) => (
           <div key={`grouping-${role.name}-${idx}`} className={idx > 0 ? 'border-t border-border' : 'border-b border-border'}>
-            <div className="flex items-center justify-between px-4 py-2.5">
+            <div className="group flex items-center justify-between px-4 py-2.5">
               <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="truncate text-[13px] font-medium text-foreground">
-                  {role.displayName}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="truncate text-[13px] font-medium text-foreground">
+                    {role.displayName}
+                  </span>
+                  {onFieldLocate && (
+                    <VELocateBtn onLocate={(e) => { e.stopPropagation(); onFieldLocate(role.name, role.displayName, e.clientX, e.clientY); }} />
+                  )}
+                </div>
                 <span className="text-[10px] text-muted-foreground">valores de agrupamento (categorias)</span>
               </div>
               <button
@@ -467,11 +490,16 @@ function DadosTab({
         {/* Seções dinâmicas para cada Measure role */}
         {measureRoles.map((role, idx) => (
           <div key={`measure-${role.name}-${idx}`} className={groupingRoles.length > 0 ? 'border-t border-border' : 'border-b border-border'}>
-            <div className="flex items-center justify-between px-4 py-2.5">
+            <div className="group flex items-center justify-between px-4 py-2.5">
               <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="truncate text-[13px] font-medium text-foreground">
-                  {role.displayName}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="truncate text-[13px] font-medium text-foreground">
+                    {role.displayName}
+                  </span>
+                  {onFieldLocate && (
+                    <VELocateBtn onLocate={(e) => { e.stopPropagation(); onFieldLocate(role.name, role.displayName, e.clientX, e.clientY); }} />
+                  )}
+                </div>
                 <span className="text-[10px] text-muted-foreground">valores numéricos (medidas)</span>
               </div>
               <button
@@ -752,7 +780,7 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
       {/* ── Aba Dados ── */}
       {activeTab === 'dados' && (
         <div className="flex-1 overflow-hidden">
-          <DadosTab settings={settings} onChange={onChange} extractedFromCode={extractedFromCode} />
+          <DadosTab settings={settings} onChange={onChange} extractedFromCode={extractedFromCode} onFieldLocate={onFieldLocate} />
         </div>
       )}
 
