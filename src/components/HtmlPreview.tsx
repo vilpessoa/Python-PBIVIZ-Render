@@ -69,6 +69,10 @@ function buildSrcdoc(html: string, visualEdits: boolean): string {
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${html}${visualEdits ? VE_OVERLAY_SCRIPT : ''}</body></html>`;
 }
 
+function VDivider() {
+  return <span aria-hidden className="mx-0.5 inline-block h-3 w-px shrink-0 rounded-full bg-border opacity-60" />;
+}
+
 export function HtmlPreview({
   html,
   warnings,
@@ -199,7 +203,7 @@ export function HtmlPreview({
   const enhanced = error ? enhancePythonError(error, undefined, errorPos, errorLine) : null;
 
   return (
-    <TooltipProvider delayDuration={500}>
+    <TooltipProvider delayDuration={0}>
       <div className="flex h-full w-full flex-col bg-background">
         {/* Toolbar */}
         <div className="relative flex h-10 shrink-0 items-center border-b border-border bg-surface px-3">
@@ -209,22 +213,23 @@ export function HtmlPreview({
             <span className="text-xs font-semibold text-foreground">Preview</span>
             {isPbiviz && (
               <>
+                <VDivider />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       type="button"
                       aria-label="Configurações do Visual"
                       onClick={() => setShowSettings((v) => !v)}
-                      className={`flex h-6 w-6 items-center justify-center rounded border border-border/50 transition-colors ${
+                      className={`flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors active:scale-95 ${
                         showSettings
                           ? 'bg-primary/15 text-primary border-primary/40'
                           : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                       }`}
                     >
-                      <Settings2 className="h-3 w-3" />
+                      <Settings2 className="h-3.5 w-3.5" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>Configurações do Visual</TooltipContent>
+                  <TooltipContent side="bottom" className="px-2 py-1 text-xs">Configurações do Visual</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -234,7 +239,7 @@ export function HtmlPreview({
                       aria-label="Exportar .pbiviz"
                       onClick={handleExportPbiviz}
                       disabled={exportStatus !== 'idle'}
-                      className={`flex h-6 items-center justify-center gap-1 rounded border border-border/50 px-2 text-[11px] font-medium transition-colors ${
+                      className={`flex h-7 items-center justify-center gap-1 rounded-full border border-border/50 px-2.5 text-[11px] font-medium transition-colors active:scale-95 ${
                         exportStatus === 'done'
                           ? 'bg-green-500/15 text-green-600 border-green-400/40'
                           : exportStatus === 'generating'
@@ -252,7 +257,7 @@ export function HtmlPreview({
                       {exportStatus === 'done' ? 'Baixado!' : '.pbiviz'}
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>Exportar .pbiviz para Power BI</TooltipContent>
+                  <TooltipContent side="bottom" className="px-2 py-1 text-xs">Exportar .pbiviz para Power BI</TooltipContent>
                 </Tooltip>
               </>
             )}
@@ -292,7 +297,7 @@ export function HtmlPreview({
                             preset: p.id,
                           })
                         }
-                        className={`flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors ${
+                        className={`flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors active:scale-95 ${
                           active
                             ? 'bg-primary/15 text-primary border-primary/40'
                             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -301,11 +306,13 @@ export function HtmlPreview({
                         <Icon className="h-3.5 w-3.5" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>{p.label}</TooltipContent>
+                    <TooltipContent side="bottom" className="px-2 py-1 text-xs">{p.label}</TooltipContent>
                   </Tooltip>
                 );
               })}
             </div>
+
+            <VDivider />
 
             {warnings.length > 0 && !error && (
               <button
