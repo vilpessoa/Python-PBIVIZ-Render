@@ -1,6 +1,24 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { MousePointerClick, X, FileCode2 } from 'lucide-react';
-import type { VEMatch } from '@/lib/veSearch';
+import { MousePointerClick, X } from 'lucide-react';
+import type { VEMatch, VEMatchKind } from '@/lib/veSearch';
+
+function KindBadge({ kind }: { kind: VEMatchKind }) {
+  const base =
+    'shrink-0 inline-flex items-center justify-center text-[9px] font-mono font-bold h-4 px-1 rounded border';
+  switch (kind) {
+    case 'html':
+      return <span className={`${base} bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700`}>{'</>'}</span>;
+    case 'text':
+      return <span className={`${base} bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-700`}>Tx</span>;
+    case 'css':
+      return <span className={`${base} bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/40 dark:text-orange-400 dark:border-orange-700`}>CSS</span>;
+    case 'json':
+      return <span className={`${base} bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-400 dark:border-amber-700`}>{'{}'}</span>;
+    case 'var':
+    default:
+      return <span className={`${base} bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-700`}>VAR</span>;
+  }
+}
 
 export interface VisualEditsMenuState {
   x: number;
@@ -158,16 +176,14 @@ function MatchItem({ match, active, onClick }: { match: VEMatch; active: boolean
     <button
       type="button"
       onClick={onClick}
-      className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs transition-colors ${
+      className={`w-full flex items-center gap-2 px-2.5 py-1 text-xs transition-colors ${
         active
           ? 'bg-primary/10 ring-1 ring-inset ring-primary/30'
           : 'hover:bg-accent'
       }`}
       role="menuitem"
     >
-      <span className="shrink-0 inline-flex items-center justify-center h-5 w-5 rounded bg-blue-100 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400">
-        <FileCode2 className="h-3 w-3" />
-      </span>
+      <KindBadge kind={match.kind} />
       <span className="flex-1 min-w-0 truncate text-left font-mono text-foreground">{match.label}</span>
       <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/50">L{match.line}</span>
     </button>
