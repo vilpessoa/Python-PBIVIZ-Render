@@ -202,7 +202,7 @@ function ColorPicker({ label, value, onChange, onLocate }: {
   label: string; value: string; onChange: (v: string) => void; onLocate?: (e: React.MouseEvent) => void;
 }) {
   return (
-    <div className="group flex flex-col gap-1.5">
+    <div className={`group flex flex-col gap-1.5 rounded-md transition-colors${onLocate ? ' -mx-2 px-2 py-0.5 hover:bg-primary/5 hover:ring-1 hover:ring-inset hover:ring-primary/15' : ''}`}>
       <div className="flex items-center gap-1">
         <span className="truncate text-[12px] font-medium text-foreground/80">{label}</span>
         {onLocate && <VELocateBtn onLocate={onLocate} />}
@@ -221,13 +221,13 @@ function ColorPicker({ label, value, onChange, onLocate }: {
   );
 }
 
-/* ── VE locate button — shown on hover when onLocate is provided ── */
+/* ── VE locate button — always visible (40% opacity) when VE is active ── */
 function VELocateBtn({ onLocate }: { onLocate: (e: React.MouseEvent) => void }) {
   return (
     <button
       type="button"
       onClick={onLocate}
-      className="opacity-0 group-hover:opacity-100 flex h-3.5 w-3.5 shrink-0 items-center justify-center text-muted-foreground hover:text-primary transition-opacity"
+      className="opacity-40 group-hover:opacity-100 flex h-3.5 w-3.5 shrink-0 items-center justify-center text-primary transition-all group-hover:scale-110"
       title="Localizar no código"
     >
       <Navigation className="h-3 w-3" />
@@ -238,7 +238,7 @@ function VELocateBtn({ onLocate }: { onLocate: (e: React.MouseEvent) => void }) 
 /* ── Field wrapper ── */
 function Field({ label, children, onLocate }: { label: string; children: React.ReactNode; onLocate?: (e: React.MouseEvent) => void }) {
   return (
-    <div className="group flex flex-col gap-1.5">
+    <div className={`group flex flex-col gap-1.5 rounded-md transition-colors${onLocate ? ' -mx-2 px-2 py-0.5 hover:bg-primary/5 hover:ring-1 hover:ring-inset hover:ring-primary/15' : ''}`}>
       <div className="flex items-center gap-1">
         <span className="text-[12px] font-medium text-foreground/80">{label}</span>
         {onLocate && <VELocateBtn onLocate={onLocate} />}
@@ -282,7 +282,7 @@ function DynamicField({
 
   if (t.bool) {
     return (
-      <div className="group flex items-center justify-between pt-1">
+      <div className={`group flex items-center justify-between pt-1 rounded-md transition-colors${onLocate ? ' -mx-2 px-2 py-0.5 hover:bg-primary/5 hover:ring-1 hover:ring-inset hover:ring-primary/15' : ''}`}>
         <div className="flex items-center gap-1">
           <span className="text-[12px] font-medium text-foreground/80">{label}</span>
           {onLocate && <VELocateBtn onLocate={onLocate} />}
@@ -773,6 +773,14 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
               />
             </div>
           </div>
+
+          {/* Banner Visual Edits ativo */}
+          {onFieldLocate && (
+            <div className="shrink-0 flex items-center gap-2 border-b border-primary/25 bg-primary/8 px-4 py-2">
+              <Navigation className="h-3 w-3 shrink-0 text-primary/70" />
+              <span className="text-[11px] font-medium text-primary/80">Visual Edits — clique para localizar no código</span>
+            </div>
+          )}
 
           {/* Accordion sections ou mensagem de ausência de CAPABILITIES */}
           <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-0">
