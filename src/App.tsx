@@ -24,7 +24,7 @@ import {
 import { parsePython } from '@/lib/pythonParser';
 import type { ParseResult } from '@/lib/pythonParser/types';
 import { VisualEditsMenu, type VisualEditsMenuState } from '@/components/VisualEditsMenu';
-import { searchPythonSource } from '@/lib/veSearch';
+import { searchPythonSource, searchPythonSourceByVarName } from '@/lib/veSearch';
 import type { VELocateTokens } from '@/lib/visualEdits';
 import { ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN } from '@/components/ZoomControls';
 import DEFAULT_SAMPLE from '@/data/sampleDefault';
@@ -335,6 +335,20 @@ export default function App() {
     [],
   );
 
+  const onPbivizFieldLocate = useCallback(
+    (varName: string, fieldLabel: string, x: number, y: number) => {
+      const src = codeRef.current;
+      const matches = searchPythonSourceByVarName(src, varName);
+      if (matches.length === 1) {
+        editorRef.current?.scrollAndSelect(matches[0].start, matches[0].end);
+        setVeMenu(null);
+        return;
+      }
+      setVeMenu({ x, y, elementLabel: fieldLabel, matches, noAnchor: true });
+    },
+    [],
+  );
+
   const onVeMenuSelect = useCallback((from: number, to: number) => {
     editorRef.current?.scrollAndSelect(from, to);
   }, []);
@@ -435,6 +449,7 @@ export default function App() {
               onPbivizSettingsChange={setPbivizSettings}
               onPbivizSettingsReset={() => setPbivizSettings(DEFAULT_PBI_SETTINGS)}
               extractedPbivizConfig={rendered?.extractedPbivizConfig}
+              onPbivizFieldLocate={visualEditsEnabled ? onPbivizFieldLocate : undefined}
             />
           }
         />

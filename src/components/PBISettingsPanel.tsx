@@ -11,6 +11,7 @@ import {
   Trash2,
   Database,
   AlertCircle,
+  Navigation,
 } from 'lucide-react';
 import type { PBISettings, PBIDadosColuna, PBIDadosMedida, PBITipografia } from '@/lib/storage';
 import { DEFAULT_PBI_SETTINGS, DEFAULT_PBI_DADOS } from '@/lib/storage';
@@ -22,6 +23,7 @@ interface Props {
   onClose: () => void;
   onReset?: () => void;
   extractedFromCode?: ExtractedPbivizConfig;
+  onFieldLocate?: (varName: string, fieldLabel: string, x: number, y: number) => void;
 }
 
 const PROVEDORES_FALLBACK = [
@@ -196,12 +198,15 @@ function PasswordField({ value, onChange, placeholder }: {
 }
 
 /* ── Color picker ── */
-function ColorPicker({ label, value, onChange }: {
-  label: string; value: string; onChange: (v: string) => void;
+function ColorPicker({ label, value, onChange, onLocate }: {
+  label: string; value: string; onChange: (v: string) => void; onLocate?: (e: React.MouseEvent) => void;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="truncate text-[12px] font-medium text-foreground/80">{label}</span>
+    <div className="group flex flex-col gap-1.5">
+      <div className="flex items-center gap-1">
+        <span className="truncate text-[12px] font-medium text-foreground/80">{label}</span>
+        {onLocate && <VELocateBtn onLocate={onLocate} />}
+      </div>
       <label
         className="inline-flex cursor-pointer items-stretch overflow-hidden rounded border border-border bg-background transition-colors hover:border-foreground/40"
         style={{ width: 'fit-content' }}
@@ -216,11 +221,28 @@ function ColorPicker({ label, value, onChange }: {
   );
 }
 
-/* ── Field wrapper ── */
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/* ── VE locate button — shown on hover when onLocate is provided ── */
+function VELocateBtn({ onLocate }: { onLocate: (e: React.MouseEvent) => void }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-[12px] font-medium text-foreground/80">{label}</span>
+    <button
+      type="button"
+      onClick={onLocate}
+      className="opacity-0 group-hover:opacity-100 flex h-3.5 w-3.5 shrink-0 items-center justify-center text-muted-foreground hover:text-primary transition-opacity"
+      title="Localizar no código"
+    >
+      <Navigation className="h-3 w-3" />
+    </button>
+  );
+}
+
+/* ── Field wrapper ── */
+function Field({ label, children, onLocate }: { label: string; children: React.ReactNode; onLocate?: (e: React.MouseEvent) => void }) {
+  return (
+    <div className="group flex flex-col gap-1.5">
+      <div className="flex items-center gap-1">
+        <span className="text-[12px] font-medium text-foreground/80">{label}</span>
+        {onLocate && <VELocateBtn onLocate={onLocate} />}
+      </div>
       {children}
     </div>
   );
@@ -234,11 +256,13 @@ function DynamicField({
   prop,
   value,
   onChange,
+  onLocate,
 }: {
   propKey: string;
   prop: CapProperty;
   value: string | boolean | number | undefined;
   onChange: (v: string | boolean | number) => void;
+  onLocate?: (e: React.MouseEvent) => void;
 }) {
   const label = prop.displayName || propKey;
   const t = (prop.type ?? {}) as Record<string, unknown>;
@@ -246,20 +270,23 @@ function DynamicField({
 
   if (lower.includes('apikey') || lower.includes('senha') || lower.includes('password') || lower.includes('secret')) {
     return (
-      <Field label={label}>
+      <Field label={label} onLocate={onLocate}>
         <PasswordField value={(value as string) ?? ''} onChange={onChange as (v: string) => void} />
       </Field>
     );
   }
 
   if (t.fill) {
-    return <ColorPicker label={label} value={(value as string) ?? '#000000'} onChange={onChange as (v: string) => void} />;
+    return <ColorPicker label={label} value={(value as string) ?? '#000000'} onChange={onChange as (v: string) => void} onLocate={onLocate} />;
   }
 
   if (t.bool) {
     return (
-      <div className="flex items-center justify-between pt-1">
-        <span className="text-[12px] font-medium text-foreground/80">{label}</span>
+      <div className="group flex items-center justify-between pt-1">
+        <div className="flex items-center gap-1">
+          <span className="text-[12px] font-medium text-foreground/80">{label}</span>
+          {onLocate && <VELocateBtn onLocate={onLocate} />}
+        </div>
         <Toggle checked={(value as boolean) ?? false} onChange={onChange as (v: boolean) => void} />
       </div>
     );
@@ -269,7 +296,7 @@ function DynamicField({
     const items = (t.enumeration as { value: string; displayName: string }[]) ?? [];
     const strVal = (value as string) ?? (items[0]?.value ?? '');
     return (
-      <Field label={label}>
+      <Field label={label} onLocate={onLocate}>
         <SelectInput value={strVal} onChange={onChange as (v: string) => void} options={items.map((i) => ({ value: i.value, label: i.displayName }))} />
       </Field>
     );
@@ -278,7 +305,7 @@ function DynamicField({
   if (t.numeric) {
     const strVal = value !== undefined && value !== '' ? String(value) : '';
     return (
-      <Field label={label}>
+      <Field label={label} onLocate={onLocate}>
         <TextInput value={strVal} onChange={(v) => onChange(v === '' ? '' : (isNaN(Number(v)) ? v : Number(v)))} placeholder="0" />
       </Field>
     );
@@ -286,7 +313,7 @@ function DynamicField({
 
   const isLong = lower.includes('prompt');
   return (
-    <Field label={label}>
+    <Field label={label} onLocate={onLocate}>
       {isLong
         ? <TextArea value={(value as string) ?? ''} onChange={onChange as (v: string) => void} rows={4} placeholder="..." />
         : <TextInput value={(value as string) ?? ''} onChange={onChange as (v: string) => void} />}
@@ -563,7 +590,7 @@ type SectionDescriptor = {
   capObject?: CapObject;
 };
 
-export function PBISettingsPanel({ settings, onChange, onClose, onReset, extractedFromCode }: Props) {
+export function PBISettingsPanel({ settings, onChange, onClose, onReset, extractedFromCode, onFieldLocate }: Props) {
   const [activeTab, setActiveTab] = useState<'visual' | 'dados'>('visual');
   const [searchQuery, setSearchQuery] = useState('');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
@@ -607,6 +634,14 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
   }
 
   const { conexao, layout, aparenciaChat, tipografia } = settings;
+
+  function mkLocate(varName: string, label: string) {
+    if (!onFieldLocate) return undefined;
+    return (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onFieldLocate(varName, label, e.clientX, e.clientY);
+    };
+  }
 
   function handleResetAll() {
     onChange({ ...DEFAULT_PBI_SETTINGS, dados: settings.dados });
@@ -782,6 +817,7 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
                             prop={prop}
                             value={getVal(oKeyD, pk)}
                             onChange={(v) => setVal(oKeyD, pk, v)}
+                            onLocate={mkLocate(pk, prop.displayName || pk)}
                           />
                         ))}
                       </AccordionContent>
@@ -810,13 +846,13 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
                     <div key={section.key}>
                       <SectionHeader title={section.title} open={open} onToggle={toggle} />
                       <AccordionContent open={open}>
-                        <Field label={propLabel('provedor', 'Provedor')}>
+                        <Field label={propLabel('provedor', 'Provedor')} onLocate={mkLocate('PROVEDOR', 'Provedor')}>
                           <SelectInput value={conexao.provedor} onChange={(v) => patchConexao({ provedor: v })} options={provedorOpts} />
                         </Field>
-                        <Field label={propLabel('apiKey', 'Chave de API')}>
+                        <Field label={propLabel('apiKey', 'Chave de API')} onLocate={mkLocate('API_KEY', 'Chave de API')}>
                           <PasswordField value={conexao.apiKey} onChange={(v) => patchConexao({ apiKey: v })} />
                         </Field>
-                        <Field label={propLabel('agentId', 'ID do Agente')}>
+                        <Field label={propLabel('agentId', 'ID do Agente')} onLocate={mkLocate('AGENT_ID', 'ID do Agente')}>
                           <TextInput value={conexao.agentId} onChange={(v) => patchConexao({ agentId: v })} placeholder="agent-xxxxxxxx" />
                         </Field>
                         {modeloSugOpts && (
@@ -828,10 +864,10 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
                             />
                           </Field>
                         )}
-                        <Field label={propLabel('modelo', 'Modelo personalizado')}>
+                        <Field label={propLabel('modelo', 'Modelo personalizado')} onLocate={mkLocate('MODELO', 'Modelo personalizado')}>
                           <TextInput value={conexao.modelo} onChange={(v) => patchConexao({ modelo: v })} placeholder={conexao.modeloSugerido || 'ex: gpt-4o'} />
                         </Field>
-                        <Field label={propLabel('systemPrompt', 'System Prompt')}>
+                        <Field label={propLabel('systemPrompt', 'System Prompt')} onLocate={mkLocate('SYSTEM_PROMPT', 'System Prompt')}>
                           <TextArea value={conexao.systemPrompt} onChange={(v) => patchConexao({ systemPrompt: v })} placeholder="Instruções para o assistente..." rows={4} />
                         </Field>
                       </AccordionContent>
@@ -843,24 +879,24 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
                   <div key={section.key}>
                     <SectionHeader title={section.title} open={open} onToggle={toggle} />
                     <AccordionContent open={open}>
-                      <ColorPicker label={propLabel('corFundoHeader', 'Fundo do topo')} value={aparenciaChat.corFundoHeader} onChange={(v) => patchAparenciaChat({ corFundoHeader: v })} />
-                      <ColorPicker label={propLabel('corTextoHeader', 'Texto do topo')} value={aparenciaChat.corTextoHeader} onChange={(v) => patchAparenciaChat({ corTextoHeader: v })} />
-                      <ColorPicker label={propLabel('corFundoChat', 'Fundo do chat')} value={aparenciaChat.corFundoChat} onChange={(v) => patchAparenciaChat({ corFundoChat: v })} />
-                      <ColorPicker label={propLabel('corBolhaUsuario', 'Balão do usuário')} value={aparenciaChat.corBolhaUsuario} onChange={(v) => patchAparenciaChat({ corBolhaUsuario: v })} />
-                      <ColorPicker label={propLabel('corBolhaAssistente', 'Balão do agente')} value={aparenciaChat.corBolhaAssistente} onChange={(v) => patchAparenciaChat({ corBolhaAssistente: v })} />
-                      <ColorPicker label={propLabel('corTextoBolha', 'Texto do agente')} value={aparenciaChat.corTextoBolha} onChange={(v) => patchAparenciaChat({ corTextoBolha: v })} />
-                      <ColorPicker label={propLabel('corTextoBolhaUsuario', 'Texto do usuário')} value={aparenciaChat.corTextoBolhaUsuario} onChange={(v) => patchAparenciaChat({ corTextoBolhaUsuario: v })} />
-                      <ColorPicker label={propLabel('corFundoInput', 'Fundo do input')} value={aparenciaChat.corFundoInput} onChange={(v) => patchAparenciaChat({ corFundoInput: v })} />
-                      <ColorPicker label={propLabel('corBotaoEnviar', 'Cor do botão Enviar')} value={aparenciaChat.corBotaoEnviar} onChange={(v) => patchAparenciaChat({ corBotaoEnviar: v })} />
+                      <ColorPicker label={propLabel('corFundoHeader', 'Fundo do topo')} value={aparenciaChat.corFundoHeader} onChange={(v) => patchAparenciaChat({ corFundoHeader: v })} onLocate={mkLocate('COR_FUNDO_HEADER', 'Fundo do topo')} />
+                      <ColorPicker label={propLabel('corTextoHeader', 'Texto do topo')} value={aparenciaChat.corTextoHeader} onChange={(v) => patchAparenciaChat({ corTextoHeader: v })} onLocate={mkLocate('COR_TEXTO_HEADER', 'Texto do topo')} />
+                      <ColorPicker label={propLabel('corFundoChat', 'Fundo do chat')} value={aparenciaChat.corFundoChat} onChange={(v) => patchAparenciaChat({ corFundoChat: v })} onLocate={mkLocate('COR_FUNDO_CHAT', 'Fundo do chat')} />
+                      <ColorPicker label={propLabel('corBolhaUsuario', 'Balão do usuário')} value={aparenciaChat.corBolhaUsuario} onChange={(v) => patchAparenciaChat({ corBolhaUsuario: v })} onLocate={mkLocate('COR_BOLHA_USUARIO', 'Balão do usuário')} />
+                      <ColorPicker label={propLabel('corBolhaAssistente', 'Balão do agente')} value={aparenciaChat.corBolhaAssistente} onChange={(v) => patchAparenciaChat({ corBolhaAssistente: v })} onLocate={mkLocate('COR_BOLHA_ASSISTENTE', 'Balão do agente')} />
+                      <ColorPicker label={propLabel('corTextoBolha', 'Texto do agente')} value={aparenciaChat.corTextoBolha} onChange={(v) => patchAparenciaChat({ corTextoBolha: v })} onLocate={mkLocate('COR_TEXTO_BOLHA', 'Texto do agente')} />
+                      <ColorPicker label={propLabel('corTextoBolhaUsuario', 'Texto do usuário')} value={aparenciaChat.corTextoBolhaUsuario} onChange={(v) => patchAparenciaChat({ corTextoBolhaUsuario: v })} onLocate={mkLocate('COR_TEXTO_BOLHA_USUARIO', 'Texto do usuário')} />
+                      <ColorPicker label={propLabel('corFundoInput', 'Fundo do input')} value={aparenciaChat.corFundoInput} onChange={(v) => patchAparenciaChat({ corFundoInput: v })} onLocate={mkLocate('COR_FUNDO_INPUT', 'Fundo do input')} />
+                      <ColorPicker label={propLabel('corBotaoEnviar', 'Cor do botão Enviar')} value={aparenciaChat.corBotaoEnviar} onChange={(v) => patchAparenciaChat({ corBotaoEnviar: v })} onLocate={mkLocate('COR_BOTAO_ENVIAR', 'Cor do botão Enviar')} />
                       <ColorPicker label={propLabel('corTextoBotao', 'Texto do botão')} value={aparenciaChat.corTextoBotao ?? '#ffffff'} onChange={(v) => patchAparenciaChat({ corTextoBotao: v })} />
                       <div className="flex items-center justify-between pt-1">
                         <span className="text-[12px] font-medium text-foreground/80">{propLabel('exibirAvatares', 'Exibir avatares')}</span>
                         <Toggle checked={aparenciaChat.exibirAvatares} onChange={(v) => patchAparenciaChat({ exibirAvatares: v })} />
                       </div>
-                      <Field label={propLabel('avatarUsuarioUrl', 'URL Avatar Usuário')}>
+                      <Field label={propLabel('avatarUsuarioUrl', 'URL Avatar Usuário')} onLocate={mkLocate('AVATAR_USUARIO_URL', 'URL Avatar Usuário')}>
                         <TextInput value={aparenciaChat.avatarUsuarioUrl} onChange={(v) => patchAparenciaChat({ avatarUsuarioUrl: v })} placeholder="https://..." />
                       </Field>
-                      <Field label={propLabel('avatarAgenteUrl', 'URL Avatar Agente')}>
+                      <Field label={propLabel('avatarAgenteUrl', 'URL Avatar Agente')} onLocate={mkLocate('AVATAR_AGENTE_URL', 'URL Avatar Agente')}>
                         <TextInput value={aparenciaChat.avatarAgenteUrl} onChange={(v) => patchAparenciaChat({ avatarAgenteUrl: v })} placeholder="https://..." />
                       </Field>
                     </AccordionContent>
@@ -883,17 +919,17 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
                     <div key={section.key}>
                       <SectionHeader title={section.title} open={open} onToggle={toggle} />
                       <AccordionContent open={open}>
-                        <Field label={propLabel('familiaFonte', 'Família de fonte')}>
+                        <Field label={propLabel('familiaFonte', 'Família de fonte')} onLocate={mkLocate('FAMILIA_FONTE', 'Família de fonte')}>
                           <SelectInput value={tipografia?.familiaFonte ?? 'Inter'} onChange={(v) => patchTipografia({ familiaFonte: v })} options={fonteOpts} />
                         </Field>
-                        <Field label={propLabel('tamanhoFonteMensagens', 'Tamanho fonte mensagens')}>
+                        <Field label={propLabel('tamanhoFonteMensagens', 'Tamanho fonte mensagens')} onLocate={mkLocate('TAMANHO_FONTE_MENSAGENS', 'Tamanho fonte mensagens')}>
                           <TextInput
                             value={String(tipografia?.tamanhoFonteMensagens ?? 13)}
                             onChange={(v) => patchTipografia({ tamanhoFonteMensagens: Number(v) || 13 })}
                             placeholder="13"
                           />
                         </Field>
-                        <Field label={propLabel('tamanhoFonteInput', 'Tamanho fonte input')}>
+                        <Field label={propLabel('tamanhoFonteInput', 'Tamanho fonte input')} onLocate={mkLocate('TAMANHO_FONTE_INPUT', 'Tamanho fonte input')}>
                           <TextInput
                             value={String(tipografia?.tamanhoFonteInput ?? 12)}
                             onChange={(v) => patchTipografia({ tamanhoFonteInput: Number(v) || 12 })}
@@ -916,7 +952,7 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
                           toggleNode={<Toggle checked={layout.exibirTitulo} onChange={(v) => patchLayout({ exibirTitulo: v })} />}
                         />
                         <AccordionContent open={open}>
-                          <Field label={propLabel('tituloChat', 'Texto do título')}>
+                          <Field label={propLabel('tituloChat', 'Texto do título')} onLocate={mkLocate('TITULO_CHAT', 'Texto do título')}>
                             <TextInput value={layout.tituloChat} onChange={(v) => patchLayout({ tituloChat: v })} placeholder="Assistente IA" />
                           </Field>
                         </AccordionContent>
@@ -927,14 +963,14 @@ export function PBISettingsPanel({ settings, onChange, onClose, onReset, extract
                     <div key={section.key}>
                       <SectionHeader title={section.title} open={open} onToggle={toggle} />
                       <AccordionContent open={open}>
-                        <Field label={propLabel('tituloChat', 'Título do chat')}>
+                        <Field label={propLabel('tituloChat', 'Título do chat')} onLocate={mkLocate('TITULO_CHAT', 'Título do chat')}>
                           <TextInput value={layout.tituloChat} onChange={(v) => patchLayout({ tituloChat: v })} placeholder="Assistente IA" />
                         </Field>
                         <div className="flex items-center justify-between">
                           <span className="text-[12px] font-medium text-foreground/80">{propLabel('exibirTitulo', 'Exibir título')}</span>
                           <Toggle checked={layout.exibirTitulo} onChange={(v) => patchLayout({ exibirTitulo: v })} />
                         </div>
-                        <Field label={propLabel('placeholderInput', 'Placeholder do input')}>
+                        <Field label={propLabel('placeholderInput', 'Placeholder do input')} onLocate={mkLocate('PLACEHOLDER', 'Placeholder do input')}>
                           <TextInput value={layout.placeholderInput} onChange={(v) => patchLayout({ placeholderInput: v })} placeholder="Pergunte sobre os dados..." />
                         </Field>
                         <Field label={propLabel('textoBotaoEnviar', 'Texto do botão Enviar')}>

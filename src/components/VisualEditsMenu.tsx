@@ -25,6 +25,8 @@ export interface VisualEditsMenuState {
   y: number;
   elementLabel: string;
   matches: VEMatch[];
+  /** When true, skip preview canvas anchor and position at x/y directly */
+  noAnchor?: boolean;
 }
 
 interface Props {
@@ -58,12 +60,14 @@ export function VisualEditsMenu({ menu, onSelect, onClose }: Props) {
     let cx = menu.x;
     let cy = menu.y;
     let anchorRect: { left: number; top: number; width: number; height: number } | undefined;
-    const anchor = document.querySelector<HTMLElement>('[data-ve-anchor="preview-canvas"]');
-    if (anchor) {
-      const ar = anchor.getBoundingClientRect();
-      cx = ar.left + ar.width / 2;
-      cy = ar.top + ar.height / 2;
-      anchorRect = { left: ar.left, top: ar.top, width: ar.width, height: ar.height };
+    if (!menu.noAnchor) {
+      const anchor = document.querySelector<HTMLElement>('[data-ve-anchor="preview-canvas"]');
+      if (anchor) {
+        const ar = anchor.getBoundingClientRect();
+        cx = ar.left + ar.width / 2;
+        cy = ar.top + ar.height / 2;
+        anchorRect = { left: ar.left, top: ar.top, width: ar.width, height: ar.height };
+      }
     }
     let left = cx - rect.width / 2;
     let top = cy - rect.height / 2;
