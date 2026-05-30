@@ -257,7 +257,7 @@ export function HtmlPreview({
                 <button
                   type="button"
                   aria-label="Tamanho da tela"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border/60 transition-colors duration-200 active:scale-95 text-muted-foreground hover:text-foreground hover:border-primary/30"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border/60 transition-colors duration-200 active:scale-95 text-muted-foreground hover:text-foreground hover:border-primary/30 focus-visible:outline-none"
                 >
                   {(() => {
                     const preset = PRESETS.find((p) => p.id === viewport.preset);
