@@ -359,6 +359,101 @@ function buildAyuTheme(isDark: boolean) {
   });
 }
 
+// Always-dark themes — stay dark regardless of app light/dark mode
+
+function buildMoonlightTheme(_isDark: boolean) {
+  return createTheme({
+    theme: 'dark',
+    settings: {
+      background: '#212337',
+      foreground: '#c8d3f5',
+      caret: '#c099ff',
+      selection: 'rgba(192,153,255,0.20)',
+      selectionMatch: 'rgba(192,153,255,0.12)',
+      lineHighlight: '#1e2030',
+      gutterBackground: '#212337',
+      gutterForeground: '#444a73',
+    },
+    styles: [
+      { tag: t.keyword, color: '#c099ff' },
+      { tag: t.string, color: '#c3e88d' },
+      { tag: t.comment, color: '#636da6', fontStyle: 'italic' },
+      { tag: t.number, color: '#ff966c' },
+      { tag: t.function(t.variableName), color: '#82aaff' },
+      { tag: t.variableName, color: '#c8d3f5' },
+      { tag: t.definition(t.variableName), color: '#4fd6be' },
+      { tag: t.operator, color: '#86e1fc' },
+      { tag: t.bool, color: '#ff966c' },
+      { tag: t.null, color: '#c099ff' },
+      { tag: t.typeName, color: '#ffc777' },
+      { tag: t.propertyName, color: '#4fd6be' },
+      { tag: t.punctuation, color: '#89ddff' },
+    ],
+  });
+}
+
+function buildKanagawaTheme(_isDark: boolean) {
+  return createTheme({
+    theme: 'dark',
+    settings: {
+      background: '#1f1f28',
+      foreground: '#dcd7ba',
+      caret: '#c8c093',
+      selection: 'rgba(200,192,147,0.18)',
+      selectionMatch: 'rgba(200,192,147,0.10)',
+      lineHighlight: '#2a2a37',
+      gutterBackground: '#1f1f28',
+      gutterForeground: '#54546d',
+    },
+    styles: [
+      { tag: t.keyword, color: '#957fb8' },
+      { tag: t.string, color: '#98bb6c' },
+      { tag: t.comment, color: '#727169', fontStyle: 'italic' },
+      { tag: t.number, color: '#d27e99' },
+      { tag: t.function(t.variableName), color: '#7e9cd8' },
+      { tag: t.variableName, color: '#dcd7ba' },
+      { tag: t.definition(t.variableName), color: '#e6c384' },
+      { tag: t.operator, color: '#c0a36e' },
+      { tag: t.bool, color: '#d27e99' },
+      { tag: t.null, color: '#957fb8' },
+      { tag: t.typeName, color: '#7fb4ca' },
+      { tag: t.propertyName, color: '#7aa89f' },
+      { tag: t.punctuation, color: '#9cabca' },
+    ],
+  });
+}
+
+function buildPoimandresTheme(_isDark: boolean) {
+  return createTheme({
+    theme: 'dark',
+    settings: {
+      background: '#1b1e28',
+      foreground: '#a6accd',
+      caret: '#5de4c7',
+      selection: 'rgba(93,228,199,0.18)',
+      selectionMatch: 'rgba(93,228,199,0.10)',
+      lineHighlight: '#1f2233',
+      gutterBackground: '#1b1e28',
+      gutterForeground: '#3d4463',
+    },
+    styles: [
+      { tag: t.keyword, color: '#5de4c7' },
+      { tag: t.string, color: '#5de4c7' },
+      { tag: t.comment, color: '#4a4f76', fontStyle: 'italic' },
+      { tag: t.number, color: '#f087bd' },
+      { tag: t.function(t.variableName), color: '#add7ff' },
+      { tag: t.variableName, color: '#a6accd' },
+      { tag: t.definition(t.variableName), color: '#e4f0fb' },
+      { tag: t.operator, color: '#89ddff' },
+      { tag: t.bool, color: '#f087bd' },
+      { tag: t.null, color: '#91b4d5' },
+      { tag: t.typeName, color: '#add7ff' },
+      { tag: t.propertyName, color: '#5de4c7' },
+      { tag: t.punctuation, color: '#767c9d' },
+    ],
+  });
+}
+
 export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
   function PythonEditor(
     {
@@ -463,8 +558,9 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       return () => window.removeEventListener('paste', onPaste);
     }, []);
 
-    // Resolve active theme — all themes are paired (dark/light follows app mode)
+    // Resolve active theme
     const isDark = theme === 'dark';
+    const ALWAYS_DARK_THEMES = new Set(['moonlight', 'kanagawa', 'poimandres']);
     const themeBuilders: Record<string, (d: boolean) => unknown> = {
       github: buildGitHubTheme,
       catppuccin: buildCatppuccinTheme,
@@ -475,8 +571,12 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       nord: buildNordTheme,
       ayu: buildAyuTheme,
       gruvbox: buildGruvboxTheme,
+      moonlight: buildMoonlightTheme,
+      kanagawa: buildKanagawaTheme,
+      poimandres: buildPoimandresTheme,
     };
-    const resolvedTheme = (themeBuilders[pythonEditorTheme] ?? buildGitHubTheme)(isDark);
+    const effectiveDark = ALWAYS_DARK_THEMES.has(pythonEditorTheme) ? true : isDark;
+    const resolvedTheme = (themeBuilders[pythonEditorTheme] ?? buildGitHubTheme)(effectiveDark);
 
     const extensions = [
       python(),

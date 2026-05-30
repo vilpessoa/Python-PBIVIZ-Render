@@ -21,7 +21,10 @@ export type PythonEditorTheme =
   | 'one-pro'
   | 'nord'
   | 'ayu'
-  | 'gruvbox';
+  | 'gruvbox'
+  | 'moonlight'
+  | 'kanagawa'
+  | 'poimandres';
 
 export interface PBIConexao {
   provedor: string;
@@ -178,7 +181,7 @@ export function loadState(): AppState {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { ...DEFAULT_STATE };
     const parsed = JSON.parse(raw) as Partial<AppState>;
-    const VALID_THEMES: PythonEditorTheme[] = ['github','catppuccin','rose-pine','dracula','tokyo','one-pro','nord','ayu','gruvbox'];
+    const VALID_THEMES: PythonEditorTheme[] = ['github','catppuccin','rose-pine','dracula','tokyo','one-pro','nord','ayu','gruvbox','moonlight','kanagawa','poimandres'];
     const migratedTheme: PythonEditorTheme = VALID_THEMES.includes(parsed.pythonEditorTheme as PythonEditorTheme)
       ? (parsed.pythonEditorTheme as PythonEditorTheme)
       : 'github';

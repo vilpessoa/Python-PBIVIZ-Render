@@ -33,6 +33,9 @@ const THEME_LABELS: Record<string, string> = {
   nord: 'Nord',
   ayu: 'Ayu',
   gruvbox: 'Gruvbox',
+  moonlight: 'Moonlight',
+  kanagawa: 'Kanagawa',
+  poimandres: 'Poimandres',
 };
 
 export function StatusBar({
