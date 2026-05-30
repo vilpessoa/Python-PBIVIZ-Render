@@ -13,7 +13,7 @@ export function AnimatedVisualEditsButton({ enabled, onClick }: AnimatedVisualEd
       type="button"
       onClick={onClick}
       aria-pressed={enabled}
-      title={enabled ? 'Desativar Visual Edits' : 'Ativar Visual Edits'}
+      title={undefined}
       whileTap={{ scale: 0.95 }}
       className={cn(
         'relative inline-flex h-7 items-center gap-1.5 overflow-hidden rounded-full border px-3 text-[11px] font-medium transition-colors duration-200',

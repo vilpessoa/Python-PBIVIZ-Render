@@ -218,12 +218,12 @@ export function HtmlPreview({
                 aria-label="Exportar .pbiviz"
                 onClick={handleExportPbiviz}
                 disabled={exportStatus !== 'idle'}
-                className={`flex h-7 items-center justify-center gap-1 rounded-full border border-border/50 px-2.5 text-[11px] font-medium transition-all duration-200 active:scale-95 ${
+                className={`flex h-7 items-center justify-center gap-1 rounded-full border px-2.5 text-[11px] font-medium transition-colors duration-200 active:scale-95 ${
                   exportStatus === 'done'
                     ? 'bg-green-500/15 text-green-600 border-green-400/40 animate-pulse'
                     : exportStatus === 'generating'
-                    ? 'text-muted-foreground cursor-not-allowed'
-                    : 'text-muted-foreground hover:bg-accent/20 hover:border-accent/40'
+                    ? 'text-muted-foreground border-border/50 cursor-not-allowed'
+                    : 'text-muted-foreground border-border/60 hover:text-foreground hover:border-primary/30'
                 }`}
               >
                 {exportStatus === 'generating' ? (
@@ -240,16 +240,13 @@ export function HtmlPreview({
 
           {/* Center: screen size badge */}
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
-            <Badge
-              variant="outline"
-              className="text-[10px] font-mono tabular-nums px-2 py-0.5 select-none"
-            >
+            <span className="text-[10px] font-mono tabular-nums px-2 py-0.5 select-none text-muted-foreground/60">
               {isFit
                 ? containerSize.w > 0
                   ? `${Math.round(containerSize.w)}×${Math.round(containerSize.h)}`
                   : 'Fit'
                 : `${viewport.width}×${viewport.height}`}
-            </Badge>
+            </span>
           </div>
 
           {/* Right: viewport presets + warnings + visual edits */}
@@ -260,7 +257,7 @@ export function HtmlPreview({
                 <button
                   type="button"
                   aria-label="Tamanho da tela"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border/50 transition-colors active:scale-95 text-muted-foreground"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border/60 transition-colors duration-200 active:scale-95 text-muted-foreground hover:text-foreground hover:border-primary/30"
                 >
                   {(() => {
                     const preset = PRESETS.find((p) => p.id === viewport.preset);
