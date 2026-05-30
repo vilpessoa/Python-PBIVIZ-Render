@@ -1,4 +1,5 @@
-import { Check, Copy, Palette, RotateCcw, Save, Search, Trash2, Minus, Plus } from 'lucide-react';
+import { Check, Copy, Palette, RotateCcw, Save, Search, Trash2, Minus, Plus, Upload } from 'lucide-react';
+import { useRef } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,7 @@ interface Props {
   onToggleSearch: () => void;
   code: string;
   onAiApply: (code: string) => void;
+  onFileLoad: (code: string) => void;
 }
 
 const THEMES: { id: PythonEditorTheme; label: string; dot1: string; dot2: string }[] = [
@@ -106,14 +108,35 @@ export function PythonEditorToolbar({
   onToggleSearch,
   code,
   onAiApply,
+  onFileLoad,
 }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const clampZoom = (v: number) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v));
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    file.text().then(onFileLoad);
+    e.target.value = '';
+  }
 
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex h-10 shrink-0 items-center justify-between border-b border-border bg-surface px-3">
         {/* Left actions */}
         <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".py,.txt"
+            className="hidden"
+            onChange={handleFileChange}
+            aria-label="Abrir arquivo Python"
+          />
+          <IconButton icon={Upload}    label="Abrir arquivo .py"            tooltip="Abrir arquivo"    onClick={() => fileInputRef.current?.click()} />
+
+          <VDivider />
+
           <IconButton icon={Trash2}    label="Limpar editor (Ctrl+L)"      tooltip="Limpar"           onClick={onClear} />
           <IconButton icon={RotateCcw} label="Desfazer (Ctrl+Z)"           tooltip="Desfazer"         onClick={onUndo} />
 
