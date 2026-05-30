@@ -296,7 +296,7 @@ function DynamicField({
 
 
 /* ════════════════════════════════════════
-   ABA DADOS — colunas e medidas mock
+   ABA DADOS — totalmente dinâmica a partir de dataRoles
    ════════════════════════════════════════ */
 function DadosTab({
   settings,
@@ -368,128 +368,128 @@ function DadosTab({
         </span>
       </div>
 
-      {/* Conteúdo rolável */}
+      {/* Conteúdo rolável — renderizado dinamicamente por cada role */}
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-0">
 
-        {/* Colunas (campos de agrupamento) */}
-        <div className="border-b border-border">
-          <div className="flex items-center justify-between px-4 py-2.5">
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="truncate text-[13px] font-medium text-foreground">
-                {groupingRoles.length > 0
-                  ? groupingRoles.map((r) => r.displayName).join(' / ')
-                  : 'Colunas'}
-              </span>
-              <span className="text-[10px] text-muted-foreground">valores de agrupamento (categorias)</span>
+        {/* Seções dinâmicas para cada Grouping role */}
+        {groupingRoles.map((role, idx) => (
+          <div key={`grouping-${role.name}-${idx}`} className={idx > 0 ? 'border-t border-border' : 'border-b border-border'}>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="truncate text-[13px] font-medium text-foreground">
+                  {role.displayName}
+                </span>
+                <span className="text-[10px] text-muted-foreground">valores de agrupamento (categorias)</span>
+              </div>
+              <button
+                type="button"
+                onClick={addColuna}
+                className="flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Plus className="h-3 w-3" />
+                Adicionar
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={addColuna}
-              className="flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
-            >
-              <Plus className="h-3 w-3" />
-              Adicionar
-            </button>
-          </div>
 
-          {colunas.length === 0 && (
-            <p className="px-4 pb-3 text-[12px] italic text-muted-foreground">Nenhuma coluna. Adicione para simular categorias.</p>
-          )}
+            {colunas.length === 0 && (
+              <p className="px-4 pb-3 text-[12px] italic text-muted-foreground">Nenhuma coluna. Adicione para simular valores.</p>
+            )}
 
-          <div className="flex flex-col gap-2 px-4 pb-3">
-            {colunas.map((col) => (
-              <div key={col.id} className="flex flex-col gap-1.5 rounded border border-border bg-background p-2.5">
-                <div className="flex items-center gap-1.5">
+            <div className="flex flex-col gap-2 px-4 pb-3">
+              {colunas.map((col) => (
+                <div key={col.id} className="flex flex-col gap-1.5 rounded border border-border bg-background p-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={col.nome}
+                      onChange={(e) => updateColuna(col.id, { nome: e.target.value })}
+                      placeholder="Nome"
+                      className="min-w-0 flex-1 rounded border border-border bg-muted/30 px-2 py-1 text-xs text-foreground focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/20"
+                    />
+                    <select
+                      value={col.tipo}
+                      onChange={(e) => updateColuna(col.id, { tipo: e.target.value as PBIDadosColuna['tipo'] })}
+                      className="rounded border border-border bg-muted/30 px-1.5 py-1 text-[11px] text-foreground focus:border-primary/60 focus:outline-none"
+                    >
+                      {TIPOS_COLUNA.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => removeColuna(col.id)}
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                   <input
                     type="text"
-                    value={col.nome}
-                    onChange={(e) => updateColuna(col.id, { nome: e.target.value })}
+                    value={col.valores}
+                    onChange={(e) => updateColuna(col.id, { valores: e.target.value })}
+                    placeholder="Valores separados por vírgula: A, B, C"
+                    className="w-full rounded border border-border bg-muted/30 px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/20"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    {col.valores.split(',').filter((v) => v.trim()).length} valor{col.valores.split(',').filter((v) => v.trim()).length !== 1 ? 'es' : ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* Seções dinâmicas para cada Measure role */}
+        {measureRoles.map((role, idx) => (
+          <div key={`measure-${role.name}-${idx}`} className={groupingRoles.length > 0 ? 'border-t border-border' : 'border-b border-border'}>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="truncate text-[13px] font-medium text-foreground">
+                  {role.displayName}
+                </span>
+                <span className="text-[10px] text-muted-foreground">valores numéricos (medidas)</span>
+              </div>
+              <button
+                type="button"
+                onClick={addMedida}
+                className="flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Plus className="h-3 w-3" />
+                Adicionar
+              </button>
+            </div>
+
+            {medidas.length === 0 && (
+              <p className="px-4 pb-3 text-[12px] italic text-muted-foreground">Nenhuma medida. Adicione para simular valores.</p>
+            )}
+
+            <div className="flex flex-col gap-2 px-4 pb-3">
+              {medidas.map((med) => (
+                <div key={med.id} className="flex items-center gap-1.5 rounded border border-border bg-background p-2">
+                  <input
+                    type="text"
+                    value={med.nome}
+                    onChange={(e) => updateMedida(med.id, { nome: e.target.value })}
                     placeholder="Nome"
                     className="min-w-0 flex-1 rounded border border-border bg-muted/30 px-2 py-1 text-xs text-foreground focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/20"
                   />
-                  <select
-                    value={col.tipo}
-                    onChange={(e) => updateColuna(col.id, { tipo: e.target.value as PBIDadosColuna['tipo'] })}
-                    className="rounded border border-border bg-muted/30 px-1.5 py-1 text-[11px] text-foreground focus:border-primary/60 focus:outline-none"
-                  >
-                    {TIPOS_COLUNA.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
+                  <input
+                    type="text"
+                    value={med.valor}
+                    onChange={(e) => updateMedida(med.id, { valor: e.target.value })}
+                    placeholder="0"
+                    className="w-20 shrink-0 rounded border border-border bg-muted/30 px-2 py-1 text-right text-xs text-foreground focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/20"
+                  />
                   <button
                     type="button"
-                    onClick={() => removeColuna(col.id)}
+                    onClick={() => removeMedida(med.id)}
                     className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
                 </div>
-                <input
-                  type="text"
-                  value={col.valores}
-                  onChange={(e) => updateColuna(col.id, { valores: e.target.value })}
-                  placeholder="Valores separados por vírgula: A, B, C"
-                  className="w-full rounded border border-border bg-muted/30 px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/20"
-                />
-                <p className="text-[10px] text-muted-foreground">
-                  {col.valores.split(',').filter((v) => v.trim()).length} valor{col.valores.split(',').filter((v) => v.trim()).length !== 1 ? 'es' : ''}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Medidas (campos de valor) */}
-        <div>
-          <div className="flex items-center justify-between px-4 py-2.5">
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="truncate text-[13px] font-medium text-foreground">
-                {measureRoles.length > 0
-                  ? measureRoles.map((r) => r.displayName).join(' / ')
-                  : 'Medidas'}
-              </span>
-              <span className="text-[10px] text-muted-foreground">valores numéricos (medidas)</span>
+              ))}
             </div>
-            <button
-              type="button"
-              onClick={addMedida}
-              className="flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
-            >
-              <Plus className="h-3 w-3" />
-              Adicionar
-            </button>
           </div>
-
-          {medidas.length === 0 && (
-            <p className="px-4 pb-3 text-[12px] italic text-muted-foreground">Nenhuma medida. Adicione para simular valores.</p>
-          )}
-
-          <div className="flex flex-col gap-2 px-4 pb-3">
-            {medidas.map((med) => (
-              <div key={med.id} className="flex items-center gap-1.5 rounded border border-border bg-background p-2">
-                <input
-                  type="text"
-                  value={med.nome}
-                  onChange={(e) => updateMedida(med.id, { nome: e.target.value })}
-                  placeholder="Nome"
-                  className="min-w-0 flex-1 rounded border border-border bg-muted/30 px-2 py-1 text-xs text-foreground focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/20"
-                />
-                <input
-                  type="text"
-                  value={med.valor}
-                  onChange={(e) => updateMedida(med.id, { valor: e.target.value })}
-                  placeholder="0"
-                  className="w-20 shrink-0 rounded border border-border bg-muted/30 px-2 py-1 text-right text-xs text-foreground focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/20"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeMedida(med.id)}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
+        ))}
 
         {/* Reset dados */}
         <div className="border-t border-border px-4 py-3">
