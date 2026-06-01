@@ -29,46 +29,72 @@ export async function exportPbiviz(code: string): Promise<{ blob: Blob; displayN
     extractScalar(code, 'TITULO_CHAT') ??
     'Python Visual';
 
-  const guid = 'PythonVisual' + Date.now();
-  const capabilities = extractCapabilities(code) ?? { dataRoles: [], objects: {} };
+  const version =
+    extractScalar(code, 'VERSION') ?? '1.0.0.0';
 
-  const pbivizJson = {
+  const apiVersion =
+    extractScalar(code, 'API_VERSION') ?? '2.6.0';
+
+  const guid = extractScalar(code, 'GUID') ?? ('PythonVisual' + Date.now());
+
+  const capabilities = extractCapabilities(code) ?? { dataRoles: [], dataViewMappings: [], objects: {} };
+
+  const iconDataUri = `data:image/png;base64,${ICON_PNG_BASE64}`;
+
+  // Estrutura correta: tudo embutido em resources/<guid>.pbiviz.json
+  // Conforme: https://learn.microsoft.com/pt-br/power-bi/developer/visuals/visual-project-structure
+  const resourceFileName = `resources/${guid}.pbiviz.json`;
+
+  const pbivizResourceJson = {
     visual: {
       name: guid,
       displayName,
       guid,
       visualClassName: 'Visual',
-      version: '1.0.0',
+      version,
       description: '',
       supportUrl: '',
       gitHubUrl: '',
     },
-    apiVersion: '5.1.0',
     author: { name: '', email: '' },
-    assets: { icon: 'assets/icon.png' },
+    apiVersion,
+    style: 'style/visual.less',
+    stringResources: {},
+    capabilities,
+    content: {
+      js,
+      css,
+      iconBase64: iconDataUri,
+    },
+    visualEntryPoint: '',
     externalJS: [],
-    style: 'resources/visual.css',
-    capabilities: 'capabilities.json',
-    stringResources: [],
+    assets: { icon: 'assets/icon.png' },
   };
 
   const packageJson = {
-    name: guid.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-    version: '1.0.0',
-    description: displayName,
-    scripts: {},
-    dependencies: {},
+    version,
+    author: { name: '', email: '' },
+    resources: [
+      { resourceId: 'rId0', sourceType: 5, file: resourceFileName },
+    ],
+    visual: {
+      name: guid,
+      displayName,
+      guid,
+      visualClassName: 'Visual',
+      version,
+      description: '',
+      supportUrl: '',
+      gitHubUrl: '',
+    },
+    metadata: { pbivizjson: { resourceId: 'rId0' } },
   };
 
   const zip = new JSZip();
-  zip.file('pbiviz.json', JSON.stringify(pbivizJson, null, 2));
-  zip.file('package.json', JSON.stringify(packageJson, null, 2));
-  zip.file('capabilities.json', JSON.stringify(capabilities, null, 2));
-  zip.file('resources/visual.js', js);
-  zip.file('resources/visual.css', css);
-  zip.file('assets/icon.png', ICON_PNG_BASE64, { base64: true });
+  zip.file('package.json', JSON.stringify(packageJson, null, '\t'));
+  zip.file(resourceFileName, JSON.stringify(pbivizResourceJson, null, 2));
 
-  const blob = await zip.generateAsync({ type: 'blob' });
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
   return { blob, displayName };
 }
 
