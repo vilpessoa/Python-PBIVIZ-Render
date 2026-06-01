@@ -6,12 +6,13 @@ interface Props {
   right: React.ReactNode;
   initialSplit?: number;
   onSplitChange?: (split: number) => void;
+  expanded?: boolean;
 }
 
 const MIN_SPLIT = 15;
 const MAX_SPLIT = 85;
 
-export function SplitPane({ left, right, initialSplit = 50, onSplitChange }: Props) {
+export function SplitPane({ left, right, initialSplit = 50, onSplitChange, expanded = false }: Props) {
   const [split, setSplit] = useState(initialSplit);
   const [dragging, setDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -59,7 +60,15 @@ export function SplitPane({ left, right, initialSplit = 50, onSplitChange }: Pro
     return (
       <div className="flex flex-col flex-1 min-h-0">
         <div className="flex-1 min-h-0">{left}</div>
-        <div className="flex-1 min-h-0">{right}</div>
+        {!expanded && <div className="flex-1 min-h-0">{right}</div>}
+      </div>
+    );
+  }
+
+  if (expanded) {
+    return (
+      <div className="flex flex-1 min-h-0 min-w-0">
+        <div className="min-h-0 min-w-0 flex flex-col w-full">{left}</div>
       </div>
     );
   }

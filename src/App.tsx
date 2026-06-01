@@ -71,6 +71,8 @@ export default function App() {
     initialState.pbivizSettings ?? DEFAULT_PBI_SETTINGS,
   );
 
+  const [editorExpanded, setEditorExpanded] = useState(false);
+
   const [cursor, setCursor] = useState<{ offset: number; line: number; col: number }>({
     offset: 0,
     line: 1,
@@ -266,6 +268,7 @@ export default function App() {
   }, []);
 
   const onFontSizeChange = useCallback((v: number) => setFontSize(clampZoom(v)), []);
+  const doToggleExpand = useCallback(() => setEditorExpanded((v) => !v), []);
   const onToggleVisualEdits = useCallback(() => {
     setVisualEditsEnabled((v) => {
       if (v) setVeMenu(null);
@@ -281,8 +284,9 @@ export default function App() {
     onFontSizeChange,
     fontSize,
     setSearchOpen,
+    doToggleExpand,
   });
-  handlersRef.current = { doRender, openSaveDialog, doClear, onFontSizeChange, fontSize, setSearchOpen };
+  handlersRef.current = { doRender, openSaveDialog, doClear, onFontSizeChange, fontSize, setSearchOpen, doToggleExpand };
 
   const hotkeyMap = useMemo(
     () => ({
@@ -293,6 +297,7 @@ export default function App() {
       'ctrl+-': () => handlersRef.current.onFontSizeChange(handlersRef.current.fontSize - 1),
       'ctrl+0': () => handlersRef.current.onFontSizeChange(ZOOM_DEFAULT),
       'ctrl+f': () => handlersRef.current.setSearchOpen(true),
+      'ctrl+m': () => handlersRef.current.doToggleExpand(),
     }),
     [],
   );
@@ -377,6 +382,7 @@ export default function App() {
         <SplitPane
           initialSplit={panelSplit}
           onSplitChange={onSplitChange}
+          expanded={editorExpanded}
           left={
             <div className="flex h-full w-full flex-col overflow-hidden border-r border-border">
               <PythonEditorToolbar
@@ -396,6 +402,8 @@ export default function App() {
                   setCode(content);
                   toast.success('Arquivo carregado');
                 }}
+                editorExpanded={editorExpanded}
+                onToggleExpand={doToggleExpand}
               />
               <AnimatePresence>
                 {searchOpen && (
