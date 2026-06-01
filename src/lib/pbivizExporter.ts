@@ -1,4 +1,4 @@
-import JSZip from 'jszip';
+import { zipSync, strToU8 } from 'fflate';
 import { extractCapabilities } from './pythonParser/pbivizExtractor';
 
 // Minimal 20x20 transparent PNG (base64)
@@ -41,8 +41,10 @@ export async function exportPbiviz(code: string): Promise<{ blob: Blob; displayN
 
   const iconDataUri = `data:image/png;base64,${ICON_PNG_BASE64}`;
 
-  // Estrutura correta: tudo embutido em resources/<guid>.pbiviz.json
-  // Conforme: https://learn.microsoft.com/pt-br/power-bi/developer/visuals/visual-project-structure
+  // Estrutura correta (igual ao script Python):
+  // - package.json (com resources, visual, metadata)
+  // - resources/<GUID>.pbiviz.json (com content.js, content.css, capabilities embutidos)
+  // Sem entradas de diretório — fflate permite controle total do ZIP
   const resourceFileName = `resources/${guid}.pbiviz.json`;
 
   const pbivizResourceJson = {
@@ -90,11 +92,16 @@ export async function exportPbiviz(code: string): Promise<{ blob: Blob; displayN
     metadata: { pbivizjson: { resourceId: 'rId0' } },
   };
 
-  const zip = new JSZip();
-  zip.file('package.json', JSON.stringify(packageJson, null, '\t'));
-  zip.file(resourceFileName, JSON.stringify(pbivizResourceJson, null, 2));
+  // zipSync cria um ZIP sem entradas de diretório (igual ao Python zipfile.writestr)
+  const zipData = zipSync(
+    {
+      'package.json': strToU8(JSON.stringify(packageJson, null, '\t')),
+      [resourceFileName]: strToU8(JSON.stringify(pbivizResourceJson)),
+    },
+    { level: 6 },
+  );
 
-  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+  const blob = new Blob([zipData], { type: 'application/zip' });
   return { blob, displayName };
 }
 
