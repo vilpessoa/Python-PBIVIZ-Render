@@ -1,4 +1,4 @@
-import { Check, Copy, Moon, Palette, RotateCcw, Save, Search, Trash2, Minus, Plus, Upload } from 'lucide-react';
+import { Check, Copy, Moon, Palette, PanelRightClose, PanelRightOpen, RotateCcw, Save, Search, Trash2, Minus, Plus, Upload } from 'lucide-react';
 import { useRef } from 'react';
 import {
   DropdownMenu,
@@ -29,6 +29,8 @@ interface Props {
   code: string;
   onAiApply: (code: string) => void;
   onFileLoad: (code: string) => void;
+  editorExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
 const THEMES: { id: PythonEditorTheme; label: string; dot1: string; dot2: string }[] = [
@@ -114,6 +116,8 @@ export function PythonEditorToolbar({
   code,
   onAiApply,
   onFileLoad,
+  editorExpanded = false,
+  onToggleExpand,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const clampZoom = (v: number) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v));
@@ -222,6 +226,17 @@ export function PythonEditorToolbar({
               <TooltipContent side="bottom" className="px-2 py-1 text-xs">Aumentar fonte</TooltipContent>
             </Tooltip>
           </div>
+
+          {/* Expand/collapse editor */}
+          {onToggleExpand && (
+            <IconButton
+              icon={editorExpanded ? PanelRightOpen : PanelRightClose}
+              label={editorExpanded ? 'Restaurar painel (Ctrl+M)' : 'Ocultar preview (Ctrl+M)'}
+              tooltip={editorExpanded ? 'Restaurar preview' : 'Ocultar preview'}
+              onClick={onToggleExpand}
+              active={editorExpanded}
+            />
+          )}
 
           {/* Theme picker */}
           <DropdownMenu>
