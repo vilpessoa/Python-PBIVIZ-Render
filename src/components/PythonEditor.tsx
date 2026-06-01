@@ -592,6 +592,7 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
       errorField,
       colorPickerExtension(swatchCallbackRef),
+      EditorView.lineWrapping,
       EditorView.theme({
         '&': { height: '100%', fontSize: `${fontSize}px` },
         '.cm-scroller': { overflow: 'auto', fontFamily: '"JetBrains Mono", "Fira Code", monospace' },
