@@ -1,4 +1,4 @@
-import { Check, Copy, Maximize2, Minimize2, Moon, Palette, RotateCcw, Save, Search, Trash2, Minus, Plus, Upload } from 'lucide-react';
+import { Check, Copy, Moon, Palette, PanelRightClose, PanelRightOpen, RotateCcw, Save, Search, Trash2, Minus, Plus, Upload } from 'lucide-react';
 import { useRef } from 'react';
 import {
   DropdownMenu,
@@ -230,9 +230,9 @@ export function PythonEditorToolbar({
           {/* Expand/collapse editor */}
           {onToggleExpand && (
             <IconButton
-              icon={editorExpanded ? Minimize2 : Maximize2}
-              label={editorExpanded ? 'Restaurar painel (Ctrl+M)' : 'Expandir editor (Ctrl+M)'}
-              tooltip={editorExpanded ? 'Restaurar painel' : 'Expandir editor'}
+              icon={editorExpanded ? PanelRightOpen : PanelRightClose}
+              label={editorExpanded ? 'Restaurar painel (Ctrl+M)' : 'Ocultar preview (Ctrl+M)'}
+              tooltip={editorExpanded ? 'Restaurar preview' : 'Ocultar preview'}
               onClick={onToggleExpand}
               active={editorExpanded}
             />
