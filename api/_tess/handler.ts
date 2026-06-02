@@ -8,7 +8,8 @@
 import { TESS_SYSTEM_PROMPT } from './system-prompt';
 
 const TESS_BASE_URL = 'https://tess.pareto.io/api';
-const TIMEOUT_MS = 60_000;
+// Abaixo do maxDuration da função (60s) para devolver erro limpo antes do timeout da plataforma.
+const TIMEOUT_MS = 55_000;
 
 export interface TessChatMessage {
   role: 'user' | 'assistant';
@@ -86,7 +87,8 @@ export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
   }
 
   const body = {
-    temperature: '0.3',
+    // A TESS aceita apenas: 0, 0.25, 0.5, 0.75, 1.
+    temperature: '0.5',
     messages: [{ role: 'system', content: TESS_SYSTEM_PROMPT }, ...apiMessages],
     waitExecution: true,
   };

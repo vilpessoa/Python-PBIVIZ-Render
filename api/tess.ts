@@ -6,6 +6,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { runTess, TessError } from './_tess/handler';
 
+// Tempo máximo de execução da função (segundos). Necessário porque a chamada à
+// TESS com wait_execution=true é síncrona e pode demorar. 60s é o teto do Hobby.
+export const maxDuration = 60;
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Método não permitido.' });
@@ -29,6 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(err.status).json({ error: err.message });
       return;
     }
-    res.status(500).json({ error: 'Erro interno no Assistente TESS.' });
+    const detail = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: `Erro interno no Assistente TESS: ${detail}` });
   }
 }
