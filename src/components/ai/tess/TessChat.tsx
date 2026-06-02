@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle } from 'lucide-react';
+import { Sparkles, X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
@@ -125,18 +125,34 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
         // Conversacional: nunca altera o código.
         assistant.content = stripCodeBlock(reply) || reply;
       } else if (newCode != null && newCode !== before) {
-        // Ação direta: aplica + badge de diff, highlight no editor.
-        onApplyCode(newCode);
-        assistant.content = conciseSummary(reply);
-        assistant.code = newCode;
-        assistant.previousCode = before;
         const dl = diffLines(before, newCode);
+        const { removed } = diffStats(dl);
+        const beforeLines = before.split('\n').filter((l) => l.trim()).length;
+
+        // TRAVA DE SEGURANÇA: a TESS às vezes devolve só o trecho alterado,
+        // o que apagaria a maior parte do código original. Nesse caso NÃO
+        // aplicamos automaticamente — pedimos confirmação explícita.
+        const suspicious = beforeLines >= 6 && removed >= Math.ceil(beforeLines * 0.4);
+
+        assistant.content = conciseSummary(reply);
         assistant.diff = dl;
-        assistant.applyState = 'applied';
-        // Highlights added lines in the CodeMirror editor after React re-renders the new code.
-        if (onHighlightDiff) {
-          const addedLines = computeAddedLines(dl);
-          setTimeout(() => onHighlightDiff(addedLines), 120);
+        assistant.previousCode = before;
+        assistant.proposedCode = newCode;
+
+        if (suspicious) {
+          // Bloqueia a aplicação automática.
+          assistant.applyState = 'blocked';
+          assistant.content =
+            'A resposta removeria grande parte do código atual — provavelmente veio incompleta. Não apliquei automaticamente. Revise o diff e decida abaixo.';
+        } else {
+          // Aplica e mantém o destaque no editor até você aprovar/reverter.
+          onApplyCode(newCode);
+          assistant.code = newCode;
+          assistant.applyState = 'applied';
+          if (onHighlightDiff) {
+            const addedLines = computeAddedLines(dl);
+            setTimeout(() => onHighlightDiff(addedLines), 120);
+          }
         }
       } else if (newCode != null) {
         assistant.content = 'Nenhuma alteração necessária — o código já atende ao pedido.';
@@ -154,11 +170,35 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
     }
   }
 
+  function handleApprove(msg: ChatMessage) {
+    onHighlightDiff?.([]); // remove o destaque do editor
+    setMessages((arr) => arr.map((m) => (m.id === msg.id ? { ...m, applyState: 'approved' } : m)));
+    toast.success('Alteração aprovada', { position: 'top-right' });
+  }
+
   function handleRevert(msg: ChatMessage) {
     if (msg.previousCode == null) return;
     onApplyCode(msg.previousCode);
+    onHighlightDiff?.([]); // remove o destaque do editor
     setMessages((arr) => arr.map((m) => (m.id === msg.id ? { ...m, applyState: 'reverted' } : m)));
     toast.success('Alteração revertida', { position: 'top-right' });
+  }
+
+  /** Aplica manualmente um resultado que foi bloqueado pela trava de segurança. */
+  function handleApplyAnyway(msg: ChatMessage) {
+    if (msg.proposedCode == null) return;
+    onApplyCode(msg.proposedCode);
+    setMessages((arr) => arr.map((m) => (m.id === msg.id ? { ...m, applyState: 'applied' } : m)));
+    if (onHighlightDiff && msg.diff) {
+      const addedLines = computeAddedLines(msg.diff);
+      setTimeout(() => onHighlightDiff(addedLines), 120);
+    }
+    toast.info('Alteração aplicada manualmente', { position: 'top-right' });
+  }
+
+  function handleClearChat() {
+    onHighlightDiff?.([]);
+    setMessages([WELCOME]);
   }
 
   function onInputKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -192,9 +232,22 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
                 <div className="text-[10px] text-muted-foreground">Construtor de código Python</div>
               </div>
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose} aria-label="Fechar">
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={handleClearChat}
+                disabled={messages.length <= 1}
+                aria-label="Limpar conversa"
+                title="Limpar conversa"
+              >
+                <Eraser className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose} aria-label="Fechar">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Mensagens */}
@@ -220,25 +273,25 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
                       <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-mono">
                         {added > 0 && <span className="text-emerald-600 dark:text-emerald-400">+{added}</span>}
                         {removed > 0 && <span className="text-rose-600 dark:text-rose-400">-{removed}</span>}
-                        <span className="text-muted-foreground">· ver no editor</span>
+                        {m.applyState === 'applied' && <span className="text-muted-foreground">· destacado no editor</span>}
                       </div>
                     );
                   })()}
 
-                  {m.applyState && (
+                  {/* Aplicado — aguardando aprovação */}
+                  {m.applyState === 'applied' && (
                     <div className="mt-2 flex items-center justify-between gap-2">
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1 text-[10px] font-medium',
-                          m.applyState === 'applied'
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-muted-foreground',
-                        )}
-                      >
-                        <Check className="h-3 w-3" />
-                        {m.applyState === 'applied' ? 'Aplicado ao editor' : 'Revertido'}
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                        Revise o diff no editor
                       </span>
-                      {m.applyState === 'applied' && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleApprove(m)}
+                          className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-emerald-700"
+                        >
+                          <Check className="h-3 w-3" /> Aprovar
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleRevert(m)}
@@ -246,7 +299,31 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
                         >
                           <Undo2 className="h-3 w-3" /> Reverter
                         </button>
-                      )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Aprovado / Revertido — estado final */}
+                  {(m.applyState === 'approved' || m.applyState === 'reverted') && (
+                    <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                      <Check className="h-3 w-3" />
+                      {m.applyState === 'approved' ? 'Aprovado' : 'Revertido'}
+                    </div>
+                  )}
+
+                  {/* Bloqueado pela trava de segurança */}
+                  {m.applyState === 'blocked' && (
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                        <ShieldAlert className="h-3 w-3" /> Não aplicado
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyAnyway(m)}
+                        className="inline-flex items-center gap-1 rounded-md border border-amber-500/50 px-2 py-0.5 text-[10px] font-medium text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
+                      >
+                        Aplicar mesmo assim
+                      </button>
                     </div>
                   )}
                 </div>

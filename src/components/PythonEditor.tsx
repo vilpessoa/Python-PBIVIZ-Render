@@ -548,12 +548,9 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       highlightAddedLines(lineNumbers: number[]) {
         const view = cmRef.current?.view;
         if (!view) return;
+        // O destaque persiste até o usuário aprovar/reverter (TessChat envia []
+        // para limpar). Não há timeout — assim o diff fica visível até a decisão.
         view.dispatch({ effects: setDiffEffect.of(lineNumbers) });
-        if (lineNumbers.length > 0) {
-          setTimeout(() => {
-            cmRef.current?.view?.dispatch({ effects: setDiffEffect.of([]) });
-          }, 8000);
-        }
       },
     }));
 

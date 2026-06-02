@@ -17,10 +17,18 @@ export interface ChatMessage {
   code?: string | null;
   /** Diff git-style entre o código anterior e o novo (mensagens da TESS). */
   diff?: DiffLine[];
-  /** Código de antes da aplicação automática — usado pelo botão "Reverter". */
+  /** Código de antes da aplicação — usado pelos botões "Aprovar"/"Reverter". */
   previousCode?: string;
-  /** Estado da aplicação automática deste turno. */
-  applyState?: 'applied' | 'reverted';
+  /** Código novo proposto pela TESS (usado quando 'blocked' para aplicar manualmente). */
+  proposedCode?: string;
+  /**
+   * Estado da aplicação deste turno:
+   * - 'applied'  → aplicado ao editor, aguardando aprovação (diff visível no editor)
+   * - 'approved' → o usuário confirmou a alteração (diff some)
+   * - 'reverted' → o usuário desfez a alteração
+   * - 'blocked'  → código suspeito (cortaria boa parte do original); NÃO foi aplicado
+   */
+  applyState?: 'applied' | 'approved' | 'reverted' | 'blocked';
   /** Marca erro para estilizar o balão. */
   isError?: boolean;
 }
