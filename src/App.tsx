@@ -500,6 +500,7 @@ export default function App() {
           onClose={() => setTessChatOpen(false)}
           code={code}
           onApplyCode={setCode}
+          onHighlightDiff={(addedLines) => editorRef.current?.highlightAddedLines(addedLines)}
         />
       )}
 

@@ -5,8 +5,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { sendTessMessage } from '@/services/tessService';
-import { diffLines } from './tessDiff';
-import { DiffView } from './DiffView';
+import { diffLines, diffStats } from './tessDiff';
 import type { ChatMessage, TessChatMessage, TessMode } from './types';
 
 interface Props {
@@ -16,6 +15,8 @@ interface Props {
   code: string;
   /** Aplica (ou reverte) o código no editor. */
   onApplyCode: (code: string) => void;
+  /** Destaca linhas adicionadas no editor CodeMirror (chamado ~100ms após aplicar). */
+  onHighlightDiff?: (addedLines: number[]) => void;
 }
 
 const MODES: { id: TessMode; label: string; icon: React.ElementType; placeholder: string }[] = [
@@ -48,7 +49,18 @@ const WELCOME: ChatMessage = {
     'Olá! Sou o Assistente TESS. Escolha um modo abaixo: "Modificar" e "Corrigir" agem direto no código; "Tirar dúvidas" apenas responde sem alterar nada.',
 };
 
-export function TessChat({ open, onClose, code, onApplyCode }: Props) {
+/** Retorna os números de linha 1-indexados das linhas adicionadas no diff. */
+function computeAddedLines(diff: ReturnType<typeof diffLines>): number[] {
+  const lines: number[] = [];
+  let ln = 1;
+  for (const d of diff) {
+    if (d.type === 'add') { lines.push(ln); ln++; }
+    else if (d.type === 'ctx') { ln++; }
+  }
+  return lines;
+}
+
+export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -113,13 +125,19 @@ export function TessChat({ open, onClose, code, onApplyCode }: Props) {
         // Conversacional: nunca altera o código.
         assistant.content = stripCodeBlock(reply) || reply;
       } else if (newCode != null && newCode !== before) {
-        // Ação direta: aplica + diff git-style, com resumo enxuto.
+        // Ação direta: aplica + badge de diff, highlight no editor.
         onApplyCode(newCode);
         assistant.content = conciseSummary(reply);
         assistant.code = newCode;
         assistant.previousCode = before;
-        assistant.diff = diffLines(before, newCode);
+        const dl = diffLines(before, newCode);
+        assistant.diff = dl;
         assistant.applyState = 'applied';
+        // Highlights added lines in the CodeMirror editor after React re-renders the new code.
+        if (onHighlightDiff) {
+          const addedLines = computeAddedLines(dl);
+          setTimeout(() => onHighlightDiff(addedLines), 120);
+        }
       } else if (newCode != null) {
         assistant.content = 'Nenhuma alteração necessária — o código já atende ao pedido.';
       } else {
@@ -196,7 +214,16 @@ export function TessChat({ open, onClose, code, onApplyCode }: Props) {
                   {m.isError && <AlertCircle className="mb-1 inline h-3.5 w-3.5" />}
                   <span className="whitespace-pre-wrap break-words">{m.content}</span>
 
-                  {m.diff && <DiffView diff={m.diff} />}
+                  {m.diff && (() => {
+                    const { added, removed } = diffStats(m.diff);
+                    return (
+                      <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-mono">
+                        {added > 0 && <span className="text-emerald-600 dark:text-emerald-400">+{added}</span>}
+                        {removed > 0 && <span className="text-rose-600 dark:text-rose-400">-{removed}</span>}
+                        <span className="text-muted-foreground">· ver no editor</span>
+                      </div>
+                    );
+                  })()}
 
                   {m.applyState && (
                     <div className="mt-2 flex items-center justify-between gap-2">

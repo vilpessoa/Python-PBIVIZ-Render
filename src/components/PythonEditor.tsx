@@ -31,6 +31,8 @@ export interface PythonEditorHandle {
   undo: () => void;
   redo: () => void;
   getView: () => EditorView | undefined;
+  /** Highlights the given 1-indexed line numbers in green (added lines from a diff). Pass [] to clear. */
+  highlightAddedLines: (lineNumbers: number[]) => void;
 }
 
 interface Props {
@@ -47,6 +49,37 @@ interface Props {
 
 // Error decoration
 const setErrorEffect = StateEffect.define<{ from: number; to: number } | null>();
+
+// Diff highlight decoration (added lines from TESS)
+const setDiffEffect = StateEffect.define<number[]>(); // 1-indexed line numbers; empty = clear
+
+const diffField = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none;
+  },
+  update(deco, tr) {
+    deco = deco.map(tr.changes);
+    for (const e of tr.effects) {
+      if (e.is(setDiffEffect)) {
+        if (e.value.length === 0) {
+          deco = Decoration.none;
+        } else {
+          const builder = new RangeSetBuilder<Decoration>();
+          const sorted = [...e.value].sort((a, b) => a - b);
+          const docLines = tr.state.doc.lines;
+          for (const ln of sorted) {
+            if (ln < 1 || ln > docLines) continue;
+            const line = tr.state.doc.line(ln);
+            builder.add(line.from, line.from, Decoration.line({ class: 'cm-diff-add' }));
+          }
+          deco = builder.finish();
+        }
+      }
+    }
+    return deco;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 const errorField = StateField.define<DecorationSet>({
   create() {
@@ -512,6 +545,16 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       getView() {
         return cmRef.current?.view;
       },
+      highlightAddedLines(lineNumbers: number[]) {
+        const view = cmRef.current?.view;
+        if (!view) return;
+        view.dispatch({ effects: setDiffEffect.of(lineNumbers) });
+        if (lineNumbers.length > 0) {
+          setTimeout(() => {
+            cmRef.current?.view?.dispatch({ effects: setDiffEffect.of([]) });
+          }, 8000);
+        }
+      },
     }));
 
     // Error decorations
@@ -591,6 +634,7 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       highlightSelectionMatches(),
       keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
       errorField,
+      diffField,
       colorPickerExtension(swatchCallbackRef),
       EditorView.lineWrapping,
       EditorView.theme({
@@ -600,6 +644,10 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
         '.cm-error-mark': {
           textDecoration: 'underline wavy hsl(var(--destructive))',
           backgroundColor: 'hsl(var(--destructive) / 0.12)',
+        },
+        '.cm-diff-add': {
+          backgroundColor: 'rgba(34, 197, 94, 0.13)',
+          borderLeft: '3px solid rgba(34, 197, 94, 0.65)',
         },
       }),
       EditorView.domEventHandlers({
