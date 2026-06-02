@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, X, Send, Loader2, Undo2, Check, AlertCircle } from 'lucide-react';
+import { Sparkles, X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { sendTessMessage } from '@/services/tessService';
 import { diffLines } from './tessDiff';
 import { DiffView } from './DiffView';
-import type { ChatMessage, TessChatMessage } from './types';
+import type { ChatMessage, TessChatMessage, TessMode } from './types';
 
 interface Props {
   open: boolean;
@@ -18,10 +18,23 @@ interface Props {
   onApplyCode: (code: string) => void;
 }
 
-/** Remove o bloco ```python ... ``` do texto, deixando só a descrição. */
-function descriptionOf(reply: string): string {
-  const text = reply.replace(/```(?:python|py)?\s*\n[\s\S]*?\n```/gi, '').trim();
-  return text || 'Código atualizado.';
+const MODES: { id: TessMode; label: string; icon: React.ElementType; placeholder: string }[] = [
+  { id: 'edit', label: 'Modificar', icon: Wand2, placeholder: 'Ex.: adicione 2 novos usuários…' },
+  { id: 'fix', label: 'Corrigir', icon: Bug, placeholder: 'Descreva o erro ou peça para corrigir…' },
+  { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, placeholder: 'Ex.: o que esse trecho faz?' },
+];
+
+/** Remove o bloco ```python ... ``` do texto. */
+function stripCodeBlock(reply: string): string {
+  return reply.replace(/```(?:python|py)?\s*\n[\s\S]*?\n```/gi, '').trim();
+}
+
+/** Primeira frase/linha não vazia, limitada — para um resumo enxuto nos modos de ação. */
+function conciseSummary(reply: string): string {
+  const text = stripCodeBlock(reply);
+  const firstLine = text.split('\n').map((l) => l.trim()).find((l) => l.length > 0) ?? '';
+  if (!firstLine) return 'Código atualizado.';
+  return firstLine.length > 160 ? firstLine.slice(0, 157) + '…' : firstLine;
 }
 
 function uid() {
@@ -32,13 +45,14 @@ const WELCOME: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
-    'Olá! Sou o Assistente TESS. Descreva a modificação que você quer no código Python e eu aplico mantendo o restante intacto.',
+    'Olá! Sou o Assistente TESS. Escolha um modo abaixo: "Modificar" e "Corrigir" agem direto no código; "Tirar dúvidas" apenas responde sem alterar nada.',
 };
 
 export function TessChat({ open, onClose, code, onApplyCode }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<TessMode>('edit');
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -85,22 +99,23 @@ export function TessChat({ open, onClose, code, onApplyCode }: Props) {
       .map((m) => ({ role: m.role, content: m.content }));
 
     const before = codeRef.current;
+    const sentMode = mode;
     try {
       const { reply, code: newCode } = await sendTessMessage({
         messages: apiMessages,
         code: before,
+        mode: sentMode,
       });
 
-      const assistant: ChatMessage = {
-        id: uid(),
-        role: 'assistant',
-        content: reply,
-      };
+      const assistant: ChatMessage = { id: uid(), role: 'assistant', content: reply };
 
-      if (newCode != null && newCode !== before) {
-        // Aplicação automática + diff git-style
+      if (sentMode === 'ask') {
+        // Conversacional: nunca altera o código.
+        assistant.content = stripCodeBlock(reply) || reply;
+      } else if (newCode != null && newCode !== before) {
+        // Ação direta: aplica + diff git-style, com resumo enxuto.
         onApplyCode(newCode);
-        assistant.content = descriptionOf(reply);
+        assistant.content = conciseSummary(reply);
         assistant.code = newCode;
         assistant.previousCode = before;
         assistant.diff = diffLines(before, newCode);
@@ -108,7 +123,7 @@ export function TessChat({ open, onClose, code, onApplyCode }: Props) {
       } else if (newCode != null) {
         assistant.content = 'Nenhuma alteração necessária — o código já atende ao pedido.';
       } else {
-        assistant.content = reply;
+        assistant.content = conciseSummary(reply);
       }
 
       setMessages((m) => [...m, assistant]);
@@ -124,9 +139,7 @@ export function TessChat({ open, onClose, code, onApplyCode }: Props) {
   function handleRevert(msg: ChatMessage) {
     if (msg.previousCode == null) return;
     onApplyCode(msg.previousCode);
-    setMessages((arr) =>
-      arr.map((m) => (m.id === msg.id ? { ...m, applyState: 'reverted' } : m)),
-    );
+    setMessages((arr) => arr.map((m) => (m.id === msg.id ? { ...m, applyState: 'reverted' } : m)));
     toast.success('Alteração revertida', { position: 'top-right' });
   }
 
@@ -136,6 +149,8 @@ export function TessChat({ open, onClose, code, onApplyCode }: Props) {
       handleSend();
     }
   }
+
+  const placeholder = MODES.find((m) => m.id === mode)?.placeholder ?? '';
 
   return (
     <AnimatePresence>
@@ -214,14 +229,39 @@ export function TessChat({ open, onClose, code, onApplyCode }: Props) {
             {loading && (
               <div className="flex justify-start">
                 <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> TESS está pensando…
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> TESS está trabalhando…
                 </div>
               </div>
             )}
           </div>
 
+          {/* Seletor de modo */}
+          <div className="flex shrink-0 items-center gap-1 border-t border-border bg-surface px-2.5 pt-2">
+            {MODES.map((m) => {
+              const Icon = m.icon;
+              const active = mode === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setMode(m.id)}
+                  aria-pressed={active}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+                    active
+                      ? 'border-primary/40 bg-primary/15 text-primary'
+                      : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-3 w-3" />
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+
           {/* Input */}
-          <div className="shrink-0 border-t border-border bg-background p-2.5">
+          <div className="shrink-0 bg-surface p-2.5 pt-2">
             <div className="flex items-end gap-2">
               <textarea
                 ref={inputRef}
@@ -229,8 +269,8 @@ export function TessChat({ open, onClose, code, onApplyCode }: Props) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onInputKeyDown}
                 rows={1}
-                placeholder="Ex.: deixe o título em negrito e azul…"
-                className="max-h-28 min-h-[38px] flex-1 resize-none rounded-lg border border-border bg-surface px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-ring"
+                placeholder={placeholder}
+                className="max-h-28 min-h-[38px] flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-ring"
               />
               <Button
                 size="icon"

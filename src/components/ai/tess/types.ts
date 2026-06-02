@@ -1,5 +1,8 @@
 import type { DiffLine } from './tessDiff';
 
+/** Modos de atuação do assistente. */
+export type TessMode = 'edit' | 'fix' | 'ask';
+
 export interface TessChatMessage {
   role: 'user' | 'assistant';
   content: string;

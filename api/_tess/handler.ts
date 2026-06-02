@@ -5,7 +5,7 @@
  *
  * A chave (TESS_API_KEY) e o agente (TESS_AGENT_ID) vivem SOMENTE no servidor.
  */
-import { TESS_SYSTEM_PROMPT } from './system-prompt.js';
+import { buildSystemPrompt, type TessMode } from './system-prompt.js';
 
 const TESS_BASE_URL = 'https://tess.pareto.io/api';
 // Abaixo do maxDuration da função (60s) para devolver erro limpo antes do timeout da plataforma.
@@ -19,6 +19,7 @@ export interface TessChatMessage {
 export interface RunTessOptions {
   messages: TessChatMessage[];
   code: string;
+  mode?: TessMode;
   apiKey?: string;
   agentId?: string;
 }
@@ -64,7 +65,7 @@ function readOutput(data: unknown): string {
 }
 
 export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
-  const { messages, code, apiKey, agentId } = opts;
+  const { messages, code, mode = 'edit', apiKey, agentId } = opts;
 
   if (!apiKey || !agentId) {
     throw new TessError(503, 'Assistente TESS não configurado no servidor (TESS_API_KEY / TESS_AGENT_ID).');
@@ -89,7 +90,7 @@ export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
   const body = {
     // A TESS aceita apenas: 0, 0.25, 0.5, 0.75, 1.
     temperature: '0.5',
-    messages: [{ role: 'system', content: TESS_SYSTEM_PROMPT }, ...apiMessages],
+    messages: [{ role: 'system', content: buildSystemPrompt(mode) }, ...apiMessages],
     waitExecution: true,
   };
 

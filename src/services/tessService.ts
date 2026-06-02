@@ -1,4 +1,4 @@
-import type { TessChatMessage } from '@/components/ai/tess/types';
+import type { TessChatMessage, TessMode } from '@/components/ai/tess/types';
 
 export interface TessReply {
   reply: string;
@@ -12,12 +12,13 @@ export interface TessReply {
 export async function sendTessMessage(opts: {
   messages: TessChatMessage[];
   code: string;
+  mode: TessMode;
   signal?: AbortSignal;
 }): Promise<TessReply> {
   const res = await fetch('/api/tess', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: opts.messages, code: opts.code }),
+    body: JSON.stringify({ messages: opts.messages, code: opts.code, mode: opts.mode }),
     signal: opts.signal,
   });
 

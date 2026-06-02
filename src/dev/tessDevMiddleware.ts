@@ -32,6 +32,7 @@ export function tessDevPlugin(): Plugin {
               const result = await runTess({
                 messages: body.messages,
                 code: body.code,
+                mode: body.mode,
                 apiKey: process.env.TESS_API_KEY,
                 agentId: process.env.TESS_AGENT_ID,
               });

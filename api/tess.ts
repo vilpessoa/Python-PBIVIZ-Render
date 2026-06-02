@@ -18,11 +18,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
-    const { messages, code } = body;
+    const { messages, code, mode } = body;
 
     const result = await runTess({
       messages,
       code,
+      mode,
       apiKey: process.env.TESS_API_KEY,
       agentId: process.env.TESS_AGENT_ID,
     });
