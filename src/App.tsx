@@ -28,6 +28,8 @@ import { searchPythonSource, searchPythonSourceByVarName } from '@/lib/veSearch'
 import type { VELocateTokens } from '@/lib/visualEdits';
 import { ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN } from '@/components/ZoomControls';
 import DEFAULT_SAMPLE from '@/data/sampleDefault';
+import { TessChat } from '@/components/ai/tess/TessChat';
+import { TESS_ENABLED } from '@/lib/tessConfig';
 
 const ACCENT_PRESETS: Record<string, { light: string; dark: string }> = {
   purple: { light: '262 83% 58%', dark: '255 92% 76%' },
@@ -56,6 +58,7 @@ export default function App() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [tessChatOpen, setTessChatOpen] = useState(false);
   const [fontSize, setFontSize] = useState<number>(clampZoom(initialState.editorFontSize));
   const [visualEditsEnabled, setVisualEditsEnabled] = useState<boolean>(
     initialState.visualEditsEnabled,
@@ -396,8 +399,8 @@ export default function App() {
                 onPythonEditorThemeChange={onPythonEditorThemeChange}
                 searchOpen={searchOpen}
                 onToggleSearch={() => setSearchOpen((v) => !v)}
-                code={code}
-                onAiApply={setCode}
+                tessChatOpen={tessChatOpen}
+                onToggleTessChat={() => setTessChatOpen((v) => !v)}
                 onFileLoad={(content) => {
                   setCode(content);
                   toast.success('Arquivo carregado');
@@ -490,6 +493,15 @@ export default function App() {
       <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
 
       <VisualEditsMenu menu={veMenu} onSelect={onVeMenuSelect} onClose={onVeMenuClose} />
+
+      {TESS_ENABLED && (
+        <TessChat
+          open={tessChatOpen}
+          onClose={() => setTessChatOpen(false)}
+          code={code}
+          onApplyCode={setCode}
+        />
+      )}
 
       <Toaster theme={theme} position="bottom-center" duration={2000} richColors />
     </div>
