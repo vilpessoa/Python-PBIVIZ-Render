@@ -5,7 +5,7 @@
  *
  * A chave (TESS_API_KEY) e o agente (TESS_AGENT_ID) vivem SOMENTE no servidor.
  */
-import { TESS_SYSTEM_PROMPT } from './system-prompt';
+import { TESS_SYSTEM_PROMPT } from './system-prompt.js';
 
 const TESS_BASE_URL = 'https://tess.pareto.io/api';
 // Abaixo do maxDuration da função (60s) para devolver erro limpo antes do timeout da plataforma.

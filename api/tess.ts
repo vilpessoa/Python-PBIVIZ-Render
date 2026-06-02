@@ -4,7 +4,7 @@
  * delega para o núcleo runTess. A chave NUNCA chega ao cliente.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { runTess, TessError } from './_tess/handler';
+import { runTess, TessError } from './_tess/handler.js';
 
 // Tempo máximo de execução da função (segundos). Necessário porque a chamada à
 // TESS com wait_execution=true é síncrona e pode demorar. 60s é o teto do Hobby.
