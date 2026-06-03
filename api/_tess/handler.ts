@@ -322,6 +322,15 @@ function buildUserPrompt(mode: TessMode, content: string, code: string): string 
     ].join('\n');
   }
 
+  // Trunca código grande para acelerar a requisição.
+  let displayCode = code ?? '';
+  const lines = displayCode.split('\n');
+  let truncated = false;
+  if (lines.length > 250) {
+    displayCode = lines.slice(0, 250).join('\n');
+    truncated = true;
+  }
+
   const acao = mode === 'fix' ? 'CORRIJA' : 'ALTERE';
   return [
     // Instrução principal — curta e imperativa
@@ -337,9 +346,10 @@ function buildUserPrompt(mode: TessMode, content: string, code: string): string 
     `PEDIDO: ${content}`,
     ``,
     '```python',
-    code ?? '',
+    displayCode,
+    truncated ? `# ... (primeiras 250 linhas do arquivo original)` : '',
     '```',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 /**
