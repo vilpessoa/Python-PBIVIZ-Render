@@ -18,32 +18,50 @@ REGRAS INVIOLÁVEIS:
 2. Preserve a estrutura, a indentação, a nomenclatura de variáveis e o estilo do código original.
 3. É PROIBIDO refatorar, renomear, reorganizar ou "melhorar" o código sem pedido explícito.
 4. NUNCA quebre o código. O avaliador suporta apenas Python pragmático: atribuição (var = expr), atribuição aumentada (var += expr) e return (return expr). NÃO use imports, loops, funções, classes nem f-strings.
-5. NUNCA remova linhas do código que não foram pedidas para remoção. O código devolvido DEVE conter todas as linhas originais + as alterações pedidas.
-6. Ao devolver o código completo, inclua LITERALMENTE todo o conteúdo original — variáveis de CSS, HTML, listas, dicionários, o return final — tudo. Não resuma, não omita, não substitua por comentários como "# ... resto do código".`;
+5. NUNCA altere partes do código que não fazem parte do pedido.`;
+
+/**
+ * Formato de edição cirúrgica (blocos de busca-e-substituição).
+ * Usado nos modos de ação — evita reescrever arquivos grandes inteiros e
+ * preserva automaticamente tudo que não foi tocado.
+ */
+const SEARCH_REPLACE_SPEC = `COMO RESPONDER (edição cirúrgica — NÃO reescreva o arquivo inteiro):
+
+Você recebe o CÓDIGO ATUAL DO EDITOR. Responda com UM ou MAIS blocos de edição no formato EXATO abaixo:
+
+<<<<<<< BUSCAR
+(trecho EXATO do código atual, copiado caractere por caractere, mesma indentação)
+=======
+(o mesmo trecho já com a sua modificação aplicada)
+>>>>>>> SUBSTITUIR
+
+REGRAS DO FORMATO:
+- Copie o conteúdo de BUSCAR LITERALMENTE do código atual — mesmos espaços, mesma indentação, mesmas aspas. Se não bater caractere por caractere, a edição falha.
+- Inclua linhas de contexto suficientes em BUSCAR para localizar o ponto de forma ÚNICA (se houver trechos repetidos, inclua mais linhas ao redor).
+- BUSCAR NUNCA pode ficar vazio. Para inserir algo novo, capture uma âncora existente (ex.: a última linha de uma lista) em BUSCAR e repita-a em SUBSTITUIR junto com o conteúdo novo.
+- Use quantos blocos forem necessários, mas mude SOMENTE o que foi pedido.
+- NÃO devolva o arquivo inteiro. NÃO use blocos \`\`\`python de arquivo completo.
+- Antes dos blocos, escreva no MÁXIMO uma frase curta. Nada depois do último bloco.
+- NÃO converse, NÃO faça perguntas, NÃO ofereça alternativas.`;
 
 /** Instruções específicas por modo (o que muda no formato da resposta). */
 const MODE_INSTRUCTIONS: Record<TessMode, string> = {
-  // Modo padrão: agir diretamente no código.
+  // Modo padrão: editar o código via blocos de substituição.
   edit: `MODO: MODIFICAR (ação direta no código).
-- NÃO converse, NÃO faça perguntas, NÃO ofereça alternativas, NÃO explique o que poderia ser feito.
-- Aplique SOMENTE a modificação pedida. Não altere mais nada.
-- Responda APENAS com:
-  (a) uma única frase curtíssima (máx. 1 linha) indicando o que mudou; e
-  (b) o código COMPLETO — TODAS as linhas originais + a modificação — em um único bloco \`\`\`python ... \`\`\`.
-- PROIBIDO: omitir seções do código com "# ...", resumir, ou entregar código parcial. Entregue o arquivo inteiro.
-- Nada de texto após o bloco de código.`,
+Aplique SOMENTE a modificação pedida.
 
-  // Correção de erros, também direto.
+${SEARCH_REPLACE_SPEC}`,
+
+  // Correção de erros, também via blocos.
   fix: `MODO: CORRIGIR (ação direta no código).
-- Identifique e corrija erros de sintaxe/lógica mantendo a intenção original.
-- NÃO faça perguntas nem ofereça alternativas. NÃO converse.
-- Responda APENAS com: (a) uma frase curtíssima listando o que foi corrigido; e (b) o código COMPLETO corrigido — TODAS as linhas — em um único bloco \`\`\`python ... \`\`\`.
-- PROIBIDO: omitir seções com "# ...", resumir ou entregar código parcial. Entregue o arquivo inteiro.`,
+Identifique e corrija os erros de sintaxe/lógica mantendo a intenção original. Corrija apenas o necessário.
+
+${SEARCH_REPLACE_SPEC}`,
 
   // Conversacional: NÃO altera o código.
   ask: `MODO: TIRAR DÚVIDAS (somente explicação).
 - Responda à pergunta do usuário de forma objetiva, em PT-BR.
-- NÃO modifique o código e NÃO devolva o arquivo completo. Use no máximo trechos curtos de exemplo se forem essenciais.
+- NÃO modifique o código e NÃO devolva blocos de edição. Use no máximo trechos curtos de exemplo se forem essenciais.
 - Nenhuma alteração será aplicada ao editor neste modo.`,
 };
 

@@ -25,9 +25,12 @@ const MODES: { id: TessMode; label: string; icon: React.ElementType; placeholder
   { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, placeholder: 'Ex.: o que esse trecho faz?' },
 ];
 
-/** Remove o bloco ```python ... ``` do texto. */
+/** Remove blocos de código (```python``` e blocos de edição BUSCAR/SUBSTITUIR) do texto. */
 function stripCodeBlock(reply: string): string {
-  return reply.replace(/```(?:python|py)?\s*\n[\s\S]*?\n```/gi, '').trim();
+  return reply
+    .replace(/```(?:python|py)?\s*\n[\s\S]*?\n```/gi, '')
+    .replace(/<{5,9}\s*BUSCAR[\s\S]*?>{5,9}\s*SUBSTITUIR/gi, '')
+    .trim();
 }
 
 /** Primeira frase/linha não vazia, limitada — para um resumo enxuto nos modos de ação. */

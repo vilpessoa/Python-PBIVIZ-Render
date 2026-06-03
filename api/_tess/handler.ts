@@ -4,11 +4,16 @@
  * (src/dev/tessDevMiddleware.ts).
  *
  * A chave (TESS_API_KEY) e o agente (TESS_AGENT_ID) vivem SOMENTE no servidor.
+ *
+ * Estratégia de edição: a TESS responde com blocos de busca-e-substituição
+ * (SEARCH/REPLACE), não com o arquivo inteiro. O servidor aplica o patch sobre
+ * o código original — assim arquivos grandes funcionam e nada é apagado por
+ * engano. Ver system-prompt.ts (SEARCH_REPLACE_SPEC).
  */
 import { buildSystemPrompt, type TessMode } from './system-prompt.js';
 
 const TESS_BASE_URL = 'https://tess.pareto.io/api';
-// Cada chamada tem seu próprio timeout para caber dentro do maxDuration=60s da função.
+// Cada chamada tem seu próprio timeout para caber dentro do maxDuration=60s.
 const CALL_TIMEOUT_MS = 24_000; // 24s por tentativa → 2 tentativas = 48s < 60s
 
 export interface TessChatMessage {
@@ -39,12 +44,87 @@ export class TessError extends Error {
   }
 }
 
-/** Extrai o conteúdo de um bloco ```python ... ``` (ou o primeiro bloco de código). */
-function extractCodeBlock(text: string): string | null {
+// ─── Parsing de blocos SEARCH/REPLACE ─────────────────────────────────────────
+
+interface EditBlock {
+  search: string;
+  replace: string;
+}
+
+/** Remove linhas em branco no começo/fim de um trecho. */
+function trimBlankEdges(s: string): string {
+  return s.replace(/^\n+/, '').replace(/\n+$/, '');
+}
+
+/**
+ * Extrai blocos no formato:
+ *   <<<<<<< BUSCAR
+ *   ...
+ *   =======
+ *   ...
+ *   >>>>>>> SUBSTITUIR
+ * Tolera variações no número de marcadores e espaços.
+ */
+function parseEditBlocks(text: string): EditBlock[] {
+  const re = /<{5,9}\s*BUSCAR[^\n]*\n([\s\S]*?)\n={5,9}[^\n]*\n([\s\S]*?)\n>{5,9}\s*SUBSTITUIR/gi;
+  const blocks: EditBlock[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    blocks.push({ search: trimBlankEdges(m[1]), replace: trimBlankEdges(m[2]) });
+  }
+  return blocks;
+}
+
+/** Extrai o conteúdo de um bloco ```python ... ``` (fallback de arquivo inteiro). */
+function extractFullCodeBlock(text: string): string | null {
   const fenced = text.match(/```(?:python|py)?\s*\n([\s\S]*?)\n```/i);
   if (fenced) return fenced[1].trim();
   return null;
 }
+
+/**
+ * Localiza, por linhas, onde `searchLines` aparece em `codeLines`.
+ * Compara ignorando espaços à direita (mais tolerante). Retorna o índice da
+ * primeira linha do match, ou -1.
+ */
+function locate(codeLines: string[], searchLines: string[]): number {
+  if (searchLines.length === 0) return -1;
+  const last = codeLines.length - searchLines.length;
+  for (let start = 0; start <= last; start++) {
+    let ok = true;
+    for (let k = 0; k < searchLines.length; k++) {
+      if (codeLines[start + k].replace(/\s+$/, '') !== searchLines[k].replace(/\s+$/, '')) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return start;
+  }
+  return -1;
+}
+
+/** Aplica os blocos sobre o código original. Retorna o código novo e os que falharam. */
+function applyEditBlocks(original: string, blocks: EditBlock[]): { code: string; failed: EditBlock[] } {
+  let lines = original.split('\n');
+  const failed: EditBlock[] = [];
+  for (const b of blocks) {
+    if (!b.search) {
+      failed.push(b);
+      continue;
+    }
+    const searchLines = b.search.split('\n');
+    const at = locate(lines, searchLines);
+    if (at === -1) {
+      failed.push(b);
+      continue;
+    }
+    const replaceLines = b.replace.split('\n');
+    lines = [...lines.slice(0, at), ...replaceLines, ...lines.slice(at + searchLines.length)];
+  }
+  return { code: lines.join('\n'), failed };
+}
+
+// ─── Leitura da resposta da TESS ──────────────────────────────────────────────
 
 /** Lê o texto de saída da execução da TESS de forma defensiva (formato varia). */
 function readOutput(data: unknown): string {
@@ -64,13 +144,15 @@ function readOutput(data: unknown): string {
   return '';
 }
 
-/** Uma chamada HTTP à API da TESS com timeout individual. */
+// ─── Chamada HTTP ─────────────────────────────────────────────────────────────
+
+/** Uma chamada à API da TESS com timeout individual. Retorna o texto bruto da resposta. */
 async function callTess(
   agentId: string,
   apiKey: string,
   messages: TessChatMessage[],
   mode: TessMode,
-): Promise<{ reply: string; code: string | null }> {
+): Promise<string> {
   const body = {
     temperature: '0.5',
     messages: [{ role: 'system', content: buildSystemPrompt(mode) }, ...messages],
@@ -127,20 +209,38 @@ async function callTess(
   if (!reply) {
     throw new TessError(502, 'A TESS não retornou conteúdo.');
   }
+  return reply;
+}
 
-  return { reply, code: extractCodeBlock(reply) };
+// ─── Orquestração ─────────────────────────────────────────────────────────────
+
+/** Monta a mensagem do usuário com o código atual anexado como contexto. */
+function withCodeContext(content: string, code: string): string {
+  const lineCount = (code ?? '').split('\n').length;
+  return `${content}\n\n---\nCÓDIGO ATUAL DO EDITOR (${lineCount} linhas) — use-o como base para os blocos BUSCAR:\n\`\`\`python\n${code ?? ''}\n\`\`\``;
 }
 
 /**
- * Verifica se o código retornado parece incompleto comparado ao original.
- * Um código com menos de 60% das linhas não-vazias do original é suspeito.
+ * Converte a resposta da TESS em código novo aplicando os blocos sobre o
+ * original. Retorna `code: null` se não houver edição aplicável.
  */
-function isIncomplete(returnedCode: string | null, originalCode: string): boolean {
-  if (returnedCode === null) return false;
-  const originalLines = originalCode.split('\n').filter((l) => l.trim()).length;
-  if (originalLines < 8) return false; // arquivos muito pequenos: sem trava
-  const returnedLines = returnedCode.split('\n').filter((l) => l.trim()).length;
-  return returnedLines < originalLines * 0.6;
+function buildResult(reply: string, original: string): { result: RunTessResult; failed: EditBlock[] } {
+  const blocks = parseEditBlocks(reply);
+
+  if (blocks.length > 0) {
+    const { code, failed } = applyEditBlocks(original, blocks);
+    // Só consideramos "alterado" se algum bloco aplicou.
+    const changed = failed.length < blocks.length && code !== original;
+    return { result: { reply, code: changed ? code : null }, failed };
+  }
+
+  // Fallback: a TESS devolveu o arquivo inteiro num bloco ```python```.
+  const full = extractFullCodeBlock(reply);
+  if (full != null && full !== original) {
+    return { result: { reply, code: full }, failed: [] };
+  }
+
+  return { result: { reply, code: null }, failed: [] };
 }
 
 export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
@@ -157,45 +257,52 @@ export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
   const apiMessages: TessChatMessage[] = messages.map((m) => ({ role: m.role, content: m.content }));
   for (let i = apiMessages.length - 1; i >= 0; i--) {
     if (apiMessages[i].role === 'user') {
-      apiMessages[i] = {
-        role: 'user',
-        content:
-          `${apiMessages[i].content}\n\n---\nCÓDIGO ATUAL DO EDITOR (${code.split('\n').length} linhas):\n\`\`\`python\n${code ?? ''}\n\`\`\``,
-      };
+      apiMessages[i] = { role: 'user', content: withCodeContext(apiMessages[i].content, code) };
       break;
     }
   }
 
-  // ── Primeira chamada ─────────────────────────────────────────────────────────
-  const first = await callTess(agentId, apiKey, apiMessages, mode);
+  // ── Primeira chamada ──────────────────────────────────────────────────────
+  const firstReply = await callTess(agentId, apiKey, apiMessages, mode);
 
-  // Em modo conversacional não há código para validar.
+  // Modo conversacional: nada a aplicar.
   if (mode === 'ask') {
-    return first;
+    return { reply: firstReply, code: null };
   }
 
-  // ── Verificação de integridade ────────────────────────────────────────────────
-  if (!isIncomplete(first.code, code)) {
-    return first; // resposta completa, retorna direto
+  const { result, failed } = buildResult(firstReply, code);
+
+  // Sucesso (todos ou parte dos blocos aplicaram) ou fallback de arquivo inteiro.
+  if (result.code != null && failed.length === 0) {
+    return result;
   }
 
-  // ── Retry automático ──────────────────────────────────────────────────────────
-  // A resposta veio com código incompleto (TESS retornou só o trecho alterado).
-  // Adicionamos um turno explicando o problema e pedindo o arquivo inteiro.
-  const originalLineCount = code.split('\n').length;
+  // ── Retry: algum bloco BUSCAR não bateu com o código atual ──────────────────
+  // Reenviamos o código (a TESS não retém contexto entre execuções) e pedimos
+  // que recopie os trechos exatamente.
+  const failedSnippets = failed
+    .map((b, i) => `Bloco ${i + 1} — BUSCAR não encontrado:\n${b.search}`)
+    .join('\n\n');
+
   const retryMessages: TessChatMessage[] = [
     ...apiMessages,
-    { role: 'assistant', content: first.reply },
+    { role: 'assistant', content: firstReply },
     {
       role: 'user',
-      content:
-        `ERRO: sua resposta anterior contém código INCOMPLETO — devolveu apenas parte do arquivo. ` +
-        `O código original tem ${originalLineCount} linhas e você deve devolver TODAS elas com a modificação aplicada. ` +
-        `Devolva AGORA o arquivo Python COMPLETO em um único bloco \`\`\`python ... \`\`\`. ` +
-        `Não omita nenhuma linha. Não use "# ... resto do código". Não resuma nada.`,
+      content: withCodeContext(
+        `Alguns blocos de edição NÃO foram localizados no código (o trecho BUSCAR precisa ser uma cópia EXATA do código atual). ` +
+          `Refaça SOMENTE esses blocos, copiando o trecho BUSCAR caractere por caractere do código abaixo e incluindo mais linhas de contexto.\n\n${failedSnippets}`,
+        code,
+      ),
     },
   ];
 
-  const retry = await callTess(agentId, apiKey, retryMessages, mode);
-  return retry;
+  const retryReply = await callTess(agentId, apiKey, retryMessages, mode);
+  const retry = buildResult(retryReply, code);
+
+  // Se o retry aplicou algo, usa-o; senão devolve a 1ª resposta (parcial ou nula).
+  if (retry.result.code != null) {
+    return retry.result;
+  }
+  return result;
 }
