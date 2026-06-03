@@ -31,6 +31,4 @@ export interface ChatMessage {
   applyState?: 'applied' | 'approved' | 'reverted' | 'blocked';
   /** Marca erro para estilizar o balão. */
   isError?: boolean;
-  /** Resposta crua da TESS — exibida no diagnóstico quando a alteração não pôde ser aplicada. */
-  rawReply?: string;
 }

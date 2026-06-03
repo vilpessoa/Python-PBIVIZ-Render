@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sparkles, X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { sendTessMessage } from '@/services/tessService';
@@ -145,7 +146,6 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
         if (suspicious) {
           // Bloqueia a aplicação automática.
           assistant.applyState = 'blocked';
-          assistant.rawReply = reply;
           assistant.content =
             'A resposta removeria grande parte do código atual — provavelmente veio incompleta. Não apliquei automaticamente. Revise o diff e decida abaixo.';
         } else {
@@ -161,9 +161,9 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
       } else if (newCode != null) {
         assistant.content = 'Nenhuma alteração necessária — o código já atende ao pedido.';
       } else {
-        // Não veio código aplicável — mostra o resumo e guarda a resposta crua para diagnóstico.
-        assistant.content = conciseSummary(reply);
-        assistant.rawReply = reply;
+        // Sem código aplicável: mostra a resposta completa (o agente pode ter dado
+        // uma explicação válida sobre por que a mudança é complexa).
+        assistant.content = stripCodeBlock(reply) || conciseSummary(reply);
       }
 
       setMessages((m) => [...m, assistant]);
@@ -271,7 +271,13 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
                   )}
                 >
                   {m.isError && <AlertCircle className="mb-1 inline h-3.5 w-3.5" />}
-                  <span className="whitespace-pre-wrap break-words">{m.content}</span>
+                  {m.role === 'user' ? (
+                    <span className="whitespace-pre-wrap break-words">{m.content}</span>
+                  ) : (
+                    <div className="prose prose-xs max-w-none break-words dark:prose-invert [&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[10px] [&_pre]:overflow-auto [&_pre]:rounded [&_pre]:bg-black/10 [&_pre]:p-2 [&_pre]:text-[10px] [&_p]:my-0.5 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_h1]:text-xs [&_h2]:text-xs [&_h3]:text-xs [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0">
+                      <ReactMarkdown>{m.content}</ReactMarkdown>
+                    </div>
+                  )}
 
                   {m.diff && (() => {
                     const { added, removed } = diffStats(m.diff);
@@ -333,17 +339,6 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
                     </div>
                   )}
 
-                  {/* Diagnóstico: resposta crua da TESS (para depurar o comportamento do agente) */}
-                  {m.rawReply && (
-                    <details className="mt-2 rounded-md border border-border/70 bg-surface-sunken">
-                      <summary className="cursor-pointer select-none px-2 py-1 text-[10px] font-medium text-muted-foreground">
-                        🔍 Resposta crua da TESS (diagnóstico)
-                      </summary>
-                      <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words px-2 py-1.5 text-[10px] leading-snug font-mono text-muted-foreground">
-                        {m.rawReply}
-                      </pre>
-                    </details>
-                  )}
                 </div>
               </div>
             ))}
