@@ -305,6 +305,61 @@ async function callTess(
 // ─── Orquestração ─────────────────────────────────────────────────────────────
 
 /**
+ * Cria uma representação compacta do código para envio à TESS.
+ *
+ * Estratégia:
+ * - Divide o código em statements de topo (já temos splitStatements).
+ * - Statements que contêm palavras-chave do pedido → enviados em FULL.
+ * - Statements irrelevantes grandes → só a primeira linha + comentário "N linhas".
+ * - Total de linhas enviado é ≤ MAX_LINES.
+ *
+ * Isso permite que o agente veja TODOS os nomes de variável (contexto)
+ * e o conteúdo COMPLETO das variáveis relevantes ao pedido.
+ */
+function buildContextualCode(code: string, request: string, maxLines = 300): string {
+  const stmts = splitStatements(code);
+  if (stmts.length === 0) return code;
+
+  // Palavras-chave do pedido (3+ chars, lowercase).
+  const keywords = request
+    .toLowerCase()
+    .split(/\W+/)
+    .filter((w) => w.length >= 3);
+
+  const isRelevant = (text: string) => {
+    const lower = text.toLowerCase();
+    return keywords.some((k) => lower.includes(k));
+  };
+
+  const parts: string[] = [];
+  let lineCount = 0;
+
+  for (const s of stmts) {
+    const stmtLineCount = s.text.split('\n').length;
+    const relevant = isRelevant(s.text);
+
+    if (relevant || stmtLineCount <= 3) {
+      // Inclui completo.
+      parts.push(s.text);
+      lineCount += stmtLineCount;
+    } else {
+      // Mostra só a primeira linha + resumo.
+      const firstLine = s.text.split('\n')[0];
+      const skipped = stmtLineCount - 1;
+      parts.push(skipped > 0 ? `${firstLine}\n# ... (${skipped} linhas)` : firstLine);
+      lineCount += 2;
+    }
+
+    if (lineCount >= maxLines) {
+      parts.push(`# ... (restante do arquivo omitido)`);
+      break;
+    }
+  }
+
+  return parts.join('\n');
+}
+
+/**
  * Monta a mensagem do USUÁRIO com instruções + pedido + código.
  * As instruções vão aqui (e não no role:system) porque o agente da TESS
  * tem persona própria e ignora o system prompt — mas lê a mensagem do usuário.
@@ -322,18 +377,10 @@ function buildUserPrompt(mode: TessMode, content: string, code: string): string 
     ].join('\n');
   }
 
-  // Trunca código grande para acelerar a requisição.
-  let displayCode = code ?? '';
-  const lines = displayCode.split('\n');
-  let truncated = false;
-  if (lines.length > 250) {
-    displayCode = lines.slice(0, 250).join('\n');
-    truncated = true;
-  }
-
+  const displayCode = buildContextualCode(code ?? '', content);
   const acao = mode === 'fix' ? 'CORRIJA' : 'ALTERE';
+
   return [
-    // Instrução principal — curta e imperativa
     `${acao} o código conforme o pedido. Responda com:`,
     `1. Uma frase curta (o que mudou)`,
     `2. Um bloco \`\`\`python\`\`\` com SOMENTE as atribuições alteradas`,
@@ -347,9 +394,8 @@ function buildUserPrompt(mode: TessMode, content: string, code: string): string 
     ``,
     '```python',
     displayCode,
-    truncated ? `# ... (primeiras 250 linhas do arquivo original)` : '',
     '```',
-  ].filter(Boolean).join('\n');
+  ].join('\n');
 }
 
 /**
