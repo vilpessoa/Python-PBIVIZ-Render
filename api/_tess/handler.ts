@@ -19,7 +19,8 @@
 import { buildSystemPrompt, type TessMode } from './system-prompt.js';
 
 const TESS_BASE_URL = 'https://tess.pareto.io/api';
-const CALL_TIMEOUT_MS = 24_000; // 24s por tentativa → 2 tentativas = 48s < 60s
+const CALL_TIMEOUT_MS = 50_000; // 50s — cabe no maxDuration=60s da Vercel para chamada única
+const RETRY_TIMEOUT_MS = 8_000;  // retry rápido (SEARCH/REPLACE edge-case)
 
 export interface TessChatMessage {
   role: 'user' | 'assistant';
@@ -240,6 +241,7 @@ async function callTess(
   apiKey: string,
   messages: TessChatMessage[],
   mode: TessMode,
+  timeoutMs = CALL_TIMEOUT_MS,
 ): Promise<string> {
   const body = {
     temperature: '0.5',
@@ -248,7 +250,7 @@ async function callTess(
   };
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   let res: Response;
   try {
@@ -428,7 +430,7 @@ export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
         ),
       },
     ];
-    const retryReply = await callTess(agentId, apiKey, retryMessages, mode);
+    const retryReply = await callTess(agentId, apiKey, retryMessages, mode, RETRY_TIMEOUT_MS);
     const retry = buildResult(retryReply, code);
     if (retry.result.code != null) return retry.result;
   }
