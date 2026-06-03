@@ -8,8 +8,8 @@
 import { buildSystemPrompt, type TessMode } from './system-prompt.js';
 
 const TESS_BASE_URL = 'https://tess.pareto.io/api';
-// Abaixo do maxDuration da função (60s) para devolver erro limpo antes do timeout da plataforma.
-const TIMEOUT_MS = 55_000;
+// Cada chamada tem seu próprio timeout para caber dentro do maxDuration=60s da função.
+const CALL_TIMEOUT_MS = 24_000; // 24s por tentativa → 2 tentativas = 48s < 60s
 
 export interface TessChatMessage {
   role: 'user' | 'assistant';
@@ -64,38 +64,21 @@ function readOutput(data: unknown): string {
   return '';
 }
 
-export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
-  const { messages, code, mode = 'edit', apiKey, agentId } = opts;
-
-  if (!apiKey || !agentId) {
-    throw new TessError(503, 'Assistente TESS não configurado no servidor (TESS_API_KEY / TESS_AGENT_ID).');
-  }
-  if (!Array.isArray(messages) || messages.length === 0) {
-    throw new TessError(400, 'Nenhuma mensagem enviada.');
-  }
-
-  // Injeta o código atual do editor no último turno do usuário.
-  const apiMessages: TessChatMessage[] = messages.map((m) => ({ role: m.role, content: m.content }));
-  for (let i = apiMessages.length - 1; i >= 0; i--) {
-    if (apiMessages[i].role === 'user') {
-      apiMessages[i] = {
-        role: 'user',
-        content:
-          `${apiMessages[i].content}\n\n---\nCÓDIGO ATUAL DO EDITOR:\n\`\`\`python\n${code ?? ''}\n\`\`\``,
-      };
-      break;
-    }
-  }
-
+/** Uma chamada HTTP à API da TESS com timeout individual. */
+async function callTess(
+  agentId: string,
+  apiKey: string,
+  messages: TessChatMessage[],
+  mode: TessMode,
+): Promise<{ reply: string; code: string | null }> {
   const body = {
-    // A TESS aceita apenas: 0, 0.25, 0.5, 0.75, 1.
     temperature: '0.5',
-    messages: [{ role: 'system', content: buildSystemPrompt(mode) }, ...apiMessages],
+    messages: [{ role: 'system', content: buildSystemPrompt(mode) }, ...messages],
     waitExecution: true,
   };
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
 
   let res: Response;
   try {
@@ -146,4 +129,73 @@ export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
   }
 
   return { reply, code: extractCodeBlock(reply) };
+}
+
+/**
+ * Verifica se o código retornado parece incompleto comparado ao original.
+ * Um código com menos de 60% das linhas não-vazias do original é suspeito.
+ */
+function isIncomplete(returnedCode: string | null, originalCode: string): boolean {
+  if (returnedCode === null) return false;
+  const originalLines = originalCode.split('\n').filter((l) => l.trim()).length;
+  if (originalLines < 8) return false; // arquivos muito pequenos: sem trava
+  const returnedLines = returnedCode.split('\n').filter((l) => l.trim()).length;
+  return returnedLines < originalLines * 0.6;
+}
+
+export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
+  const { messages, code, mode = 'edit', apiKey, agentId } = opts;
+
+  if (!apiKey || !agentId) {
+    throw new TessError(503, 'Assistente TESS não configurado no servidor (TESS_API_KEY / TESS_AGENT_ID).');
+  }
+  if (!Array.isArray(messages) || messages.length === 0) {
+    throw new TessError(400, 'Nenhuma mensagem enviada.');
+  }
+
+  // Injeta o código atual do editor no último turno do usuário.
+  const apiMessages: TessChatMessage[] = messages.map((m) => ({ role: m.role, content: m.content }));
+  for (let i = apiMessages.length - 1; i >= 0; i--) {
+    if (apiMessages[i].role === 'user') {
+      apiMessages[i] = {
+        role: 'user',
+        content:
+          `${apiMessages[i].content}\n\n---\nCÓDIGO ATUAL DO EDITOR (${code.split('\n').length} linhas):\n\`\`\`python\n${code ?? ''}\n\`\`\``,
+      };
+      break;
+    }
+  }
+
+  // ── Primeira chamada ─────────────────────────────────────────────────────────
+  const first = await callTess(agentId, apiKey, apiMessages, mode);
+
+  // Em modo conversacional não há código para validar.
+  if (mode === 'ask') {
+    return first;
+  }
+
+  // ── Verificação de integridade ────────────────────────────────────────────────
+  if (!isIncomplete(first.code, code)) {
+    return first; // resposta completa, retorna direto
+  }
+
+  // ── Retry automático ──────────────────────────────────────────────────────────
+  // A resposta veio com código incompleto (TESS retornou só o trecho alterado).
+  // Adicionamos um turno explicando o problema e pedindo o arquivo inteiro.
+  const originalLineCount = code.split('\n').length;
+  const retryMessages: TessChatMessage[] = [
+    ...apiMessages,
+    { role: 'assistant', content: first.reply },
+    {
+      role: 'user',
+      content:
+        `ERRO: sua resposta anterior contém código INCOMPLETO — devolveu apenas parte do arquivo. ` +
+        `O código original tem ${originalLineCount} linhas e você deve devolver TODAS elas com a modificação aplicada. ` +
+        `Devolva AGORA o arquivo Python COMPLETO em um único bloco \`\`\`python ... \`\`\`. ` +
+        `Não omita nenhuma linha. Não use "# ... resto do código". Não resuma nada.`,
+    },
+  ];
+
+  const retry = await callTess(agentId, apiKey, retryMessages, mode);
+  return retry;
 }
