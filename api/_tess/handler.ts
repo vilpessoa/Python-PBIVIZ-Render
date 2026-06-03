@@ -306,43 +306,36 @@ async function callTess(
 
 /**
  * Monta a mensagem do USUÁRIO com instruções + pedido + código.
- * As instruções vão aqui (e não só no role:system) porque o agente da TESS
- * tem persona própria e costuma IGNORAR o system prompt — mas lê a mensagem
- * do usuário. Repetir aqui aumenta muito a aderência ao formato.
+ * As instruções vão aqui (e não no role:system) porque o agente da TESS
+ * tem persona própria e ignora o system prompt — mas lê a mensagem do usuário.
  */
 function buildUserPrompt(mode: TessMode, content: string, code: string): string {
-  const lineCount = (code ?? '').split('\n').length;
-
   if (mode === 'ask') {
     return [
-      'Responda à pergunta abaixo de forma objetiva, em PT-BR. NÃO modifique o código.',
+      'Responda à pergunta abaixo em PT-BR. NÃO modifique o código.',
       '',
-      '=== PERGUNTA ===',
-      content,
+      `PERGUNTA: ${content}`,
       '',
-      `=== CÓDIGO ATUAL (${lineCount} linhas) ===`,
       '```python',
       code ?? '',
       '```',
     ].join('\n');
   }
 
-  const acao = mode === 'fix' ? 'CORRIJA' : 'MODIFIQUE';
+  const acao = mode === 'fix' ? 'CORRIJA' : 'ALTERE';
   return [
-    `Você é um editor de código. ${acao} o código Python abaixo conforme o pedido. Não converse, não faça perguntas, não dê alternativas.`,
-    '',
-    'COMO RESPONDER (OBRIGATÓRIO):',
-    '- Responda com UMA frase curta + um único bloco ```python``` contendo APENAS as atribuições que mudaram.',
-    '- Devolva a ATRIBUIÇÃO PYTHON COMPLETA de cada variável que você alterou: `nome_da_variavel = <novo valor completo>`.',
-    '- Use EXATAMENTE o mesmo nome de variável que já existe no código.',
-    '- Mesmo que a mudança seja em CSS/JS DENTRO de uma string Python, devolva a variável Python INTEIRA (do `nome =` até o fechamento), já com a alteração — NUNCA devolva só o trecho de CSS/JS solto.',
-    '- Inclua todo o valor, mesmo multi-linha. NUNCA use "# ...", reticências ou "resto igual".',
-    '- NÃO inclua variáveis que não mudaram. NÃO devolva o arquivo inteiro.',
-    '',
-    '=== PEDIDO ===',
-    content,
-    '',
-    `=== CÓDIGO ATUAL DO EDITOR (${lineCount} linhas) ===`,
+    // Instrução principal — curta e imperativa
+    `${acao} o código conforme o pedido. Responda com:`,
+    `1. Uma frase curta (o que mudou)`,
+    `2. Um bloco \`\`\`python\`\`\` com SOMENTE as atribuições alteradas`,
+    ``,
+    `Regras do bloco:`,
+    `- APENAS as variáveis que mudaram (não devolva o arquivo inteiro)`,
+    `- MESMO nome de variável do original, valor COMPLETO (sem reticências)`,
+    `- Se a mudança for em CSS/JS dentro de uma string Python, devolva a variável Python INTEIRA`,
+    ``,
+    `PEDIDO: ${content}`,
+    ``,
     '```python',
     code ?? '',
     '```',
@@ -352,8 +345,12 @@ function buildUserPrompt(mode: TessMode, content: string, code: string): string 
 /**
  * Converte a resposta da TESS em código novo:
  * 1) blocos SEARCH/REPLACE (se houver);
- * 2) bloco ```python``` grande (>= 60% do original) → arquivo inteiro;
- * 3) bloco ```python``` pequeno → merge por nome de variável.
+ * 2) bloco ```python``` ≥ 95% do original → aceita como arquivo inteiro;
+ * 3) bloco menor → merge por nome de variável (preserva tudo que não mudou).
+ *
+ * Limiar em 0.95 (não 0.6) para evitar que o agente devolva um arquivo
+ * parcialmente truncado (~60%) que seria aceito como "completo" e eliminaria
+ * os 40% restantes do código original.
  */
 function buildResult(reply: string, original: string): { result: RunTessResult; failed: EditBlock[] } {
   const blocks = parseEditBlocks(reply);
@@ -371,12 +368,16 @@ function buildResult(reply: string, original: string): { result: RunTessResult; 
   const origLines = original.split('\n').filter((l) => l.trim()).length;
   const fenceLines = fence.split('\n').filter((l) => l.trim()).length;
 
-  // Arquivo inteiro (raro em arquivos grandes): aceita direto.
-  if (origLines < 8 || fenceLines >= origLines * 0.6) {
+  console.log(`[TESS] fence: ${fenceLines} non-blank lines | original: ${origLines} non-blank lines | ratio: ${(fenceLines / Math.max(origLines, 1)).toFixed(2)}`);
+
+  // Arquivo original pequeno ou agente devolveu o arquivo quase completo (≥95%).
+  if (origLines < 8 || fenceLines >= origLines * 0.95) {
+    console.log('[TESS] → aceito como arquivo inteiro');
     return { result: { reply, code: fence }, failed: [] };
   }
 
-  // Trecho pequeno: merge por nome de variável.
+  // Trecho parcial: merge por nome de variável (preserva o restante do original).
+  console.log('[TESS] → merge por nome de variável');
   const merged = mergeSnippet(original, fence);
   return { result: { reply, code: merged !== original ? merged : null }, failed: [] };
 }
