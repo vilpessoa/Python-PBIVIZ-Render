@@ -5,15 +5,20 @@
  *
  * A chave (TESS_API_KEY) e o agente (TESS_AGENT_ID) vivem SOMENTE no servidor.
  *
- * Estratégia de edição: a TESS responde com blocos de busca-e-substituição
- * (SEARCH/REPLACE), não com o arquivo inteiro. O servidor aplica o patch sobre
- * o código original — assim arquivos grandes funcionam e nada é apagado por
- * engano. Ver system-prompt.ts (SEARCH_REPLACE_SPEC).
+ * ESTRATÉGIA DE EDIÇÃO (importante):
+ * O editor avalia "Python pragmático" — basicamente `var = expr`, `var += expr`
+ * e `return expr`. Em arquivos grandes (1000+ linhas) o agente NÃO consegue
+ * reproduzir o arquivo inteiro; ele devolve apenas as ATRIBUIÇÕES que mudaram.
+ * Por isso o servidor faz MERGE por nome de variável: cada atribuição devolvida
+ * substitui a variável correspondente no código original (ou é inserida antes do
+ * return, se for nova). Assim nada é apagado por engano.
+ *
+ * Também aceitamos blocos SEARCH/REPLACE e, como último recurso, um arquivo
+ * inteiro (quando vier grande o suficiente).
  */
 import { buildSystemPrompt, type TessMode } from './system-prompt.js';
 
 const TESS_BASE_URL = 'https://tess.pareto.io/api';
-// Cada chamada tem seu próprio timeout para caber dentro do maxDuration=60s.
 const CALL_TIMEOUT_MS = 24_000; // 24s por tentativa → 2 tentativas = 48s < 60s
 
 export interface TessChatMessage {
@@ -44,6 +49,113 @@ export class TessError extends Error {
   }
 }
 
+// ─── Tokenização em statements de topo ────────────────────────────────────────
+
+interface Stmt {
+  name: string | null; // nome da variável atribuída (lado esquerdo), se houver
+  isReturn: boolean;
+  text: string;
+}
+
+/** Atualiza o estado de string/colchetes ao varrer uma linha. */
+function scanLine(line: string, inTriple: string | null, depth: number): { inTriple: string | null; depth: number } {
+  let i = 0;
+  let inString: string | null = null; // ' ou " de linha única
+  while (i < line.length) {
+    const three = line.slice(i, i + 3);
+    if (inTriple) {
+      if (three === inTriple) { inTriple = null; i += 3; continue; }
+      i++; continue;
+    }
+    if (inString) {
+      if (line[i] === '\\') { i += 2; continue; }
+      if (line[i] === inString) { inString = null; }
+      i++; continue;
+    }
+    if (three === '"""' || three === "'''") { inTriple = three; i += 3; continue; }
+    const ch = line[i];
+    if (ch === '"' || ch === "'") { inString = ch; i++; continue; }
+    if (ch === '#') break; // comentário até o fim da linha
+    if (ch === '(' || ch === '[' || ch === '{') depth++;
+    else if (ch === ')' || ch === ']' || ch === '}') depth = Math.max(0, depth - 1);
+    i++;
+  }
+  // Strings de linha única não atravessam linhas em código bem-formado.
+  return { inTriple, depth };
+}
+
+/**
+ * Quebra o código em statements de topo. Uma nova statement começa numa linha
+ * sem indentação, quando NÃO estamos dentro de uma triple-string nem de
+ * colchetes/parênteses abertos (assim valores multi-linha ficam juntos).
+ */
+function splitStatements(code: string): Stmt[] {
+  const lines = code.split('\n');
+  const groups: string[][] = [];
+  let cur: string[] | null = null;
+  let inTriple: string | null = null;
+  let depth = 0;
+
+  for (const line of lines) {
+    const atTopLevel = inTriple === null && depth === 0 && /^\S/.test(line);
+    if (cur !== null && atTopLevel) {
+      groups.push(cur);
+      cur = [];
+    }
+    if (cur === null) cur = [];
+    cur.push(line);
+    ({ inTriple, depth } = scanLine(line, inTriple, depth));
+  }
+  if (cur && cur.length) groups.push(cur);
+
+  return groups.map((g) => {
+    const text = g.join('\n');
+    const first = (g.find((l) => l.trim()) ?? '').trim();
+    const m = first.match(/^([A-Za-z_]\w*)\s*\+?=(?!=)/);
+    const isReturn = /^return\b/.test(first);
+    return { name: m ? m[1] : null, isReturn, text };
+  });
+}
+
+/**
+ * Faz o merge das atribuições do `snippet` sobre o `original`:
+ * - variável já existente → substitui o statement inteiro;
+ * - return → substitui o return existente;
+ * - variável nova → insere antes do return (ou no fim).
+ */
+function mergeSnippet(original: string, snippet: string): string {
+  const orig = splitStatements(original);
+  const snip = splitStatements(snippet).filter((s) => s.name || s.isReturn);
+  if (snip.length === 0) return original;
+
+  const nameToIdx = new Map<string, number>();
+  let returnIdx = -1;
+  orig.forEach((s, i) => {
+    if (s.isReturn && returnIdx === -1) returnIdx = i;
+    if (s.name && !nameToIdx.has(s.name)) nameToIdx.set(s.name, i);
+  });
+
+  const additions: Stmt[] = [];
+  for (const s of snip) {
+    if (s.isReturn) {
+      if (returnIdx >= 0) orig[returnIdx] = s;
+      else additions.push(s);
+    } else if (s.name && nameToIdx.has(s.name)) {
+      orig[nameToIdx.get(s.name)!] = s;
+    } else {
+      additions.push(s);
+    }
+  }
+
+  let result = orig;
+  if (additions.length) {
+    const ri = result.findIndex((s) => s.isReturn);
+    const at = ri >= 0 ? ri : result.length;
+    result = [...result.slice(0, at), ...additions, ...result.slice(at)];
+  }
+  return result.map((s) => s.text).join('\n');
+}
+
 // ─── Parsing de blocos SEARCH/REPLACE ─────────────────────────────────────────
 
 interface EditBlock {
@@ -51,20 +163,10 @@ interface EditBlock {
   replace: string;
 }
 
-/** Remove linhas em branco no começo/fim de um trecho. */
 function trimBlankEdges(s: string): string {
   return s.replace(/^\n+/, '').replace(/\n+$/, '');
 }
 
-/**
- * Extrai blocos no formato:
- *   <<<<<<< BUSCAR
- *   ...
- *   =======
- *   ...
- *   >>>>>>> SUBSTITUIR
- * Tolera variações no número de marcadores e espaços.
- */
 function parseEditBlocks(text: string): EditBlock[] {
   const re = /<{5,9}\s*BUSCAR[^\n]*\n([\s\S]*?)\n={5,9}[^\n]*\n([\s\S]*?)\n>{5,9}\s*SUBSTITUIR/gi;
   const blocks: EditBlock[] = [];
@@ -75,18 +177,6 @@ function parseEditBlocks(text: string): EditBlock[] {
   return blocks;
 }
 
-/** Extrai o conteúdo de um bloco ```python ... ``` (fallback de arquivo inteiro). */
-function extractFullCodeBlock(text: string): string | null {
-  const fenced = text.match(/```(?:python|py)?\s*\n([\s\S]*?)\n```/i);
-  if (fenced) return fenced[1].trim();
-  return null;
-}
-
-/**
- * Localiza, por linhas, onde `searchLines` aparece em `codeLines`.
- * Compara ignorando espaços à direita (mais tolerante). Retorna o índice da
- * primeira linha do match, ou -1.
- */
 function locate(codeLines: string[], searchLines: string[]): number {
   if (searchLines.length === 0) return -1;
   const last = codeLines.length - searchLines.length;
@@ -103,30 +193,29 @@ function locate(codeLines: string[], searchLines: string[]): number {
   return -1;
 }
 
-/** Aplica os blocos sobre o código original. Retorna o código novo e os que falharam. */
 function applyEditBlocks(original: string, blocks: EditBlock[]): { code: string; failed: EditBlock[] } {
   let lines = original.split('\n');
   const failed: EditBlock[] = [];
   for (const b of blocks) {
-    if (!b.search) {
-      failed.push(b);
-      continue;
-    }
+    if (!b.search) { failed.push(b); continue; }
     const searchLines = b.search.split('\n');
     const at = locate(lines, searchLines);
-    if (at === -1) {
-      failed.push(b);
-      continue;
-    }
+    if (at === -1) { failed.push(b); continue; }
     const replaceLines = b.replace.split('\n');
     lines = [...lines.slice(0, at), ...replaceLines, ...lines.slice(at + searchLines.length)];
   }
   return { code: lines.join('\n'), failed };
 }
 
+/** Extrai o conteúdo de um bloco ```python ... ```. */
+function extractCodeFence(text: string): string | null {
+  const fenced = text.match(/```(?:python|py)?\s*\n([\s\S]*?)\n```/i);
+  if (fenced) return fenced[1].trim();
+  return null;
+}
+
 // ─── Leitura da resposta da TESS ──────────────────────────────────────────────
 
-/** Lê o texto de saída da execução da TESS de forma defensiva (formato varia). */
 function readOutput(data: unknown): string {
   const d = data as Record<string, any>;
   const candidates = [
@@ -146,7 +235,6 @@ function readOutput(data: unknown): string {
 
 // ─── Chamada HTTP ─────────────────────────────────────────────────────────────
 
-/** Uma chamada à API da TESS com timeout individual. Retorna o texto bruto da resposta. */
 async function callTess(
   agentId: string,
   apiKey: string,
@@ -214,33 +302,41 @@ async function callTess(
 
 // ─── Orquestração ─────────────────────────────────────────────────────────────
 
-/** Monta a mensagem do usuário com o código atual anexado como contexto. */
 function withCodeContext(content: string, code: string): string {
   const lineCount = (code ?? '').split('\n').length;
-  return `${content}\n\n---\nCÓDIGO ATUAL DO EDITOR (${lineCount} linhas) — use-o como base para os blocos BUSCAR:\n\`\`\`python\n${code ?? ''}\n\`\`\``;
+  return `${content}\n\n---\nCÓDIGO ATUAL DO EDITOR (${lineCount} linhas) — use os MESMOS nomes de variáveis ao alterá-las:\n\`\`\`python\n${code ?? ''}\n\`\`\``;
 }
 
 /**
- * Converte a resposta da TESS em código novo aplicando os blocos sobre o
- * original. Retorna `code: null` se não houver edição aplicável.
+ * Converte a resposta da TESS em código novo:
+ * 1) blocos SEARCH/REPLACE (se houver);
+ * 2) bloco ```python``` grande (>= 60% do original) → arquivo inteiro;
+ * 3) bloco ```python``` pequeno → merge por nome de variável.
  */
 function buildResult(reply: string, original: string): { result: RunTessResult; failed: EditBlock[] } {
   const blocks = parseEditBlocks(reply);
-
   if (blocks.length > 0) {
     const { code, failed } = applyEditBlocks(original, blocks);
-    // Só consideramos "alterado" se algum bloco aplicou.
     const changed = failed.length < blocks.length && code !== original;
     return { result: { reply, code: changed ? code : null }, failed };
   }
 
-  // Fallback: a TESS devolveu o arquivo inteiro num bloco ```python```.
-  const full = extractFullCodeBlock(reply);
-  if (full != null && full !== original) {
-    return { result: { reply, code: full }, failed: [] };
+  const fence = extractCodeFence(reply);
+  if (fence == null || fence === original) {
+    return { result: { reply, code: null }, failed: [] };
   }
 
-  return { result: { reply, code: null }, failed: [] };
+  const origLines = original.split('\n').filter((l) => l.trim()).length;
+  const fenceLines = fence.split('\n').filter((l) => l.trim()).length;
+
+  // Arquivo inteiro (raro em arquivos grandes): aceita direto.
+  if (origLines < 8 || fenceLines >= origLines * 0.6) {
+    return { result: { reply, code: fence }, failed: [] };
+  }
+
+  // Trecho pequeno: merge por nome de variável.
+  const merged = mergeSnippet(original, fence);
+  return { result: { reply, code: merged !== original ? merged : null }, failed: [] };
 }
 
 export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
@@ -253,7 +349,6 @@ export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
     throw new TessError(400, 'Nenhuma mensagem enviada.');
   }
 
-  // Injeta o código atual do editor no último turno do usuário.
   const apiMessages: TessChatMessage[] = messages.map((m) => ({ role: m.role, content: m.content }));
   for (let i = apiMessages.length - 1; i >= 0; i--) {
     if (apiMessages[i].role === 'user') {
@@ -262,47 +357,40 @@ export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
     }
   }
 
-  // ── Primeira chamada ──────────────────────────────────────────────────────
   const firstReply = await callTess(agentId, apiKey, apiMessages, mode);
 
-  // Modo conversacional: nada a aplicar.
   if (mode === 'ask') {
     return { reply: firstReply, code: null };
   }
 
   const { result, failed } = buildResult(firstReply, code);
 
-  // Sucesso (todos ou parte dos blocos aplicaram) ou fallback de arquivo inteiro.
+  // Sucesso direto.
   if (result.code != null && failed.length === 0) {
     return result;
   }
 
-  // ── Retry: algum bloco BUSCAR não bateu com o código atual ──────────────────
-  // Reenviamos o código (a TESS não retém contexto entre execuções) e pedimos
-  // que recopie os trechos exatamente.
-  const failedSnippets = failed
-    .map((b, i) => `Bloco ${i + 1} — BUSCAR não encontrado:\n${b.search}`)
-    .join('\n\n');
-
-  const retryMessages: TessChatMessage[] = [
-    ...apiMessages,
-    { role: 'assistant', content: firstReply },
-    {
-      role: 'user',
-      content: withCodeContext(
-        `Alguns blocos de edição NÃO foram localizados no código (o trecho BUSCAR precisa ser uma cópia EXATA do código atual). ` +
-          `Refaça SOMENTE esses blocos, copiando o trecho BUSCAR caractere por caractere do código abaixo e incluindo mais linhas de contexto.\n\n${failedSnippets}`,
-        code,
-      ),
-    },
-  ];
-
-  const retryReply = await callTess(agentId, apiKey, retryMessages, mode);
-  const retry = buildResult(retryReply, code);
-
-  // Se o retry aplicou algo, usa-o; senão devolve a 1ª resposta (parcial ou nula).
-  if (retry.result.code != null) {
-    return retry.result;
+  // Retry apenas quando blocos SEARCH/REPLACE não casaram.
+  if (failed.length > 0) {
+    const failedSnippets = failed
+      .map((b, i) => `Bloco ${i + 1} — BUSCAR não encontrado:\n${b.search}`)
+      .join('\n\n');
+    const retryMessages: TessChatMessage[] = [
+      ...apiMessages,
+      { role: 'assistant', content: firstReply },
+      {
+        role: 'user',
+        content: withCodeContext(
+          `Alguns blocos não foram localizados (BUSCAR precisa ser cópia EXATA do código atual). ` +
+            `Refaça SOMENTE esses blocos copiando o trecho exatamente.\n\n${failedSnippets}`,
+          code,
+        ),
+      },
+    ];
+    const retryReply = await callTess(agentId, apiKey, retryMessages, mode);
+    const retry = buildResult(retryReply, code);
+    if (retry.result.code != null) return retry.result;
   }
+
   return result;
 }

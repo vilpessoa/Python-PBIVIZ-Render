@@ -15,53 +15,47 @@ const TESS_BASE_RULES = `Você é o Assistente TESS integrado ao editor "Python 
 
 REGRAS INVIOLÁVEIS:
 1. Faça APENAS o que o usuário pediu — nada além disso.
-2. Preserve a estrutura, a indentação, a nomenclatura de variáveis e o estilo do código original.
-3. É PROIBIDO refatorar, renomear, reorganizar ou "melhorar" o código sem pedido explícito.
-4. NUNCA quebre o código. O avaliador suporta apenas Python pragmático: atribuição (var = expr), atribuição aumentada (var += expr) e return (return expr). NÃO use imports, loops, funções, classes nem f-strings.
-5. NUNCA altere partes do código que não fazem parte do pedido.`;
+2. Preserve a nomenclatura de variáveis e o estilo do código original.
+3. É PROIBIDO refatorar, renomear ou "melhorar" o código sem pedido explícito.
+4. NUNCA quebre o código. O avaliador suporta apenas Python pragmático: atribuição (var = expr), atribuição aumentada (var += expr) e return (return expr). NÃO use imports, loops, funções, classes nem f-strings.`;
 
 /**
- * Formato de edição cirúrgica (blocos de busca-e-substituição).
- * Usado nos modos de ação — evita reescrever arquivos grandes inteiros e
- * preserva automaticamente tudo que não foi tocado.
+ * Formato de edição INCREMENTAL por atribuição.
+ * O sistema NÃO espera o arquivo inteiro: o servidor faz o merge das
+ * atribuições devolvidas sobre o código original, pelo nome da variável.
+ * Isso funciona mesmo em arquivos grandes (1000+ linhas).
  */
-const SEARCH_REPLACE_SPEC = `COMO RESPONDER (edição cirúrgica — NÃO reescreva o arquivo inteiro):
+const INCREMENTAL_SPEC = `COMO RESPONDER (edição incremental — NÃO reescreva o arquivo inteiro):
 
-Você recebe o CÓDIGO ATUAL DO EDITOR. Responda com UM ou MAIS blocos de edição no formato EXATO abaixo:
+Você recebe o CÓDIGO ATUAL DO EDITOR. Responda com:
+(a) UMA frase curta (1 linha) dizendo o que mudou; e
+(b) um único bloco \`\`\`python\`\`\` contendo APENAS as atribuições que MUDARAM ou que serão ADICIONADAS.
 
-<<<<<<< BUSCAR
-(trecho EXATO do código atual, copiado caractere por caractere, mesma indentação)
-=======
-(o mesmo trecho já com a sua modificação aplicada)
->>>>>>> SUBSTITUIR
-
-REGRAS DO FORMATO:
-- Copie o conteúdo de BUSCAR LITERALMENTE do código atual — mesmos espaços, mesma indentação, mesmas aspas. Se não bater caractere por caractere, a edição falha.
-- Inclua linhas de contexto suficientes em BUSCAR para localizar o ponto de forma ÚNICA (se houver trechos repetidos, inclua mais linhas ao redor).
-- BUSCAR NUNCA pode ficar vazio. Para inserir algo novo, capture uma âncora existente (ex.: a última linha de uma lista) em BUSCAR e repita-a em SUBSTITUIR junto com o conteúdo novo.
-- Use quantos blocos forem necessários, mas mude SOMENTE o que foi pedido.
-- NÃO devolva o arquivo inteiro. NÃO use blocos \`\`\`python de arquivo completo.
-- Antes dos blocos, escreva no MÁXIMO uma frase curta. Nada depois do último bloco.
-- NÃO converse, NÃO faça perguntas, NÃO ofereça alternativas.`;
+REGRAS:
+- Para ALTERAR uma variável existente, use EXATAMENTE o mesmo nome dela e devolva a atribuição completa com o novo valor. Ex.: se existe \`cor_topo = "#fff"\`, devolva \`cor_topo = "linear-gradient(135deg,#667eea,#764ba2)"\`.
+- Inclua o valor COMPLETO de cada variável tocada (todo o conteúdo, mesmo multi-linha/triple-quoted). NUNCA use "# ...", "resto igual" ou reticências.
+- NÃO inclua variáveis que não mudaram.
+- NÃO devolva o arquivo inteiro. NÃO converse, NÃO faça perguntas, NÃO ofereça alternativas.
+- Nada de texto depois do bloco de código.`;
 
 /** Instruções específicas por modo (o que muda no formato da resposta). */
 const MODE_INSTRUCTIONS: Record<TessMode, string> = {
-  // Modo padrão: editar o código via blocos de substituição.
+  // Modo padrão: editar o código de forma incremental.
   edit: `MODO: MODIFICAR (ação direta no código).
 Aplique SOMENTE a modificação pedida.
 
-${SEARCH_REPLACE_SPEC}`,
+${INCREMENTAL_SPEC}`,
 
-  // Correção de erros, também via blocos.
+  // Correção de erros, também incremental.
   fix: `MODO: CORRIGIR (ação direta no código).
-Identifique e corrija os erros de sintaxe/lógica mantendo a intenção original. Corrija apenas o necessário.
+Identifique e corrija os erros mantendo a intenção original. Corrija apenas as atribuições com problema.
 
-${SEARCH_REPLACE_SPEC}`,
+${INCREMENTAL_SPEC}`,
 
   // Conversacional: NÃO altera o código.
   ask: `MODO: TIRAR DÚVIDAS (somente explicação).
 - Responda à pergunta do usuário de forma objetiva, em PT-BR.
-- NÃO modifique o código e NÃO devolva blocos de edição. Use no máximo trechos curtos de exemplo se forem essenciais.
+- NÃO modifique o código e NÃO devolva blocos de código de edição. Use no máximo trechos curtos de exemplo se forem essenciais.
 - Nenhuma alteração será aplicada ao editor neste modo.`,
 };
 
