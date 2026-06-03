@@ -302,9 +302,49 @@ async function callTess(
 
 // ─── Orquestração ─────────────────────────────────────────────────────────────
 
-function withCodeContext(content: string, code: string): string {
+/**
+ * Monta a mensagem do USUÁRIO com instruções + pedido + código.
+ * As instruções vão aqui (e não só no role:system) porque o agente da TESS
+ * tem persona própria e costuma IGNORAR o system prompt — mas lê a mensagem
+ * do usuário. Repetir aqui aumenta muito a aderência ao formato.
+ */
+function buildUserPrompt(mode: TessMode, content: string, code: string): string {
   const lineCount = (code ?? '').split('\n').length;
-  return `${content}\n\n---\nCÓDIGO ATUAL DO EDITOR (${lineCount} linhas) — use os MESMOS nomes de variáveis ao alterá-las:\n\`\`\`python\n${code ?? ''}\n\`\`\``;
+
+  if (mode === 'ask') {
+    return [
+      'Responda à pergunta abaixo de forma objetiva, em PT-BR. NÃO modifique o código.',
+      '',
+      '=== PERGUNTA ===',
+      content,
+      '',
+      `=== CÓDIGO ATUAL (${lineCount} linhas) ===`,
+      '```python',
+      code ?? '',
+      '```',
+    ].join('\n');
+  }
+
+  const acao = mode === 'fix' ? 'CORRIJA' : 'MODIFIQUE';
+  return [
+    `Você é um editor de código. ${acao} o código Python abaixo conforme o pedido. Não converse, não faça perguntas, não dê alternativas.`,
+    '',
+    'COMO RESPONDER (OBRIGATÓRIO):',
+    '- Responda com UMA frase curta + um único bloco ```python``` contendo APENAS as atribuições que mudaram.',
+    '- Devolva a ATRIBUIÇÃO PYTHON COMPLETA de cada variável que você alterou: `nome_da_variavel = <novo valor completo>`.',
+    '- Use EXATAMENTE o mesmo nome de variável que já existe no código.',
+    '- Mesmo que a mudança seja em CSS/JS DENTRO de uma string Python, devolva a variável Python INTEIRA (do `nome =` até o fechamento), já com a alteração — NUNCA devolva só o trecho de CSS/JS solto.',
+    '- Inclua todo o valor, mesmo multi-linha. NUNCA use "# ...", reticências ou "resto igual".',
+    '- NÃO inclua variáveis que não mudaram. NÃO devolva o arquivo inteiro.',
+    '',
+    '=== PEDIDO ===',
+    content,
+    '',
+    `=== CÓDIGO ATUAL DO EDITOR (${lineCount} linhas) ===`,
+    '```python',
+    code ?? '',
+    '```',
+  ].join('\n');
 }
 
 /**
@@ -352,7 +392,7 @@ export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
   const apiMessages: TessChatMessage[] = messages.map((m) => ({ role: m.role, content: m.content }));
   for (let i = apiMessages.length - 1; i >= 0; i--) {
     if (apiMessages[i].role === 'user') {
-      apiMessages[i] = { role: 'user', content: withCodeContext(apiMessages[i].content, code) };
+      apiMessages[i] = { role: 'user', content: buildUserPrompt(mode, apiMessages[i].content, code) };
       break;
     }
   }
@@ -380,7 +420,8 @@ export async function runTess(opts: RunTessOptions): Promise<RunTessResult> {
       { role: 'assistant', content: firstReply },
       {
         role: 'user',
-        content: withCodeContext(
+        content: buildUserPrompt(
+          mode,
           `Alguns blocos não foram localizados (BUSCAR precisa ser cópia EXATA do código atual). ` +
             `Refaça SOMENTE esses blocos copiando o trecho exatamente.\n\n${failedSnippets}`,
           code,
