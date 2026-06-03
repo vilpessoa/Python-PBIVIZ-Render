@@ -145,6 +145,7 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
         if (suspicious) {
           // Bloqueia a aplicação automática.
           assistant.applyState = 'blocked';
+          assistant.rawReply = reply;
           assistant.content =
             'A resposta removeria grande parte do código atual — provavelmente veio incompleta. Não apliquei automaticamente. Revise o diff e decida abaixo.';
         } else {
@@ -160,7 +161,9 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
       } else if (newCode != null) {
         assistant.content = 'Nenhuma alteração necessária — o código já atende ao pedido.';
       } else {
+        // Não veio código aplicável — mostra o resumo e guarda a resposta crua para diagnóstico.
         assistant.content = conciseSummary(reply);
+        assistant.rawReply = reply;
       }
 
       setMessages((m) => [...m, assistant]);
@@ -328,6 +331,18 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
                         Aplicar mesmo assim
                       </button>
                     </div>
+                  )}
+
+                  {/* Diagnóstico: resposta crua da TESS (para depurar o comportamento do agente) */}
+                  {m.rawReply && (
+                    <details className="mt-2 rounded-md border border-border/70 bg-surface-sunken">
+                      <summary className="cursor-pointer select-none px-2 py-1 text-[10px] font-medium text-muted-foreground">
+                        🔍 Resposta crua da TESS (diagnóstico)
+                      </summary>
+                      <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words px-2 py-1.5 text-[10px] leading-snug font-mono text-muted-foreground">
+                        {m.rawReply}
+                      </pre>
+                    </details>
                   )}
                 </div>
               </div>
