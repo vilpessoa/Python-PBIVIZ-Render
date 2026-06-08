@@ -1,9 +1,43 @@
 ---
 name: pbiviz-reference
-description: Referência técnica completa de visuais personalizados Power BI (.pbiviz): estrutura de arquivos, CLI pbiviz, capabilities.json, DataView mappings, IVisual API, serviços de interatividade, formatação e troubleshooting. Use quando precisar de informações sobre desenvolvimento de .pbiviz, capabilities, dataRoles, dataViewMappings, ISelectionManager, ITooltipService, enumerateObjectInstances, erros de certificado SSL ou empacotamento.
+description: Referência técnica completa de visuais personalizados Power BI (.pbiviz): guia de início rápido, estrutura de arquivos, CLI pbiviz, capabilities.json, DataView mappings, IVisual API, D3.js, serviços de interatividade, formatação e troubleshooting. Use quando precisar de informações sobre desenvolvimento de .pbiviz, capabilities, dataRoles, dataViewMappings, ISelectionManager, ITooltipService, enumerateObjectInstances, D3.js, erros de certificado SSL ou empacotamento.
 ---
 
 Referência técnica completa para desenvolvimento de visuais personalizados Power BI (`.pbiviz`), compilada a partir da documentação oficial Microsoft Learn, GitHub microsoft/powerbi-visuals-tools e microsoft/powerbi-visuals-api.
+
+---
+
+## 0. Guia de Início Rápido (do zero ao primeiro visual)
+
+### Pré-requisitos
+1. **Node.js LTS** — baixe em [nodejs.org](https://nodejs.org). Inclui o `npm`.
+2. **pbiviz CLI** — instale globalmente:
+   ```bash
+   npm install -g powerbi-visuals-tools
+   ```
+3. **Editor** — [Visual Studio Code](https://code.visualstudio.com) (recomendado).
+
+### Criar e rodar o projeto
+```bash
+pbiviz new MeuVisual          # cria pasta MeuVisual/ com template
+cd MeuVisual
+npm install                   # instala dependências
+pbiviz start                  # compila e sobe servidor HTTPS local
+```
+
+### Testar no Power BI Service (Developer Mode)
+1. Acesse [app.powerbi.com](https://app.powerbi.com)
+2. Ícone de engrenagem → **Configurações** → aba **Desenvolvedor** → ative **Habilitar visual de desenvolvedor para teste**
+3. Em um relatório em modo de edição: painel Visualizações → três pontinhos (`...`) → **Adicionar visual de desenvolvedor** (ícone `</>`)
+4. O visual se atualiza em tempo real enquanto `pbiviz start` estiver rodando
+
+> Developer Mode só funciona no **Power BI Service** — não está disponível no Desktop nem em dispositivos móveis.
+
+### Empacotar para distribuição
+```bash
+pbiviz package                # gera dist/MeuVisual.pbiviz
+```
+Importe no Power BI Desktop: **Visualizações** → três pontinhos → **Importar um visual de um arquivo**.
 
 ---
 
@@ -461,7 +495,100 @@ export class Visual implements IVisual {
 
 ---
 
-## 7. Serviços `IVisualHost`
+## 7. D3.js — Integração com Visuais Power BI
+
+D3.js é a biblioteca de visualização mais usada com Power BI custom visuals. Renderiza gráficos como elementos SVG manipulados por dados.
+
+### Instalação
+```bash
+npm install d3 --save
+npm install @types/d3 --save-dev
+```
+
+### Skeleton completo com D3 (`src/visual.ts`)
+
+```typescript
+"use strict";
+
+import "./../style/visual.less";
+import powerbi from "powerbi-visuals-api";
+import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
+import VisualUpdateOptions      = powerbi.extensibility.visual.VisualUpdateOptions;
+import IVisual                  = powerbi.extensibility.visual.IVisual;
+import * as d3 from "d3";
+
+export class Visual implements IVisual {
+    private target: HTMLElement;
+    private svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
+
+    constructor(options: VisualConstructorOptions) {
+        this.target = options.element;
+
+        // Cria SVG uma vez no constructor — não re-criar a cada update
+        this.svg = d3.select(this.target)
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%");
+    }
+
+    public update(options: VisualUpdateOptions): void {
+        // Limpa o SVG a cada update para evitar sobreposição
+        this.svg.selectAll("*").remove();
+
+        // Guard: dados ausentes ou incompletos
+        if (!options?.dataViews?.[0]?.categorical) return;
+
+        const categorical = options.dataViews[0].categorical;
+        const categories  = categorical.categories?.[0]?.values ?? [];
+        const values      = categorical.values?.[0]?.values     ?? [];
+
+        // Estrutura os dados em objetos
+        const dataSet = categories.map((cat, i) => ({
+            category: String(cat),
+            value:    Number(values[i] ?? 0)
+        }));
+
+        // Renderização simples: lista textual via D3
+        this.svg.append("g")
+            .selectAll("text")
+            .data(dataSet)
+            .enter()
+            .append("text")
+            .attr("x", 20)
+            .attr("y", (_d, i) => 30 + i * 25)
+            .attr("fill", "#333333")
+            .style("font-family", "Segoe UI, sans-serif")
+            .style("font-size", "14px")
+            .text(d => `${d.category}: ${d.value}`);
+    }
+}
+```
+
+### Padrões essenciais com D3 em visuais Power BI
+
+| Situação | Abordagem |
+|---|---|
+| Criar SVG | No `constructor` — uma vez só |
+| Limpar antes de re-renderizar | `this.svg.selectAll("*").remove()` no início do `update()` |
+| Escalar elementos ao viewport | `options.viewport.width` / `options.viewport.height` |
+| Cores do tema Power BI | `host.colorPalette.getColor(key).value` |
+| Tooltip ao hover | `host.tooltipService.show(...)` dentro de `.on("mouseover", ...)` |
+| Seleção ao click | `selectionManager.select(id)` dentro de `.on("click", ...)` |
+
+### D3 + viewport responsivo
+```typescript
+public update(options: VisualUpdateOptions): void {
+    const { width, height } = options.viewport;
+    this.svg
+        .attr("width", width)
+        .attr("height", height);
+    // ... escalas D3 usando width/height
+}
+```
+
+---
+
+## 8. Serviços `IVisualHost` (via `options.host`)
 
 Acesso via `options.host` no constructor:
 
@@ -484,7 +611,7 @@ Acesso via `options.host` no constructor:
 
 ---
 
-## 8. ISelectionManager — API de Seleção
+## 9. ISelectionManager — API de Seleção
 
 ```typescript
 private selectionManager: ISelectionManager;
@@ -519,7 +646,7 @@ element.addEventListener('contextmenu', (e) => {
 
 ---
 
-## 9. ITooltipService
+## 10. ITooltipService
 
 ```typescript
 private tooltipService: ITooltipService = options.host.tooltipService;
@@ -541,7 +668,7 @@ this.tooltipService.hide({ isTouchEvent: false, immediately: false });
 
 ---
 
-## 10. enumerateObjectInstances vs getFormattingModel
+## 11. enumerateObjectInstances vs getFormattingModel
 
 ### Legado (pré-API 5.1)
 ```typescript
@@ -591,7 +718,7 @@ public getFormattingModel(): powerbi.visuals.FormattingModel {
 
 ---
 
-## 11. Ciclo de Vida do Visual
+## 12. Ciclo de Vida do Visual
 
 ```
 Power BI carrega .pbiviz
@@ -619,7 +746,7 @@ visual.update(VisualUpdateOptions)     ← chamado MUITAS VEZES
 
 ---
 
-## 12. Padrão de Guard para DataView
+## 13. Padrão de Guard para DataView
 
 **Crítico:** Power BI silencia todos os erros do visual. Sem guard, o DOM congela no último estado válido sem feedback ao usuário.
 
@@ -653,7 +780,7 @@ public update(options: VisualUpdateOptions): void {
 
 ---
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 ### Certificado SSL com `pbiviz start`
 
@@ -709,7 +836,7 @@ pbiviz install-cert                           # 3. Reinstalar certificado
 
 ---
 
-## 14. Links Oficiais
+## 15. Links Oficiais
 
 | Recurso | URL |
 |---|---|
