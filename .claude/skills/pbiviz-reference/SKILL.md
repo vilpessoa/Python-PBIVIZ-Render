@@ -1,6 +1,6 @@
 ---
 name: pbiviz-reference
-description: Referência técnica completa de visuais personalizados Power BI (.pbiviz): guia de início rápido, estrutura de arquivos, CLI pbiviz, capabilities.json, DataView mappings, IVisual API, D3.js, serviços de interatividade, formatação e troubleshooting. Use quando precisar de informações sobre desenvolvimento de .pbiviz, capabilities, dataRoles, dataViewMappings, ISelectionManager, ITooltipService, enumerateObjectInstances, D3.js, erros de certificado SSL ou empacotamento.
+description: "Referência técnica completa de visuais personalizados Power BI (.pbiviz): guia de início rápido, estrutura de arquivos, CLI pbiviz, capabilities.json, DataView mappings, IVisual API, D3.js, serviços de interatividade, formatação, geração de .pbiviz a partir de Python e troubleshooting. Use quando precisar de informações sobre desenvolvimento de .pbiviz, capabilities, dataRoles, dataViewMappings, ISelectionManager, ITooltipService, enumerateObjectInstances, D3.js, geração de visuais a partir de código Python, erros de certificado SSL ou empacotamento."
 ---
 
 Referência técnica completa para desenvolvimento de visuais personalizados Power BI (`.pbiviz`), compilada a partir da documentação oficial Microsoft Learn, GitHub microsoft/powerbi-visuals-tools e microsoft/powerbi-visuals-api.
@@ -862,64 +862,62 @@ pbiviz install-cert                           # 3. Reinstalar certificado
 | Formatting Model Utils | https://github.com/microsoft/powerbi-visuals-utils-formattingmodel |
 | Tooltip Utils | https://github.com/Microsoft/powerbi-visuals-utils-tooltiputils |
 
-## 16. Gerando `.pbiviz` a partir de Python — O Modelo do Python-PBIVIZ-Render
+## 16. Gerando um `.pbiviz` a partir de Python — Estrutura Genérica e Reaproveitável
 
-Esta seção descreve como **este projeto** (Python-PBIVIZ-Render) gera um arquivo `.pbiviz` a partir de código Python escrito no editor — um fluxo próprio, mais simples que o processo oficial `pbiviz package` descrito nas seções anteriores.
+Esta seção descreve uma **convenção pragmática** para descrever um visual Power BI inteiramente em um único arquivo-fonte Python, e como esse arquivo pode ser convertido em um pacote `.pbiviz` válido. O objetivo é que qualquer agente de IA, ao receber um pedido como "crie um `.pbiviz` a partir deste código Python", saiba exatamente qual estrutura de variáveis procurar e como montar o pacote final — **independentemente de qual ferramenta** (este projeto, um script próprio, ou outro gerador) realiza a conversão.
 
-### 16.1 Convenção do código Python esperado
+### 16.1 Convenção de variáveis Python de nível superior
 
-O exportador (`src/lib/pbivizExporter.ts`) usa regex para extrair variáveis de nível superior do código Python digitado no editor. O usuário deve declarar:
+Um arquivo Python que descreve um visual declara variáveis simples no escopo global. Um gerador (humano ou agente) lê esse arquivo e extrai os seguintes valores:
 
-| Variável | Obrigatória | Formato | Uso |
+| Variável | Obrigatória | Formato | Papel no `.pbiviz` |
 |---|---|---|---|
-| `CSS` | Não (vazio se ausente) | string triple-quoted: `CSS = """..."""` ou `'''...'''` | Vira `content.css` no recurso |
-| `JS` | Não (vazio se ausente) | string triple-quoted: `JS = """...."""` ou `'''...'''` | Vira `content.js` no recurso |
-| `DISPLAY_NAME` ou `TITULO_CHAT` | Não (default `'Python Visual'`) | escalar: `DISPLAY_NAME = "Meu Visual"` | Nome exibido do visual |
-| `VERSION` | Não (default `'1.0.0.0'`) | escalar: `VERSION = "1.0.0.0"` | Versão do pacote/visual |
-| `API_VERSION` | Não (default `'2.6.0'`) | escalar: `API_VERSION = "5.3.0"` | Versão da API do Power BI |
-| `GUID` | Não (default `'PythonVisual' + timestamp`) | escalar: `GUID = "meuVisual123"` | Identificador único do visual |
-| dict de `capabilities` | Não (default `{ dataRoles: [], dataViewMappings: [], objects: {} }`) | literal de dicionário Python (`{...}`), interpretado por `extractCapabilities()` | Vira o `capabilities` do recurso |
+| `CSS` | Não (string vazia se ausente) | string triple-quoted: `CSS = """ ... """` ou `'''...'''` | Estilos do visual (CSS) |
+| `JS` | Não (string vazia se ausente) | string triple-quoted: `JS = """ ... """` ou `'''...'''` | Lógica/renderização do visual (JavaScript/TypeScript compilado) |
+| `DISPLAY_NAME` | Não (default: nome genérico, ex. `"Python Visual"`) | escalar: `DISPLAY_NAME = "Meu Visual"` | Nome exibido do visual no Power BI |
+| `VERSION` | Não (default: `"1.0.0.0"`) | escalar: `VERSION = "1.0.0.0"` | Versão do pacote e do visual |
+| `API_VERSION` | Não (default: versão estável recente, ex. `"2.6.0"` ou `"5.3.0"`) | escalar: `API_VERSION = "5.3.0"` | Versão da API `powerbi-visuals-api` alvo |
+| `GUID` | Não (default: gerado, ex. `"PythonVisual" + timestamp`) | escalar: `GUID = "meuVisual123"` | Identificador único do visual (usado no nome do arquivo de recurso e nos manifestos) |
+| dict `capabilities` (ou `CAPABILITIES`) | Não (default: `{ "dataRoles": [], "dataViewMappings": [], "objects": {} }`) | literal de dicionário Python: `capabilities = { "dataRoles": [...], "dataViewMappings": [...], "objects": {...} }` | Vira o `capabilities.json` embutido — segue exatamente o schema oficial descrito na seção 5 |
 
-A extração é feita por duas funções auxiliares simples (regex, não AST):
-- `extractTripleQuotedBlock(code, varName)`: captura o conteúdo entre `"""..."""` ou `'''...'''` de `CSS`/`JS`.
-- `extractScalar(code, varName)`: captura o valor entre aspas simples/duplas de variáveis escalares.
-- `extractCapabilities(code)` (em `src/lib/pythonParser/pbivizExtractor.ts`): localiza um literal de dicionário Python no código e o converte para JSON (`pythonLiteralToJson`), retornando `{ dataRoles, dataViewMappings, objects }`.
+Convenções de extração recomendadas para um gerador (sem precisar de um parser Python completo / AST):
+- **Blocos triple-quoted** (`CSS`, `JS`): localizar `NOME = """..."""` ou `NOME = '''...'''` via regex e capturar o conteúdo bruto entre as aspas.
+- **Escalares** (`DISPLAY_NAME`, `VERSION`, `API_VERSION`, `GUID`): localizar `NOME = "valor"` ou `NOME = 'valor'` e capturar o valor entre aspas.
+- **Dicionário `capabilities`**: localizar o literal `{ ... }` atribuído à variável e converter a sintaxe de dict Python (aspas simples, `True`/`False`/`None`) para JSON válido antes de fazer `JSON.parse`/`json.loads`.
 
-### 16.2 Fluxo de exportação (UI → arquivo `.pbiviz`)
+Essa convenção é deliberadamente simples — qualquer pessoa (ou agente) pode escrever um único arquivo `.py` com essas variáveis, sem precisar montar manualmente a árvore de diretórios do projeto-fonte oficial (seção 2).
 
-1. O usuário escreve o código Python no editor (painel esquerdo) seguindo a convenção acima.
-2. Ao clicar no botão de exportar (em `HtmlPreview.tsx`), é chamado `await exportPbiviz(code)`.
-3. `exportPbiviz` (em `src/lib/pbivizExporter.ts`):
-   - Extrai `CSS`, `JS`, `displayName`, `version`, `apiVersion`, `guid` e `capabilities` do código-fonte.
-   - Monta dois objetos JSON: `package.json` (manifesto do pacote) e `resources/{guid}.pbiviz.json` (recurso com `visual`, `capabilities` e `content: { js, css, iconBase64 }` embutidos).
-   - Usa um ícone PNG transparente 20x20 fixo, embutido como base64 (`ICON_PNG_BASE64`), convertido em data URI.
-   - Empacota os dois arquivos em um ZIP via `zipSync` (biblioteca `fflate`), **sem entradas de diretório** — equivalente ao comportamento de `zipfile.writestr` do Python.
-4. O resultado é um `Blob` do tipo `application/zip`, baixado pelo navegador via `downloadBlob(blob, \`${nome}.pbiviz\`)` (cria um link temporário com `URL.createObjectURL` e dispara o download).
+### 16.2 Do arquivo Python ao pacote `.pbiviz` — fluxo de conversão
 
-### 16.3 Estrutura interna do `.pbiviz` gerado por este projeto
+Independentemente da ferramenta usada, o fluxo lógico de conversão é:
 
-Diferente do `.pbiviz` oficial (seção 1), que normalmente contém recursos JS/CSS compilados separadamente (`visual.prod.js`, `visual.prod.css`, `pbiviz.json`, `package.json`, `metadata.json`, etc.), o ZIP gerado por este projeto contém **apenas dois arquivos**:
+1. **Ler o arquivo-fonte Python** e extrair `CSS`, `JS`, `DISPLAY_NAME`, `VERSION`, `API_VERSION`, `GUID` e `capabilities` conforme a convenção acima (aplicando os defaults quando a variável estiver ausente).
+2. **Montar o manifesto `package.json`** do pacote, com `version`, `author`, `resources[]` (apontando para o arquivo de recurso) e os metadados `visual{ name, displayName, guid, visualClassName, version }`.
+3. **Montar o arquivo de recurso** (`resources/{guid}.pbiviz.json`), contendo `visual{}`, `apiVersion`, `style`, `capabilities` e o conteúdo do visual — `content.js` e `content.css` recebendo, respectivamente, o `JS` e o `CSS` extraídos — além de um ícone (pode ser um PNG simples embutido como data URI base64, já que o Power BI exige um ícone para listar o visual).
+4. **Compactar os arquivos em um ZIP** sem comprimir/gerar entradas de diretório (equivalente a `zipfile.writestr` em Python, ou bibliotecas como `fflate`/`zipSync` em JS/TS) e salvar com a extensão `.pbiviz`.
+
+Esse fluxo gera um pacote **mínimo e funcional** (dois arquivos: `package.json` + `resources/{guid}.pbiviz.json`, com `content` embutido), adequado para prototipagem rápida e visualização do visual no Power BI. Ele difere do pipeline oficial `pbiviz package` (seção 4), que compila um projeto-fonte completo (`visual.ts`, `style/visual.less`, `capabilities.json`, etc.) em recursos `visual.prod.js`/`visual.prod.css` separados — um processo mais robusto, voltado para certificação/publicação no AppSource.
+
+### 16.3 Estrutura mínima resultante do `.pbiviz`
 
 ```
 meu-visual.pbiviz (ZIP)
-├── package.json                          # manifesto: version, author, resources[], visual{}, metadata
+├── package.json                  # manifesto: version, author, resources[], visual{}, metadata
 └── resources/
-    └── {guid}.pbiviz.json                # recurso único: visual{}, apiVersion, style,
-                                            # stringResources, capabilities{}, content{ js, css, iconBase64 }
+    └── {guid}.pbiviz.json        # recurso único: visual{}, apiVersion, style, stringResources,
+                                  # capabilities{}, content{ js, css, iconBase64 }
 ```
 
-Pontos-chave dessa estrutura simplificada:
-- **`content` embutido**: o JS e o CSS do visual ficam diretamente como strings dentro de `resources/{guid}.pbiviz.json`, em `content.js` e `content.css` — não como arquivos `.js`/`.css` separados.
-- **Ícone embutido**: `content.iconBase64` é um data URI (`data:image/png;base64,...`), dispensando a pasta `assets/`.
-- **`style: 'style/visual.less'`** e **`assets: { icon: 'assets/icon.png' }`** são referências declarativas mantidas por compatibilidade de schema, mas os arquivos físicos correspondentes não existem dentro do ZIP — o conteúdo real já está embutido em `content`.
-- **`metadata.pbivizjson.resourceId`** aponta para `rId0`, que referencia o único recurso declarado em `resources[]` do `package.json`.
+Pontos-chave dessa estrutura mínima:
+- **`content` embutido**: o JS e o CSS do visual ficam como strings diretamente dentro de `resources/{guid}.pbiviz.json`, em `content.js` e `content.css` — não como arquivos separados no pacote.
+- **Ícone embutido**: `content.iconBase64` pode ser um data URI (`data:image/png;base64,...`), dispensando uma pasta `assets/` física dentro do ZIP.
+- **Referências declarativas** como `style: "style/visual.less"` e `assets.icon: "assets/icon.png"` podem ser mantidas por compatibilidade de schema mesmo sem os arquivos físicos correspondentes existirem no pacote — o conteúdo real já está embutido em `content`.
+- **`metadata.pbivizjson.resourceId`** no `package.json` referencia o recurso único declarado em `resources[]` (convencionalmente `rId0`).
 
-Esse formato é um modelo pragmático/simplificado — pensado para visualizar e exportar rapidamente um protótipo a partir de Python, e não para substituir o pipeline oficial `pbiviz package` (que gera um pacote pronto para certificação/AppSource).
+### 16.4 Por que essa estrutura é útil para um agente de IA
 
-### 16.4 Arquivos-fonte de referência
-
-| Arquivo | Papel |
-|---|---|
-| `src/lib/pbivizExporter.ts` | Monta `package.json` + `resources/{guid}.pbiviz.json`, gera o ZIP (`fflate`) e o `Blob`; expõe `exportPbiviz()` e `downloadBlob()` |
-| `src/lib/pythonParser/pbivizExtractor.ts` | Detecta scripts pbiviz no código Python, extrai `CSS`/`JS`/variáveis escalares e converte o literal de `capabilities` (dict Python → JSON) via `extractCapabilities()` |
-| `src/components/HtmlPreview.tsx` | Aciona `exportPbiviz(code)` a partir da UI e dispara o download via `downloadBlob()` |
+Ao receber um pedido para "criar um `.pbiviz` a partir de código Python", um agente que conhece essa convenção pode:
+- Gerar (ou validar) um arquivo Python com as variáveis `CSS`, `JS`, `DISPLAY_NAME`, `VERSION`, `API_VERSION`, `GUID` e `capabilities` corretamente formatadas.
+- Construir, a partir desse arquivo, um `.pbiviz` mínimo e funcional sem precisar montar o projeto-fonte oficial completo (Node.js + `pbiviz` CLI) — útil para prototipagem rápida, demos e testes.
+- Preencher `capabilities` seguindo o schema oficial (seção 5), garantindo que `dataRoles` e `dataViewMappings` sejam compatíveis com o Power BI real.
+- Usar essa mesma estrutura como ponto de partida e, quando necessário (visual pronto para certificação/AppSource), migrar para o projeto-fonte oficial e o pipeline `pbiviz package`.
