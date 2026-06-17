@@ -18,8 +18,8 @@ interface Props {
   onApplyCode: (code: string) => void;
   /** Destaca linhas adicionadas no editor CodeMirror (chamado ~100ms após aplicar). */
   onHighlightDiff?: (addedLines: number[]) => void;
-  /** Marca posições de remoção na scrollbar do editor. */
-  onHighlightRemovedLines?: (removedLines: number[]) => void;
+  /** Mostra ghost lines (linhas removidas) no editor. */
+  onShowRemovedGhosts?: (groups: { atLine: number; texts: string[] }[]) => void;
   /** Ancora o editor na primeira linha do diff. */
   onScrollToDiff?: (lineNumber: number) => void;
 }
@@ -68,18 +68,29 @@ function computeAddedLines(diff: ReturnType<typeof diffLines>): number[] {
   return lines;
 }
 
-/** Retorna os números de linha 1-indexados do código ORIGINAL onde houve remoção. */
-function computeRemovedLines(diff: ReturnType<typeof diffLines>): number[] {
-  const lines: number[] = [];
-  let origLn = 1;
+/** Agrupa linhas removidas com sua posição no NOVO código (para ghost lines no editor). */
+function computeRemovedGroups(diff: ReturnType<typeof diffLines>): { atLine: number; texts: string[] }[] {
+  const groups: { atLine: number; texts: string[] }[] = [];
+  let newLn = 1;
+  let pending: string[] = [];
   for (const d of diff) {
-    if (d.type === 'del') { lines.push(origLn); origLn++; }
-    else if (d.type === 'ctx') { origLn++; }
+    if (d.type === 'del') {
+      pending.push(d.text);
+    } else {
+      if (pending.length > 0) {
+        groups.push({ atLine: newLn, texts: [...pending] });
+        pending = [];
+      }
+      if (d.type === 'ctx' || d.type === 'add') newLn++;
+    }
   }
-  return lines;
+  if (pending.length > 0) {
+    groups.push({ atLine: newLn, texts: [...pending] });
+  }
+  return groups;
 }
 
-export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, onHighlightRemovedLines, onScrollToDiff }: Props) {
+export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, onShowRemovedGhosts, onScrollToDiff }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -172,9 +183,9 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
             const addedLines = computeAddedLines(dl);
             setTimeout(() => onHighlightDiff(addedLines), 120);
           }
-          if (onHighlightRemovedLines) {
-            const removedLines = computeRemovedLines(dl);
-            setTimeout(() => onHighlightRemovedLines(removedLines), 120);
+          if (onShowRemovedGhosts) {
+            const groups = computeRemovedGroups(dl);
+            setTimeout(() => onShowRemovedGhosts(groups), 120);
           }
         }
       } else if (newCode != null) {
@@ -197,7 +208,7 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
 
   function handleApprove(msg: ChatMessage) {
     onHighlightDiff?.([]);
-    onHighlightRemovedLines?.([]);
+    onShowRemovedGhosts?.([]);
     setMessages((arr) => arr.map((m) => (m.id === msg.id ? { ...m, applyState: 'approved' } : m)));
     toast.success('Alteração aprovada', { position: 'top-right' });
   }
@@ -206,7 +217,7 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
     if (msg.previousCode == null) return;
     onApplyCode(msg.previousCode);
     onHighlightDiff?.([]);
-    onHighlightRemovedLines?.([]);
+    onShowRemovedGhosts?.([]);
     setMessages((arr) => arr.map((m) => (m.id === msg.id ? { ...m, applyState: 'reverted' } : m)));
     toast.success('Alteração revertida', { position: 'top-right' });
   }
@@ -220,16 +231,16 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
       const addedLines = computeAddedLines(msg.diff);
       setTimeout(() => onHighlightDiff(addedLines), 120);
     }
-    if (onHighlightRemovedLines && msg.diff) {
-      const removedLines = computeRemovedLines(msg.diff);
-      setTimeout(() => onHighlightRemovedLines(removedLines), 120);
+    if (onShowRemovedGhosts && msg.diff) {
+      const groups = computeRemovedGroups(msg.diff);
+      setTimeout(() => onShowRemovedGhosts(groups), 120);
     }
     toast.info('Alteração aplicada manualmente', { position: 'top-right' });
   }
 
   function handleClearChat() {
     onHighlightDiff?.([]);
-    onHighlightRemovedLines?.([]);
+    onShowRemovedGhosts?.([]);
     setMessages([WELCOME]);
   }
 

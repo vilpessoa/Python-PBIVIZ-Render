@@ -501,7 +501,7 @@ export default function App() {
           code={code}
           onApplyCode={setCode}
           onHighlightDiff={(addedLines) => editorRef.current?.highlightAddedLines(addedLines)}
-          onHighlightRemovedLines={(removedLines) => editorRef.current?.highlightRemovedLines(removedLines)}
+          onShowRemovedGhosts={(groups) => editorRef.current?.showRemovedGhosts(groups)}
           onScrollToDiff={(lineNumber) => {
             const view = editorRef.current?.getView();
             if (!view) return;
