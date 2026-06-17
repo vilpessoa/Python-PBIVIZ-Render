@@ -31,7 +31,8 @@ export interface RemovedLineGroup {
 }
 
 class RemovedLinesWidget extends WidgetType {
-  constructor(readonly lines: string[]) { super(); }
+  private lines: string[];
+  constructor(lines: string[]) { super(); this.lines = lines; }
   eq(other: RemovedLinesWidget) { return this.lines.join('\n') === other.lines.join('\n'); }
   toDOM() {
     const wrap = document.createElement('div');
