@@ -502,6 +502,13 @@ export default function App() {
           onApplyCode={setCode}
           onHighlightDiff={(addedLines) => editorRef.current?.highlightAddedLines(addedLines)}
           onHighlightRemovedLines={(removedLines) => editorRef.current?.highlightRemovedLines(removedLines)}
+          onScrollToDiff={(lineNumber) => {
+            const view = editorRef.current?.getView();
+            if (!view) return;
+            const line = view.state.doc.line(Math.min(lineNumber, view.state.doc.lines));
+            view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
+            view.focus();
+          }}
         />
       )}
 

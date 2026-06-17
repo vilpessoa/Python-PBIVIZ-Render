@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert } from 'lucide-react';
+import { Sparkles, X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/cn';
@@ -20,6 +20,8 @@ interface Props {
   onHighlightDiff?: (addedLines: number[]) => void;
   /** Marca posições de remoção na scrollbar do editor. */
   onHighlightRemovedLines?: (removedLines: number[]) => void;
+  /** Ancora o editor na primeira linha do diff. */
+  onScrollToDiff?: (lineNumber: number) => void;
 }
 
 const MODES: { id: TessMode; label: string; icon: React.ElementType; placeholder: string }[] = [
@@ -77,7 +79,7 @@ function computeRemovedLines(diff: ReturnType<typeof diffLines>): number[] {
   return lines;
 }
 
-export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, onHighlightRemovedLines }: Props) {
+export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, onHighlightRemovedLines, onScrollToDiff }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -316,51 +318,72 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
 
                   {/* Aplicado — aguardando aprovação */}
                   {m.applyState === 'applied' && (
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                        Revise o diff no editor
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleApprove(m)}
-                          className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-emerald-700"
-                        >
-                          <Check className="h-3 w-3" /> Aprovar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRevert(m)}
-                          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-                        >
-                          <Undo2 className="h-3 w-3" /> Reverter
-                        </button>
+                    <>
+                      <div className="mt-2 mb-2 border-t border-border/50" />
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                          Revise o diff no editor
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onScrollToDiff && m.diff) {
+                                const added = computeAddedLines(m.diff);
+                                if (added.length > 0) onScrollToDiff(added[0]);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md border border-primary/30 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10"
+                          >
+                            <Eye className="h-3 w-3" /> Avaliar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApprove(m)}
+                            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-emerald-700"
+                          >
+                            <Check className="h-3 w-3" /> Aprovar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRevert(m)}
+                            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                          >
+                            <Undo2 className="h-3 w-3" /> Reverter
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    </>
                   )}
 
                   {/* Aprovado / Revertido — estado final */}
                   {(m.applyState === 'approved' || m.applyState === 'reverted') && (
-                    <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                      <Check className="h-3 w-3" />
-                      {m.applyState === 'approved' ? 'Aprovado' : 'Revertido'}
-                    </div>
+                    <>
+                      <div className="mt-2 mb-2 border-t border-border/50" />
+                      <div className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                        <Check className="h-3 w-3" />
+                        {m.applyState === 'approved' ? 'Aprovado' : 'Revertido'}
+                      </div>
+                    </>
                   )}
 
                   {/* Bloqueado pela trava de segurança */}
                   {m.applyState === 'blocked' && (
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                        <ShieldAlert className="h-3 w-3" /> Não aplicado
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyAnyway(m)}
-                        className="inline-flex items-center gap-1 rounded-md border border-amber-500/50 px-2 py-0.5 text-[10px] font-medium text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
-                      >
-                        Aplicar mesmo assim
-                      </button>
-                    </div>
+                    <>
+                      <div className="mt-2 mb-2 border-t border-border/50" />
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                          <ShieldAlert className="h-3 w-3" /> Não aplicado
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleApplyAnyway(m)}
+                          className="inline-flex items-center gap-1 rounded-md border border-amber-500/50 px-2 py-0.5 text-[10px] font-medium text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
+                        >
+                          Aplicar mesmo assim
+                        </button>
+                      </div>
+                    </>
                   )}
 
                 </div>
