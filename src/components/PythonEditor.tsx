@@ -33,6 +33,8 @@ export interface PythonEditorHandle {
   getView: () => EditorView | undefined;
   /** Highlights the given 1-indexed line numbers in green (added lines from a diff). Pass [] to clear. */
   highlightAddedLines: (lineNumbers: number[]) => void;
+  /** Highlights the given 1-indexed line numbers in red (removed lines from a diff). Pass [] to clear. */
+  highlightRemovedLines: (lineNumbers: number[]) => void;
 }
 
 interface Props {
@@ -504,6 +506,8 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
   ) {
     const cmRef = useRef<ReactCodeMirrorRef>(null);
     const [showScrollTop, setShowScrollTop] = useState(false);
+    const [diffAddedLines, setDiffAddedLines] = useState<number[]>([]);
+    const [diffRemovedLines, setDiffRemovedLines] = useState<number[]>([]);
     const [colorPicker, setColorPicker] = useState<{
       color: string;
       position: { x: number; y: number };
@@ -545,12 +549,14 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       getView() {
         return cmRef.current?.view;
       },
-      highlightAddedLines(lineNumbers: number[]) {
+      highlightAddedLines(lines: number[]) {
         const view = cmRef.current?.view;
         if (!view) return;
-        // O destaque persiste até o usuário aprovar/reverter (TessChat envia []
-        // para limpar). Não há timeout — assim o diff fica visível até a decisão.
-        view.dispatch({ effects: setDiffEffect.of(lineNumbers) });
+        view.dispatch({ effects: setDiffEffect.of(lines) });
+        setDiffAddedLines(lines);
+      },
+      highlightRemovedLines(lines: number[]) {
+        setDiffRemovedLines(lines);
       },
     }));
 
@@ -667,6 +673,40 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
           basicSetup={false}
           style={{ height: '100%', overflow: 'hidden' }}
         />
+
+        {/* Scrollbar diff markers */}
+        {(diffAddedLines.length > 0 || diffRemovedLines.length > 0) && (() => {
+          const view = cmRef.current?.view;
+          const totalLines = view?.state.doc.lines ?? 1;
+          const markers: { pct: number; color: string }[] = [];
+          for (const ln of diffAddedLines) {
+            markers.push({ pct: (ln / totalLines) * 100, color: 'rgba(34,197,94,0.8)' });
+          }
+          for (const ln of diffRemovedLines) {
+            markers.push({ pct: (ln / totalLines) * 100, color: 'rgba(239,68,68,0.8)' });
+          }
+          return (
+            <div
+              className="absolute right-0 top-0 bottom-0 pointer-events-none"
+              style={{ width: 8, zIndex: 10 }}
+            >
+              {markers.map((m, i) => (
+                <div
+                  key={i}
+                  className="absolute"
+                  style={{
+                    top: `${m.pct}%`,
+                    right: 0,
+                    width: 8,
+                    height: Math.max(3, 100 / totalLines * 2),
+                    backgroundColor: m.color,
+                    borderRadius: 1,
+                  }}
+                />
+              ))}
+            </div>
+          );
+        })()}
 
         {showScrollTop && (
           <button

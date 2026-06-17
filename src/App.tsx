@@ -501,6 +501,7 @@ export default function App() {
           code={code}
           onApplyCode={setCode}
           onHighlightDiff={(addedLines) => editorRef.current?.highlightAddedLines(addedLines)}
+          onHighlightRemovedLines={(removedLines) => editorRef.current?.highlightRemovedLines(removedLines)}
         />
       )}
 

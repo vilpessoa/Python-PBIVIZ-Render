@@ -18,6 +18,8 @@ interface Props {
   onApplyCode: (code: string) => void;
   /** Destaca linhas adicionadas no editor CodeMirror (chamado ~100ms após aplicar). */
   onHighlightDiff?: (addedLines: number[]) => void;
+  /** Marca posições de remoção na scrollbar do editor. */
+  onHighlightRemovedLines?: (removedLines: number[]) => void;
 }
 
 const MODES: { id: TessMode; label: string; icon: React.ElementType; placeholder: string }[] = [
@@ -64,7 +66,18 @@ function computeAddedLines(diff: ReturnType<typeof diffLines>): number[] {
   return lines;
 }
 
-export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: Props) {
+/** Retorna os números de linha 1-indexados do código ORIGINAL onde houve remoção. */
+function computeRemovedLines(diff: ReturnType<typeof diffLines>): number[] {
+  const lines: number[] = [];
+  let origLn = 1;
+  for (const d of diff) {
+    if (d.type === 'del') { lines.push(origLn); origLn++; }
+    else if (d.type === 'ctx') { origLn++; }
+  }
+  return lines;
+}
+
+export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, onHighlightRemovedLines }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -157,6 +170,10 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
             const addedLines = computeAddedLines(dl);
             setTimeout(() => onHighlightDiff(addedLines), 120);
           }
+          if (onHighlightRemovedLines) {
+            const removedLines = computeRemovedLines(dl);
+            setTimeout(() => onHighlightRemovedLines(removedLines), 120);
+          }
         }
       } else if (newCode != null) {
         assistant.content = 'Nenhuma alteração necessária — o código já atende ao pedido.';
@@ -177,7 +194,8 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
   }
 
   function handleApprove(msg: ChatMessage) {
-    onHighlightDiff?.([]); // remove o destaque do editor
+    onHighlightDiff?.([]);
+    onHighlightRemovedLines?.([]);
     setMessages((arr) => arr.map((m) => (m.id === msg.id ? { ...m, applyState: 'approved' } : m)));
     toast.success('Alteração aprovada', { position: 'top-right' });
   }
@@ -185,7 +203,8 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
   function handleRevert(msg: ChatMessage) {
     if (msg.previousCode == null) return;
     onApplyCode(msg.previousCode);
-    onHighlightDiff?.([]); // remove o destaque do editor
+    onHighlightDiff?.([]);
+    onHighlightRemovedLines?.([]);
     setMessages((arr) => arr.map((m) => (m.id === msg.id ? { ...m, applyState: 'reverted' } : m)));
     toast.success('Alteração revertida', { position: 'top-right' });
   }
@@ -199,11 +218,16 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff }: 
       const addedLines = computeAddedLines(msg.diff);
       setTimeout(() => onHighlightDiff(addedLines), 120);
     }
+    if (onHighlightRemovedLines && msg.diff) {
+      const removedLines = computeRemovedLines(msg.diff);
+      setTimeout(() => onHighlightRemovedLines(removedLines), 120);
+    }
     toast.info('Alteração aplicada manualmente', { position: 'top-right' });
   }
 
   function handleClearChat() {
     onHighlightDiff?.([]);
+    onHighlightRemovedLines?.([]);
     setMessages([WELCOME]);
   }
 
