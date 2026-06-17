@@ -142,7 +142,17 @@ function mergeSnippet(original: string, snippet: string): string {
       if (returnIdx >= 0) orig[returnIdx] = s;
       else additions.push(s);
     } else if (s.name && nameToIdx.has(s.name)) {
-      orig[nameToIdx.get(s.name)!] = s;
+      const idx = nameToIdx.get(s.name)!;
+      const origLen = orig[idx].text.split('\n').length;
+      const newLen = s.text.split('\n').length;
+      // Proteção: se a nova versão da variável for drasticamente mais curta
+      // (< 50% das linhas e original com 6+ linhas), o agente provavelmente
+      // truncou o valor. Ignora para não destruir conteúdo.
+      if (origLen >= 6 && newLen < origLen * 0.5) {
+        console.log(`[TESS] merge: variável "${s.name}" ignorada (truncada: ${newLen} vs ${origLen} linhas)`);
+        continue;
+      }
+      orig[idx] = s;
     } else {
       additions.push(s);
     }
@@ -381,17 +391,26 @@ function buildUserPrompt(mode: TessMode, content: string, code: string): string 
   const acao = mode === 'fix' ? 'CORRIJA' : 'ALTERE';
 
   return [
-    `${acao} o código conforme o pedido. Responda com:`,
-    `1. Uma frase curta (o que mudou)`,
-    `2. Um bloco \`\`\`python\`\`\` com SOMENTE as atribuições alteradas`,
+    `${acao} o código Python abaixo conforme o pedido. NÃO converse, NÃO explique muito.`,
     ``,
-    `Regras do bloco:`,
-    `- APENAS as variáveis que mudaram (não devolva o arquivo inteiro)`,
-    `- MESMO nome de variável do original, valor COMPLETO (sem reticências)`,
-    `- Se a mudança for em CSS/JS dentro de uma string Python, devolva a variável Python INTEIRA`,
+    `RESPONDA APENAS COM EDIÇÕES CIRÚRGICAS neste formato EXATO (um ou mais blocos):`,
+    ``,
+    `<<<<<<< BUSCAR`,
+    `(copie aqui, LETRA POR LETRA, as linhas exatas que existem no código atual)`,
+    `=======`,
+    `(as linhas novas que substituem as de cima)`,
+    `>>>>>>> SUBSTITUIR`,
+    ``,
+    `REGRAS CRÍTICAS:`,
+    `- O trecho em BUSCAR precisa ser CÓPIA IDÊNTICA do código atual (mesma indentação, mesmos caracteres). Se não for idêntico, a edição falha.`,
+    `- Edite o MENOR trecho possível — só as linhas que realmente mudam. NÃO copie a variável inteira.`,
+    `- Para REMOVER algo, deixe a parte SUBSTITUIR vazia (ou só com as linhas que restam).`,
+    `- NUNCA use reticências, "# ...", "resto igual" dentro dos blocos.`,
+    `- Antes dos blocos, escreva no máximo UMA frase curta dizendo o que mudou.`,
     ``,
     `PEDIDO: ${content}`,
     ``,
+    `=== CÓDIGO ATUAL ===`,
     '```python',
     displayCode,
     '```',
