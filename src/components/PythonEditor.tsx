@@ -40,7 +40,14 @@ class RemovedLinesWidget extends WidgetType {
     for (const text of this.lines) {
       const el = document.createElement('div');
       el.className = 'cm-diff-del';
-      el.textContent = text || ' ';
+      const marker = document.createElement('span');
+      marker.className = 'cm-diff-del-marker';
+      marker.textContent = '-';
+      const content = document.createElement('span');
+      content.className = 'cm-diff-del-text';
+      content.textContent = text || ' ';
+      el.appendChild(marker);
+      el.appendChild(content);
       wrap.appendChild(el);
     }
     return wrap;
@@ -713,15 +720,26 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
           pointerEvents: 'none',
           userSelect: 'none',
         },
+        // Padrão GitHub: fundo vermelho sólido suave + marcador "-", sem riscado.
         '.cm-diff-del': {
-          backgroundColor: 'rgba(239, 68, 68, 0.09)',
-          borderLeft: '3px solid rgba(239, 68, 68, 0.45)',
-          textDecoration: 'line-through',
-          opacity: '0.6',
-          padding: '0 4px',
+          display: 'flex',
+          backgroundColor: effectiveDark ? 'rgba(248, 81, 73, 0.15)' : '#ffebe9',
           fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-          whiteSpace: 'pre',
           lineHeight: '1.5',
+        },
+        '.cm-diff-del-marker': {
+          flex: '0 0 auto',
+          width: '1.4em',
+          textAlign: 'center',
+          color: effectiveDark ? 'rgba(248, 81, 73, 0.9)' : '#cf222e',
+          backgroundColor: effectiveDark ? 'rgba(248, 81, 73, 0.25)' : '#ffd7d5',
+          userSelect: 'none',
+        },
+        '.cm-diff-del-text': {
+          flex: '1 1 auto',
+          paddingLeft: '4px',
+          whiteSpace: 'pre',
+          color: effectiveDark ? '#c9d1d9' : '#24292f',
         },
       }),
       EditorView.domEventHandlers({
