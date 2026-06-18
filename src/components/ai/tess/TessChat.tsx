@@ -381,7 +381,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
           {isWelcome ? (
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
               <div className="flex flex-col items-center gap-4 text-center">
-                <TessWordmark />
+                <TessWordmark className="h-10" />
                 <div className="space-y-1">
                   <h3 className="text-base font-semibold tracking-tight">Como posso ajudar?</h3>
                   <p className="text-xs text-muted-foreground">
