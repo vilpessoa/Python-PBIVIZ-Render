@@ -31,4 +31,8 @@ export interface ChatMessage {
   applyState?: 'applied' | 'approved' | 'reverted' | 'blocked';
   /** Marca erro para estilizar o balão. */
   isError?: boolean;
+  /** Permite reenviar o pedido (após erro de rede/timeout). */
+  canRetry?: boolean;
+  /** Modo usado no pedido que falhou — reaproveitado no "Tentar novamente". */
+  retryMode?: TessMode;
 }

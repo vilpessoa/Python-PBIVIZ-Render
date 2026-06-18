@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye } from 'lucide-react';
+import { Sparkles, X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/cn';
@@ -133,6 +133,20 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
     const history = [...messages, userMsg];
     setMessages(history);
     setInput('');
+    await runSend(history, mode);
+  }
+
+  /** Reenvia o último pedido (após um erro de rede/timeout). */
+  async function handleRetry(errorMsg: ChatMessage) {
+    if (loading) return;
+    // Remove o balão de erro e reaproveita o histórico já existente.
+    const history = messages.filter((m) => m.id !== errorMsg.id);
+    setMessages(history);
+    await runSend(history, errorMsg.retryMode ?? mode);
+  }
+
+  /** Executa a chamada à TESS para um histórico já montado (inclui a msg do usuário). */
+  async function runSend(history: ChatMessage[], sentMode: TessMode) {
     setLoading(true);
 
     // Histórico para a API (sem a mensagem de boas-vindas e sem erros)
@@ -141,7 +155,6 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
       .map((m) => ({ role: m.role, content: m.content }));
 
     const before = codeRef.current;
-    const sentMode = mode;
     try {
       const { reply, code: newCode } = await sendTessMessage({
         messages: apiMessages,
@@ -199,7 +212,10 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
       setMessages((m) => [...m, assistant]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setMessages((m) => [...m, { id: uid(), role: 'assistant', content: msg, isError: true }]);
+      setMessages((m) => [
+        ...m,
+        { id: uid(), role: 'assistant', content: msg, isError: true, canRetry: true, retryMode: sentMode },
+      ]);
       toast.error('Erro no Assistente TESS', { description: msg, position: 'top-center' });
     } finally {
       setLoading(false);
@@ -313,6 +329,19 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
                   ) : (
                     <div className="prose prose-xs max-w-none break-words dark:prose-invert [&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[10px] [&_pre]:overflow-auto [&_pre]:rounded [&_pre]:bg-black/10 [&_pre]:p-2 [&_pre]:text-[10px] [&_p]:my-0.5 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_h1]:text-xs [&_h2]:text-xs [&_h3]:text-xs [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0">
                       <ReactMarkdown>{m.content}</ReactMarkdown>
+                    </div>
+                  )}
+
+                  {m.isError && m.canRetry && (
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleRetry(m)}
+                        disabled={loading}
+                        className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-0.5 text-[10px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                      >
+                        <RotateCcw className="h-3 w-3" /> Tentar novamente
+                      </button>
                     </div>
                   )}
 
