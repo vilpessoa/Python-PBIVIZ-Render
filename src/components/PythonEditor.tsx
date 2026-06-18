@@ -6,7 +6,7 @@ import {
   useState,
 } from 'react';
 import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror';
-import { EditorView, Decoration, type DecorationSet, keymap } from '@codemirror/view';
+import { EditorView, Decoration, type DecorationSet, keymap, WidgetType } from '@codemirror/view';
 import { StateField, StateEffect, RangeSetBuilder } from '@codemirror/state';
 import { python } from '@codemirror/lang-python';
 import { createTheme } from '@uiw/codemirror-themes';
@@ -25,12 +25,45 @@ import { colorPickerExtension, type SwatchClickCallback } from '@/lib/colorPicke
 import { FloatingColorPicker } from '@/components/FloatingColorPicker';
 import type { PythonEditorTheme } from '@/lib/storage';
 
+export interface RemovedLineGroup {
+  atLine: number;    // 1-indexed line in the NEW code before which to show ghosts
+  texts: string[];   // removed line contents
+}
+
+class RemovedLinesWidget extends WidgetType {
+  private lines: string[];
+  constructor(lines: string[]) { super(); this.lines = lines; }
+  eq(other: RemovedLinesWidget) { return this.lines.join('\n') === other.lines.join('\n'); }
+  toDOM() {
+    const wrap = document.createElement('div');
+    wrap.className = 'cm-diff-removed-ghost';
+    for (const text of this.lines) {
+      const el = document.createElement('div');
+      el.className = 'cm-diff-del';
+      const marker = document.createElement('span');
+      marker.className = 'cm-diff-del-marker';
+      marker.textContent = '-';
+      const content = document.createElement('span');
+      content.className = 'cm-diff-del-text';
+      content.textContent = text || ' ';
+      el.appendChild(marker);
+      el.appendChild(content);
+      wrap.appendChild(el);
+    }
+    return wrap;
+  }
+}
+
 export interface PythonEditorHandle {
   scrollAndSelect: (from: number, to: number) => void;
   getOffset: () => number;
   undo: () => void;
   redo: () => void;
   getView: () => EditorView | undefined;
+  /** Highlights the given 1-indexed line numbers in green (added lines from a diff). Pass [] to clear. */
+  highlightAddedLines: (lineNumbers: number[]) => void;
+  /** Shows ghost (phantom) removed lines at the given positions. Pass [] to clear. */
+  showRemovedGhosts: (groups: RemovedLineGroup[]) => void;
 }
 
 interface Props {
@@ -47,6 +80,70 @@ interface Props {
 
 // Error decoration
 const setErrorEffect = StateEffect.define<{ from: number; to: number } | null>();
+
+// Diff highlight decoration (added lines from TESS)
+const setDiffEffect = StateEffect.define<number[]>(); // 1-indexed line numbers; empty = clear
+
+const diffField = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none;
+  },
+  update(deco, tr) {
+    deco = deco.map(tr.changes);
+    for (const e of tr.effects) {
+      if (e.is(setDiffEffect)) {
+        if (e.value.length === 0) {
+          deco = Decoration.none;
+        } else {
+          const builder = new RangeSetBuilder<Decoration>();
+          const sorted = [...e.value].sort((a, b) => a - b);
+          const docLines = tr.state.doc.lines;
+          for (const ln of sorted) {
+            if (ln < 1 || ln > docLines) continue;
+            const line = tr.state.doc.line(ln);
+            builder.add(line.from, line.from, Decoration.line({ class: 'cm-diff-add' }));
+          }
+          deco = builder.finish();
+        }
+      }
+    }
+    return deco;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
+// Ghost lines for removed content (widget decorations — not part of the document)
+const setRemovedGhostsEffect = StateEffect.define<RemovedLineGroup[]>();
+
+const removedGhostsField = StateField.define<DecorationSet>({
+  create() { return Decoration.none; },
+  update(deco, tr) {
+    deco = deco.map(tr.changes);
+    for (const e of tr.effects) {
+      if (e.is(setRemovedGhostsEffect)) {
+        if (e.value.length === 0) {
+          deco = Decoration.none;
+        } else {
+          const builder = new RangeSetBuilder<Decoration>();
+          const sorted = [...e.value].sort((a, b) => a.atLine - b.atLine);
+          const docLines = tr.state.doc.lines;
+          for (const group of sorted) {
+            const ln = Math.max(1, Math.min(group.atLine, docLines));
+            const line = tr.state.doc.line(ln);
+            builder.add(line.from, line.from, Decoration.widget({
+              widget: new RemovedLinesWidget(group.texts),
+              side: -1,
+              block: true,
+            }));
+          }
+          deco = builder.finish();
+        }
+      }
+    }
+    return deco;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 const errorField = StateField.define<DecorationSet>({
   create() {
@@ -471,6 +568,7 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
   ) {
     const cmRef = useRef<ReactCodeMirrorRef>(null);
     const [showScrollTop, setShowScrollTop] = useState(false);
+    const [diffAddedLines, setDiffAddedLines] = useState<number[]>([]);
     const [colorPicker, setColorPicker] = useState<{
       color: string;
       position: { x: number; y: number };
@@ -511,6 +609,17 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       },
       getView() {
         return cmRef.current?.view;
+      },
+      highlightAddedLines(lines: number[]) {
+        const view = cmRef.current?.view;
+        if (!view) return;
+        view.dispatch({ effects: setDiffEffect.of(lines) });
+        setDiffAddedLines(lines);
+      },
+      showRemovedGhosts(groups: RemovedLineGroup[]) {
+        const view = cmRef.current?.view;
+        if (!view) return;
+        view.dispatch({ effects: setRemovedGhostsEffect.of(groups) });
       },
     }));
 
@@ -591,6 +700,8 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       highlightSelectionMatches(),
       keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
       errorField,
+      diffField,
+      removedGhostsField,
       colorPickerExtension(swatchCallbackRef),
       EditorView.lineWrapping,
       EditorView.theme({
@@ -600,6 +711,35 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
         '.cm-error-mark': {
           textDecoration: 'underline wavy hsl(var(--destructive))',
           backgroundColor: 'hsl(var(--destructive) / 0.12)',
+        },
+        '.cm-diff-add': {
+          backgroundColor: 'rgba(34, 197, 94, 0.13)',
+          borderLeft: '3px solid rgba(34, 197, 94, 0.65)',
+        },
+        '.cm-diff-removed-ghost': {
+          pointerEvents: 'none',
+          userSelect: 'none',
+        },
+        // Padrão GitHub: fundo vermelho sólido suave + marcador "-", sem riscado.
+        '.cm-diff-del': {
+          display: 'flex',
+          backgroundColor: effectiveDark ? 'rgba(248, 81, 73, 0.15)' : '#ffebe9',
+          fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+          lineHeight: '1.5',
+        },
+        '.cm-diff-del-marker': {
+          flex: '0 0 auto',
+          width: '1.4em',
+          textAlign: 'center',
+          color: effectiveDark ? 'rgba(248, 81, 73, 0.9)' : '#cf222e',
+          backgroundColor: effectiveDark ? 'rgba(248, 81, 73, 0.25)' : '#ffd7d5',
+          userSelect: 'none',
+        },
+        '.cm-diff-del-text': {
+          flex: '1 1 auto',
+          paddingLeft: '4px',
+          whiteSpace: 'pre',
+          color: effectiveDark ? '#c9d1d9' : '#24292f',
         },
       }),
       EditorView.domEventHandlers({
@@ -622,6 +762,33 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
           basicSetup={false}
           style={{ height: '100%', overflow: 'hidden' }}
         />
+
+        {/* Scrollbar diff markers (green = added lines) */}
+        {diffAddedLines.length > 0 && (() => {
+          const view = cmRef.current?.view;
+          const totalLines = view?.state.doc.lines ?? 1;
+          return (
+            <div
+              className="absolute right-0 top-0 bottom-0 pointer-events-none"
+              style={{ width: 8, zIndex: 10 }}
+            >
+              {diffAddedLines.map((ln, i) => (
+                <div
+                  key={i}
+                  className="absolute"
+                  style={{
+                    top: `${(ln / totalLines) * 100}%`,
+                    right: 0,
+                    width: 8,
+                    height: Math.max(3, 100 / totalLines * 2),
+                    backgroundColor: 'rgba(34,197,94,0.8)',
+                    borderRadius: 1,
+                  }}
+                />
+              ))}
+            </div>
+          );
+        })()}
 
         {showScrollTop && (
           <button

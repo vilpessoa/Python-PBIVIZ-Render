@@ -11,7 +11,8 @@ import * as DM from '@radix-ui/react-dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
-import { AIAssistantDropdown } from '@/components/ai/AIAssistantDropdown';
+import { TessChatButton } from '@/components/ai/tess/TessChatButton';
+import { TESS_ENABLED } from '@/lib/tessConfig';
 import { ZOOM_MIN, ZOOM_MAX } from '@/components/ZoomControls';
 import type { PythonEditorTheme } from '@/lib/storage';
 
@@ -26,8 +27,8 @@ interface Props {
   onPythonEditorThemeChange: (t: PythonEditorTheme) => void;
   searchOpen: boolean;
   onToggleSearch: () => void;
-  code: string;
-  onAiApply: (code: string) => void;
+  tessChatOpen: boolean;
+  onToggleTessChat: () => void;
   onFileLoad: (code: string) => void;
   editorExpanded?: boolean;
   onToggleExpand?: () => void;
@@ -113,8 +114,8 @@ export function PythonEditorToolbar({
   onPythonEditorThemeChange,
   searchOpen,
   onToggleSearch,
-  code,
-  onAiApply,
+  tessChatOpen,
+  onToggleTessChat,
   onFileLoad,
   editorExpanded = false,
   onToggleExpand,
@@ -179,9 +180,12 @@ export function PythonEditorToolbar({
             </TooltipContent>
           </Tooltip>
 
-          <VDivider />
-
-          <AIAssistantDropdown code={code} onApply={onAiApply} />
+          {TESS_ENABLED && (
+            <>
+              <VDivider />
+              <TessChatButton open={tessChatOpen} onToggle={onToggleTessChat} />
+            </>
+          )}
         </div>
 
         {/* Right: zoom + theme */}
