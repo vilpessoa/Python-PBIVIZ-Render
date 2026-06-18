@@ -70,9 +70,7 @@ function buildSrcdoc(html: string, visualEdits: boolean): string {
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${html}${visualEdits ? VE_OVERLAY_SCRIPT : ''}</body></html>`;
 }
 
-function VDivider() {
-  return <span aria-hidden className="mx-0.5 inline-block h-3 w-px shrink-0 rounded-full bg-border opacity-60" />;
-}
+import { VDivider } from '@/components/ui/dividers';
 
 export function HtmlPreview({
   html,

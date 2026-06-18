@@ -90,6 +90,41 @@ git stash / git stash pop      # Guardar/recuperar temporariamente
 
 ## Arquitetura
 
+## Design System — Componentes Aprovados
+
+Antes de criar qualquer elemento visual novo, verifique se já existe em `src/components/ui/`.
+**Nunca recriar inline o que já existe como componente exportado.**
+
+### Primitivos base
+| Componente | Arquivo | Quando usar |
+|---|---|---|
+| `<Button>` | `ui/button.tsx` | Todo botão — use `variant` e `size` |
+| `<Badge>` | `ui/badge.tsx` | Tags, status, contadores |
+| `<Tooltip>` + `<TooltipContent>` | `ui/tooltip.tsx` | Todo hover de informação |
+| `<DropdownMenu>` | `ui/dropdown.tsx` | Menus suspensos |
+| `<Dialog>` | `ui/dialog.tsx` | Modais e diálogos |
+
+### Compostos aprovados
+| Componente | Arquivo | Quando usar |
+|---|---|---|
+| `<IconButton>` | `ui/icon-button.tsx` | Botão redondo h-8 w-8 com ícone + tooltip |
+| `<VDivider>` | `ui/dividers.tsx` | Separador fino em toolbars |
+| `<VDividerWide>` | `ui/dividers.tsx` | Separador em status bars |
+| `<ZoomControls>` | `components/ZoomControls.tsx` | Controle de zoom ± com valor |
+| `<AnimatedThemeToggler>` | `ui/animated-theme-toggler.tsx` | Toggle dark/light mode |
+
+### Tokens de design (não hardcode cores)
+- Cores via CSS variables: `hsl(var(--primary))`, `hsl(var(--destructive))`, etc.
+- Todas as variáveis estão em `src/index.css`
+- Nunca usar hex ou rgb diretamente — sempre via token Tailwind do `tailwind.config.ts`
+- Fonte: `font-sans` = Space Grotesk, `font-mono` = JetBrains Mono
+
+### Regra de criação de novos componentes
+1. Verificar a tabela acima
+2. Se similar ao existente: estender via `className` ou nova `variant`  
+3. Se realmente novo: criar em `src/components/ui/` + adicionar na tabela acima
+4. Nunca criar componente visual dentro de um componente de feature
+
 ### Layout de Painel Dividido (App.tsx)
 O componente principal `App` orquestra:
 - **Painel esquerdo:** `PythonEditor` (baseado em CodeMirror) com `PythonEditorToolbar`

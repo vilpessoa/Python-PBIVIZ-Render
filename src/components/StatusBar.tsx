@@ -14,14 +14,7 @@ interface Props {
   pythonEditorTheme: PythonEditorTheme;
 }
 
-function VDivider() {
-  return (
-    <span
-      aria-hidden
-      className="mx-3 hidden h-3 w-px shrink-0 rounded-full bg-border opacity-50 md:inline-block"
-    />
-  );
-}
+import { VDividerWide } from '@/components/ui/dividers';
 
 const THEME_LABELS: Record<string, string> = {
   github: 'GitHub',
@@ -57,7 +50,7 @@ export function StatusBar({
         <span className="tabular-nums">
           Ln {line}, Col {col}
         </span>
-        <VDivider />
+        <VDividerWide />
         <span className="hidden items-center gap-1 sm:flex">
           <Hash className="h-3 w-3" />
           <span className="tabular-nums">{lineCount}</span> linha{lineCount === 1 ? '' : 's'}
@@ -76,7 +69,7 @@ export function StatusBar({
         )}
         {visualEditsEnabled && (
           <>
-            <VDivider />
+            <VDividerWide />
             <span className="hidden items-center gap-1 text-primary md:inline-flex">
               <MousePointerClick className="h-3 w-3" />
               Visual Edits
@@ -85,7 +78,7 @@ export function StatusBar({
         )}
         {errorCount > 0 && (
           <>
-            <VDivider />
+            <VDividerWide />
             <span className="flex items-center gap-1 rounded bg-destructive/15 px-1.5 py-0.5 text-destructive">
               <AlertCircle className="h-3 w-3" />
               <span className="tabular-nums">{errorCount}</span> erro{errorCount === 1 ? '' : 's'}
@@ -94,7 +87,7 @@ export function StatusBar({
         )}
         {warningCount > 0 && (
           <>
-            <VDivider />
+            <VDividerWide />
             <span className="flex items-center gap-1 rounded bg-[hsl(var(--warning)/0.15)] px-1.5 py-0.5 text-[hsl(var(--warning))]">
               <AlertTriangle className="h-3 w-3" />
               <span className="tabular-nums">{warningCount}</span> aviso{warningCount === 1 ? '' : 's'}
@@ -103,14 +96,14 @@ export function StatusBar({
         )}
         {lastRenderMs !== null && (
           <>
-            <VDivider />
+            <VDividerWide />
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
               <span className="tabular-nums">{lastRenderMs}</span>ms
             </span>
           </>
         )}
-        <VDivider />
+        <VDividerWide />
         <span className="hidden md:inline">
           {THEME_LABELS[pythonEditorTheme] ?? pythonEditorTheme} · {theme === 'dark' ? 'Escuro' : 'Claro'}
         </span>
