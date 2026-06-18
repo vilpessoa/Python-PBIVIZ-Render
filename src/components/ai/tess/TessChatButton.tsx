@@ -1,6 +1,6 @@
-import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { TessLogo } from './TessLogo';
 
 interface Props {
   open: boolean;
@@ -24,7 +24,7 @@ export function TessChatButton({ open, onToggle }: Props) {
               : 'text-muted-foreground hover:bg-accent hover:text-foreground',
           )}
         >
-          <Sparkles className="h-4 w-4" />
+          <TessLogo className="h-5 w-5" />
         </button>
       </TooltipTrigger>
       <TooltipContent>Assistente TESS</TooltipContent>

@@ -29,6 +29,7 @@ import type { VELocateTokens } from '@/lib/visualEdits';
 import { ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN } from '@/components/ZoomControls';
 import DEFAULT_SAMPLE from '@/data/sampleDefault';
 import { TessChat } from '@/components/ai/tess/TessChat';
+import { TessFab } from '@/components/ai/tess/TessFab';
 import { TESS_ENABLED } from '@/lib/tessConfig';
 
 const ACCENT_PRESETS: Record<string, { light: string; dark: string }> = {
@@ -59,6 +60,16 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [tessChatOpen, setTessChatOpen] = useState(false);
+  const [tessMinimized, setTessMinimized] = useState(false);
+  const [tessPos, setTessPos] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const raw = localStorage.getItem('tess.panel.pos');
+      const p = raw ? JSON.parse(raw) : null;
+      return p && typeof p.x === 'number' && typeof p.y === 'number' ? p : null;
+    } catch {
+      return null;
+    }
+  });
   const [fontSize, setFontSize] = useState<number>(clampZoom(initialState.editorFontSize));
   const [visualEditsEnabled, setVisualEditsEnabled] = useState<boolean>(
     initialState.visualEditsEnabled,
@@ -399,8 +410,15 @@ export default function App() {
                 onPythonEditorThemeChange={onPythonEditorThemeChange}
                 searchOpen={searchOpen}
                 onToggleSearch={() => setSearchOpen((v) => !v)}
-                tessChatOpen={tessChatOpen}
-                onToggleTessChat={() => setTessChatOpen((v) => !v)}
+                tessChatOpen={tessChatOpen && !tessMinimized}
+                onToggleTessChat={() => {
+                  if (tessChatOpen && !tessMinimized) {
+                    setTessChatOpen(false);
+                  } else {
+                    setTessChatOpen(true);
+                    setTessMinimized(false);
+                  }
+                }}
                 onFileLoad={(content) => {
                   setCode(content);
                   toast.success('Arquivo carregado');
@@ -495,21 +513,42 @@ export default function App() {
       <VisualEditsMenu menu={veMenu} onSelect={onVeMenuSelect} onClose={onVeMenuClose} />
 
       {TESS_ENABLED && (
-        <TessChat
-          open={tessChatOpen}
-          onClose={() => setTessChatOpen(false)}
-          code={code}
-          onApplyCode={setCode}
-          onHighlightDiff={(addedLines) => editorRef.current?.highlightAddedLines(addedLines)}
-          onShowRemovedGhosts={(groups) => editorRef.current?.showRemovedGhosts(groups)}
-          onScrollToDiff={(lineNumber) => {
-            const view = editorRef.current?.getView();
-            if (!view) return;
-            const line = view.state.doc.line(Math.min(lineNumber, view.state.doc.lines));
-            view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
-            view.focus();
-          }}
-        />
+        <>
+          <TessChat
+            open={tessChatOpen}
+            minimized={tessMinimized}
+            onMinimize={() => setTessMinimized(true)}
+            onClose={() => {
+              setTessChatOpen(false);
+              setTessMinimized(false);
+            }}
+            position={tessPos}
+            onPositionChange={(pos) => {
+              setTessPos(pos);
+              try {
+                localStorage.setItem('tess.panel.pos', JSON.stringify(pos));
+              } catch {
+                /* ignora */
+              }
+            }}
+            code={code}
+            onApplyCode={setCode}
+            onHighlightDiff={(addedLines) => editorRef.current?.highlightAddedLines(addedLines)}
+            onShowRemovedGhosts={(groups) => editorRef.current?.showRemovedGhosts(groups)}
+            onScrollToDiff={(lineNumber) => {
+              const view = editorRef.current?.getView();
+              if (!view) return;
+              const line = view.state.doc.line(Math.min(lineNumber, view.state.doc.lines));
+              view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
+              view.focus();
+            }}
+          />
+          <AnimatePresence>
+            {tessChatOpen && tessMinimized && (
+              <TessFab onClick={() => setTessMinimized(false)} />
+            )}
+          </AnimatePresence>
+        </>
       )}
 
       <Toaster theme={theme} position="bottom-center" duration={2000} richColors />
