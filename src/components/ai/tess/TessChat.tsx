@@ -1,17 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw } from 'lucide-react';
+import { AnimatePresence, motion, useDragControls, useMotionValue, useReducedMotion } from 'framer-motion';
+import { X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw, Minus, Plus, Table } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ProgressiveFluxLoader } from '@/components/ui/progressive-flux-loader';
 import { sendTessMessage } from '@/services/tessService';
+import { TessLogo, TessWordmark } from './TessLogo';
 import { diffLines, diffStats } from './tessDiff';
 import type { ChatMessage, TessChatMessage, TessMode } from './types';
 
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** Recolhe o painel na bolha flutuante (mantém a conversa). */
+  onMinimize: () => void;
+  /** Quando true, o painel fica oculto (a FAB é exibida pelo App). */
+  minimized: boolean;
+  /** Offset de arrasto persistido em relação à âncora (canto inferior direito). */
+  position: { x: number; y: number } | null;
+  /** Persiste a posição ao soltar o arrasto. */
+  onPositionChange: (pos: { x: number; y: number }) => void;
   /** Código atual do editor. */
   code: string;
   /** Aplica (ou reverte) o código no editor. */
@@ -29,6 +40,17 @@ const MODES: { id: TessMode; label: string; icon: React.ElementType; placeholder
   { id: 'fix', label: 'Corrigir', icon: Bug, placeholder: 'Descreva o erro ou peça para corrigir…' },
   { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, placeholder: 'Ex.: o que esse trecho faz?' },
 ];
+
+/** Prompts rápidos exibidos na tela de boas-vindas (preenchem o input ao clicar). */
+const QUICK_PROMPTS: { label: string; text: string; icon: React.ElementType }[] = [
+  { label: 'Adicionar item', text: 'Adicione um novo item aos dados.', icon: Plus },
+  { label: 'Corrigir erro', text: 'Corrija os erros do código.', icon: Bug },
+  { label: 'Explicar o código', text: 'O que este código faz?', icon: HelpCircle },
+  { label: 'Gerar tabela HTML', text: 'Gere uma tabela HTML a partir dos dados.', icon: Table },
+];
+
+const PANEL_W = 384;
+const DRAG_MARGIN = 16;
 
 /** Remove blocos de código (```python``` e blocos de edição BUSCAR/SUBSTITUIR) do texto. */
 function stripCodeBlock(reply: string): string {
@@ -90,18 +112,48 @@ function computeRemovedGroups(diff: ReturnType<typeof diffLines>): { atLine: num
   return groups;
 }
 
-export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, onShowRemovedGhosts, onScrollToDiff }: Props) {
+export function TessChat({ open, onClose, onMinimize, minimized, position, onPositionChange, code, onApplyCode, onHighlightDiff, onShowRemovedGhosts, onScrollToDiff }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<TessMode>('edit');
 
+  const reduce = useReducedMotion();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const codeRef = useRef(code);
   useEffect(() => {
     codeRef.current = code;
   }, [code]);
+
+  // ── Arrasto (framer-motion): a posição é um offset relativo à âncora fixa. ──
+  const dragControls = useDragControls();
+  const x = useMotionValue(position?.x ?? 0);
+  const y = useMotionValue(position?.y ?? 0);
+  const [constraints, setConstraints] = useState({ left: 0, right: 0, top: 0, bottom: 0 });
+
+  useEffect(() => {
+    function calc() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const panelH = Math.min(560, h - 96);
+      setConstraints({
+        left: -(w - PANEL_W - DRAG_MARGIN * 2),
+        right: 0,
+        top: -(h - panelH - DRAG_MARGIN * 2),
+        bottom: 0,
+      });
+    }
+    calc();
+    window.addEventListener('resize', calc);
+    return () => window.removeEventListener('resize', calc);
+  }, []);
+
+  // Mantém a posição dentro do viewport quando os limites mudam (resize/abertura).
+  useEffect(() => {
+    x.set(Math.min(constraints.right, Math.max(constraints.left, x.get())));
+    y.set(Math.min(constraints.bottom, Math.max(constraints.top, y.get())));
+  }, [constraints, x, y]);
 
   // Auto-scroll ao receber mensagens
   useEffect(() => {
@@ -110,7 +162,7 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
 
   // ESC fecha; foco no input ao abrir
   useEffect(() => {
-    if (!open) return;
+    if (!open || minimized) return;
     const t = setTimeout(() => inputRef.current?.focus(), 50);
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
@@ -123,7 +175,7 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
       clearTimeout(t);
       window.removeEventListener('keydown', onKey);
     };
-  }, [open, onClose]);
+  }, [open, minimized, onClose]);
 
   async function handleSend() {
     const text = input.trim();
@@ -260,6 +312,11 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
     setMessages([WELCOME]);
   }
 
+  function handleQuickPrompt(text: string) {
+    setInput(text);
+    inputRef.current?.focus();
+  }
+
   function onInputKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -268,30 +325,38 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
   }
 
   const placeholder = MODES.find((m) => m.id === mode)?.placeholder ?? '';
+  const isWelcome = messages.length === 1 && messages[0].id === 'welcome' && !loading;
 
   return (
     <AnimatePresence>
-      {open && (
+      {open && !minimized && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 12 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 12 }}
-          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-          style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 70, width: 384, maxHeight: 'min(560px, calc(100vh - 96px))' }}
+          drag
+          dragControls={dragControls}
+          dragListener={false}
+          dragMomentum={false}
+          dragConstraints={constraints}
+          onDragEnd={() => onPositionChange({ x: x.get(), y: y.get() })}
+          initial={reduce ? false : { opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+          transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 380, damping: 30 }}
+          style={{ x, y, position: 'fixed', right: 20, bottom: 20, zIndex: 70, width: PANEL_W, maxHeight: 'min(560px, calc(100vh - 96px))' }}
           className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-xl ring-1 ring-black/8 dark:ring-white/10"
         >
-          {/* Header */}
-          <div className="flex shrink-0 items-center justify-between border-b border-border bg-gradient-to-b from-primary/8 to-transparent px-4 py-3">
+          {/* Header (alça de arrasto) */}
+          <div
+            onPointerDown={(e) => dragControls.start(e)}
+            className="flex shrink-0 cursor-grab touch-none select-none items-center justify-between border-b border-border bg-gradient-to-b from-primary/8 to-transparent px-4 py-3 active:cursor-grabbing"
+          >
             <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/15 text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
-              </span>
+              <TessLogo className="h-7 w-7" />
               <div className="leading-tight">
                 <div className="text-sm font-semibold">Assistente TESS</div>
                 <div className="text-[10px] text-muted-foreground">Construtor de código Python</div>
               </div>
             </div>
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5" onPointerDown={(e) => e.stopPropagation()}>
               <Button
                 variant="ghost"
                 size="icon"
@@ -303,141 +368,174 @@ export function TessChat({ open, onClose, code, onApplyCode, onHighlightDiff, on
               >
                 <Eraser className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose} aria-label="Fechar">
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onMinimize} aria-label="Minimizar" title="Minimizar">
+                <Minus className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose} aria-label="Fechar" title="Fechar">
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
 
-          {/* Mensagens */}
-          <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-            {messages.map((m) => (
-              <div key={m.id} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
-                <div
-                  className={cn(
-                    'max-w-[88%] rounded-xl px-3 py-2 text-xs leading-relaxed',
-                    m.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : m.isError
-                      ? 'border border-destructive/40 bg-destructive/10 text-destructive'
-                      : 'border border-border bg-surface',
-                  )}
-                >
-                  {m.isError && <AlertCircle className="mb-1 inline h-3.5 w-3.5" />}
-                  {m.role === 'user' ? (
-                    <span className="whitespace-pre-wrap break-words">{m.content}</span>
-                  ) : (
-                    <div className="prose prose-xs max-w-none break-words dark:prose-invert [&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[10px] [&_pre]:overflow-auto [&_pre]:rounded [&_pre]:bg-black/10 [&_pre]:p-2 [&_pre]:text-[10px] [&_p]:my-0.5 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_h1]:text-xs [&_h2]:text-xs [&_h3]:text-xs [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0">
-                      <ReactMarkdown>{m.content}</ReactMarkdown>
-                    </div>
-                  )}
-
-                  {m.isError && m.canRetry && (
-                    <div className="mt-2 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => handleRetry(m)}
-                        disabled={loading}
-                        className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-0.5 text-[10px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
-                      >
-                        <RotateCcw className="h-3 w-3" /> Tentar novamente
-                      </button>
-                    </div>
-                  )}
-
-                  {m.diff && (() => {
-                    const { added, removed } = diffStats(m.diff);
+          {/* Conteúdo: tela de boas-vindas ou lista de mensagens */}
+          {isWelcome ? (
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
+              <div className="flex flex-col items-center gap-4 text-center">
+                <TessWordmark className="h-10" />
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold tracking-tight">Como posso ajudar?</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Escolha um atalho abaixo ou descreva o que precisa. Use os modos para
+                    modificar, corrigir ou tirar dúvidas sobre o código.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                  {QUICK_PROMPTS.map((p) => {
+                    const Icon = p.icon;
                     return (
-                      <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-mono">
-                        {added > 0 && <span className="text-emerald-600 dark:text-emerald-400">+{added}</span>}
-                        {removed > 0 && <span className="text-rose-600 dark:text-rose-400">-{removed}</span>}
-                        {m.applyState === 'applied' && <span className="text-muted-foreground">· destacado no editor</span>}
-                      </div>
+                      <button key={p.label} type="button" onClick={() => handleQuickPrompt(p.text)}>
+                        <Badge variant="outline" className="cursor-pointer gap-1.5 hover:bg-accent">
+                          <Icon className="h-3.5 w-3.5 text-primary" />
+                          {p.label}
+                        </Badge>
+                      </button>
                     );
-                  })()}
-
-                  {/* Aplicado — aguardando aprovação */}
-                  {m.applyState === 'applied' && (
-                    <>
-                      <div className="mt-2 mb-2 border-t border-border/50" />
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                          Revise o diff no editor
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (onScrollToDiff && m.diff) {
-                                const added = computeAddedLines(m.diff);
-                                if (added.length > 0) onScrollToDiff(added[0]);
-                              }
-                            }}
-                            className="inline-flex items-center gap-1 rounded-md border border-primary/30 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10"
-                          >
-                            <Eye className="h-3 w-3" /> Avaliar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleApprove(m)}
-                            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-emerald-700"
-                          >
-                            <Check className="h-3 w-3" /> Aprovar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRevert(m)}
-                            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-                          >
-                            <Undo2 className="h-3 w-3" /> Reverter
-                          </button>
-                        </div>
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+              {messages.map((m) => (
+                <div key={m.id} className={cn('flex gap-2', m.role === 'user' ? 'justify-end' : 'justify-start')}>
+                  {m.role !== 'user' && <TessLogo className="mt-0.5 h-6 w-6" />}
+                  <div
+                    className={cn(
+                      'max-w-[82%] rounded-xl px-3 py-2 text-xs leading-relaxed',
+                      m.role === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : m.isError
+                        ? 'border border-destructive/40 bg-destructive/10 text-destructive'
+                        : 'border border-border bg-surface',
+                    )}
+                  >
+                    {m.isError && <AlertCircle className="mb-1 inline h-3.5 w-3.5" />}
+                    {m.role === 'user' ? (
+                      <span className="whitespace-pre-wrap break-words">{m.content}</span>
+                    ) : (
+                      <div className="prose prose-xs max-w-none break-words dark:prose-invert [&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[10px] [&_pre]:overflow-auto [&_pre]:rounded [&_pre]:bg-black/10 [&_pre]:p-2 [&_pre]:text-[10px] [&_p]:my-0.5 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_h1]:text-xs [&_h2]:text-xs [&_h3]:text-xs [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0">
+                        <ReactMarkdown>{m.content}</ReactMarkdown>
                       </div>
-                    </>
-                  )}
+                    )}
 
-                  {/* Aprovado / Revertido — estado final */}
-                  {(m.applyState === 'approved' || m.applyState === 'reverted') && (
-                    <>
-                      <div className="mt-2 mb-2 border-t border-border/50" />
-                      <div className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                        <Check className="h-3 w-3" />
-                        {m.applyState === 'approved' ? 'Aprovado' : 'Revertido'}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Bloqueado pela trava de segurança */}
-                  {m.applyState === 'blocked' && (
-                    <>
-                      <div className="mt-2 mb-2 border-t border-border/50" />
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                          <ShieldAlert className="h-3 w-3" /> Não aplicado
-                        </span>
+                    {m.isError && m.canRetry && (
+                      <div className="mt-2 flex justify-end">
                         <button
                           type="button"
-                          onClick={() => handleApplyAnyway(m)}
-                          className="inline-flex items-center gap-1 rounded-md border border-amber-500/50 px-2 py-0.5 text-[10px] font-medium text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
+                          onClick={() => handleRetry(m)}
+                          disabled={loading}
+                          className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-0.5 text-[10px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
                         >
-                          Aplicar mesmo assim
+                          <RotateCcw className="h-3 w-3" /> Tentar novamente
                         </button>
                       </div>
-                    </>
-                  )}
+                    )}
 
-                </div>
-              </div>
-            ))}
+                    {m.diff && (() => {
+                      const { added, removed } = diffStats(m.diff);
+                      return (
+                        <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-mono">
+                          {added > 0 && <span className="text-emerald-600 dark:text-emerald-400">+{added}</span>}
+                          {removed > 0 && <span className="text-rose-600 dark:text-rose-400">-{removed}</span>}
+                          {m.applyState === 'applied' && <span className="text-muted-foreground">· destacado no editor</span>}
+                        </div>
+                      );
+                    })()}
 
-            {loading && (
-              <div className="flex justify-start">
-                <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> TESS está trabalhando…
+                    {/* Aplicado — aguardando aprovação */}
+                    {m.applyState === 'applied' && (
+                      <>
+                        <div className="mt-2 mb-2 border-t border-border/50" />
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                            Revise o diff no editor
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onScrollToDiff && m.diff) {
+                                  const added = computeAddedLines(m.diff);
+                                  if (added.length > 0) onScrollToDiff(added[0]);
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 rounded-md border border-primary/30 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10"
+                            >
+                              <Eye className="h-3 w-3" /> Avaliar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleApprove(m)}
+                              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-emerald-700"
+                            >
+                              <Check className="h-3 w-3" /> Aprovar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRevert(m)}
+                              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                            >
+                              <Undo2 className="h-3 w-3" /> Reverter
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Aprovado / Revertido — estado final */}
+                    {(m.applyState === 'approved' || m.applyState === 'reverted') && (
+                      <>
+                        <div className="mt-2 mb-2 border-t border-border/50" />
+                        <div className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                          <Check className="h-3 w-3" />
+                          {m.applyState === 'approved' ? 'Aprovado' : 'Revertido'}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Bloqueado pela trava de segurança */}
+                    {m.applyState === 'blocked' && (
+                      <>
+                        <div className="mt-2 mb-2 border-t border-border/50" />
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                            <ShieldAlert className="h-3 w-3" /> Não aplicado
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyAnyway(m)}
+                            className="inline-flex items-center gap-1 rounded-md border border-amber-500/50 px-2 py-0.5 text-[10px] font-medium text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
+                          >
+                            Aplicar mesmo assim
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              ))}
+
+              {loading && (
+                <div className="flex justify-start gap-2">
+                  <TessLogo className="mt-0.5 h-6 w-6" />
+                  <div className="w-52 rounded-xl border border-border bg-surface px-3 py-2">
+                    <ProgressiveFluxLoader />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Seletor de modo */}
           <div className="flex shrink-0 items-center gap-1 border-t border-border bg-surface px-2.5 pt-2">
