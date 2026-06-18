@@ -11,6 +11,8 @@ import * as DM from '@radix-ui/react-dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
+import { VDivider } from '@/components/ui/dividers';
+import { IconButton } from '@/components/ui/icon-button';
 import { TessChatButton } from '@/components/ai/tess/TessChatButton';
 import { TESS_ENABLED } from '@/lib/tessConfig';
 import { ZOOM_MIN, ZOOM_MAX } from '@/components/ZoomControls';
@@ -51,57 +53,6 @@ const ALWAYS_DARK_THEMES: { id: PythonEditorTheme; label: string; dot1: string; 
   { id: 'kanagawa',    label: 'Kanagawa',    dot1: '#957fb8', dot2: '#98bb6c' },
   { id: 'poimandres',  label: 'Poimandres',  dot1: '#5de4c7', dot2: '#f087bd' },
 ];
-
-function VDivider() {
-  return (
-    <span
-      aria-hidden
-      className="mx-0.5 inline-block h-3 w-px shrink-0 rounded-full bg-border opacity-60"
-    />
-  );
-}
-
-function IconButton({
-  icon: Icon,
-  label,
-  tooltip,
-  onClick,
-  active = false,
-  disabled = false,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  tooltip: string;
-  onClick: () => void;
-  active?: boolean;
-  disabled?: boolean;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          onClick={onClick}
-          disabled={disabled}
-          variant="outline"
-          size="icon"
-          className={cn(
-            'h-8 w-8 rounded-full border border-border/50 active:scale-95 transition-all active:duration-100',
-            active
-              ? 'bg-primary/15 text-primary border-primary/40 hover:bg-primary/20'
-              : 'hover:bg-accent',
-          )}
-          aria-label={label}
-          aria-pressed={active}
-        >
-          <Icon className="h-3.5 w-3.5" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="px-2 py-1 text-xs">
-        {tooltip}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
 
 export function PythonEditorToolbar({
   fontSize,
@@ -157,28 +108,7 @@ export function PythonEditorToolbar({
 
           <VDivider />
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={onToggleSearch}
-                variant="outline"
-                size="icon"
-                className={cn(
-                  'h-8 w-8 rounded-full border border-border/50 active:scale-95 transition-all active:duration-100',
-                  searchOpen
-                    ? 'bg-primary/15 text-primary border-primary/40 hover:bg-primary/20'
-                    : 'hover:bg-accent',
-                )}
-                aria-label="Buscar & Substituir (Ctrl+F)"
-                aria-pressed={searchOpen}
-              >
-                <Search className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="px-2 py-1 text-xs">
-              Buscar & Substituir
-            </TooltipContent>
-          </Tooltip>
+          <IconButton icon={Search} label="Buscar & Substituir (Ctrl+F)" tooltip="Buscar & Substituir" onClick={onToggleSearch} active={searchOpen} />
 
           {TESS_ENABLED && (
             <>
