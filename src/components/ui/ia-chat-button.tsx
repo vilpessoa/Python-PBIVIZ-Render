@@ -39,7 +39,7 @@ export function IAChatButton({ open, onToggle }: IAChatButtonProps) {
   const [direction, setDirection] = useState<Direction>('BOTTOM');
 
   useEffect(() => {
-    if (hovered || open) return;
+    if (hovered) return;
     const interval = setInterval(() => {
       setDirection((prev) => {
         const dirs: Direction[] = ['TOP', 'LEFT', 'BOTTOM', 'RIGHT'];
@@ -47,7 +47,7 @@ export function IAChatButton({ open, onToggle }: IAChatButtonProps) {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [hovered, open]);
+  }, [hovered]);
 
   return (
     <Tooltip>
@@ -70,11 +70,13 @@ export function IAChatButton({ open, onToggle }: IAChatButtonProps) {
           <div
             className={cn(
               'absolute inset-0 rounded-full overflow-hidden',
-              'bg-slate-100 dark:bg-slate-800',
               'transition duration-500',
-              open ? 'bg-black/50 dark:bg-white/20' : 'hover:bg-black/40 dark:hover:bg-white/10',
+              open
+                ? 'bg-black/60 dark:bg-white/30'
+                : 'bg-slate-200/80 dark:bg-slate-700/80 hover:bg-black/40 dark:hover:bg-white/15',
             )}
           >
+            {/* Rotating light on border */}
             <motion.div
               className="absolute inset-0 rounded-full"
               style={{ filter: 'blur(2px)' }}
@@ -86,42 +88,44 @@ export function IAChatButton({ open, onToggle }: IAChatButtonProps) {
               }}
               transition={{ ease: 'linear', duration: 1 }}
             />
-
-            {open && (
-              <div
-                className={cn(
-                  'pointer-events-none absolute -inset-px rounded-full',
-                  'border-2 border-transparent',
-                  '[mask-clip:padding-box,border-box]',
-                  '[mask-composite:intersect] [mask-image:linear-gradient(transparent,transparent),linear-gradient(#000,#000)]',
-                )}
-              >
-                <motion.div
-                  className="absolute aspect-square bg-gradient-to-r from-transparent via-[hsl(var(--primary))] to-[hsl(var(--primary))]"
-                  animate={{ offsetDistance: ['0%', '100%'] }}
-                  style={{ width: 16, offsetPath: 'rect(0 auto auto 0 round 16px)' }}
-                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 3, ease: 'linear' }}
-                />
-              </div>
-            )}
           </div>
 
-          {/* Inner surface */}
-          <div className="absolute inset-[1.5px] rounded-full bg-background z-[1]" />
+          {/* Active state: soft glow ring */}
+          {open && (
+            <motion.div
+              className="absolute -inset-[1px] rounded-full"
+              style={{
+                background: 'conic-gradient(from 0deg, hsl(192 100% 50% / 0.4), hsl(230 90% 60% / 0.4), hsl(280 80% 60% / 0.4), hsl(192 100% 50% / 0.4))',
+                filter: 'blur(3px)',
+              }}
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Number.POSITIVE_INFINITY, duration: 4, ease: 'linear' }}
+            />
+          )}
 
-          {/* Shimmer + gradient icon */}
+          {/* Inner surface */}
+          <div className={cn(
+            'absolute inset-[1.5px] rounded-full z-[1] transition-colors duration-300',
+            'bg-background',
+          )} />
+
+          {/* Shimmer icon */}
           <motion.div {...iconShimmer} className="relative z-10 flex items-center justify-center">
             <div
               style={{
                 maskImage: 'linear-gradient(-75deg, #fff calc(var(--x) + 20%), transparent calc(var(--x) + 30%), #fff calc(var(--x) + 100%))',
                 WebkitMaskImage: 'linear-gradient(-75deg, #fff calc(var(--x) + 20%), transparent calc(var(--x) + 30%), #fff calc(var(--x) + 100%))',
-                background: 'linear-gradient(135deg, hsl(192, 100%, 50%) 0%, hsl(230, 90%, 60%) 50%, hsl(280, 80%, 60%) 100%)',
-                WebkitBackgroundClip: 'text',
-                backgroundClip: 'text',
-                color: 'transparent',
               } as React.CSSProperties}
             >
-              <Wand2 className="w-4 h-4" strokeWidth={2.5} />
+              <Wand2
+                className={cn(
+                  'w-3.5 h-3.5 transition-colors duration-300',
+                  open
+                    ? 'text-primary'
+                    : 'text-muted-foreground group-hover:text-foreground',
+                )}
+                strokeWidth={2}
+              />
             </div>
           </motion.div>
         </button>
