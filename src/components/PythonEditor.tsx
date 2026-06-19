@@ -640,17 +640,21 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       }
     }, [errorPos, errorEndPos]);
 
-    // Scrollbar diff markers — injected directly into CodeMirror's scrollDOM
+    // Scrollbar diff markers — fixed overlay inside .cm-editor (like VS Code minimap markers)
     useEffect(() => {
       const view = cmRef.current?.view;
       if (!view || diffAddedLines.length === 0) return;
 
+      const editorDOM = view.dom; // .cm-editor — has position: relative
       const scrollDOM = view.scrollDOM;
+
       const container = document.createElement('div');
       container.setAttribute('data-diff-scrollbar', '');
       Object.assign(container.style, {
         position: 'absolute',
         right: '0px',
+        top: '0px',
+        bottom: '0px',
         width: '8px',
         pointerEvents: 'none',
         zIndex: '10',
@@ -658,11 +662,9 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
 
       const buildMarkers = () => {
         const scrollHeight = scrollDOM.scrollHeight;
-        const clientHeight = scrollDOM.clientHeight;
-        if (scrollHeight <= 0 || clientHeight <= 0) return;
+        const trackHeight = scrollDOM.clientHeight;
+        if (scrollHeight <= 0 || trackHeight <= 0) return;
 
-        container.style.top = `${scrollDOM.scrollTop}px`;
-        container.style.height = `${clientHeight}px`;
         container.innerHTML = '';
 
         for (const ln of diffAddedLines) {
@@ -670,12 +672,14 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
           const lineInfo = view.state.doc.line(clampedLn);
           const block = view.lineBlockAt(lineInfo.from);
           const marker = document.createElement('div');
+          const topPx = (block.top / scrollHeight) * trackHeight;
+          const heightPx = Math.max(3, (block.height / scrollHeight) * trackHeight);
           Object.assign(marker.style, {
             position: 'absolute',
-            top: `${(block.top / scrollHeight) * 100}%`,
+            top: `${topPx}px`,
             right: '0px',
             width: '8px',
-            height: `${Math.max(3, (block.height / scrollHeight) * clientHeight)}px`,
+            height: `${heightPx}px`,
             backgroundColor: 'rgba(34,197,94,0.8)',
             borderRadius: '1px',
           });
@@ -684,18 +688,12 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       };
 
       buildMarkers();
-      scrollDOM.appendChild(container);
-
-      const onScroll = () => {
-        container.style.top = `${scrollDOM.scrollTop}px`;
-      };
-      scrollDOM.addEventListener('scroll', onScroll);
+      editorDOM.appendChild(container);
 
       const resizeObs = new ResizeObserver(() => buildMarkers());
       resizeObs.observe(scrollDOM);
 
       return () => {
-        scrollDOM.removeEventListener('scroll', onScroll);
         resizeObs.disconnect();
         container.remove();
       };
