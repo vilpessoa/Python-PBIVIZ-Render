@@ -22,11 +22,11 @@ const iconShimmer: object = {
   transition: {
     repeat: Infinity,
     repeatType: 'loop',
-    repeatDelay: 2,
+    repeatDelay: 3,
     type: 'spring',
-    stiffness: 20,
-    damping: 15,
-    mass: 2,
+    stiffness: 14,
+    damping: 18,
+    mass: 2.5,
   },
 };
 
@@ -114,15 +114,15 @@ export function IAChatButton({ open, onToggle }: IAChatButtonProps) {
           <motion.div {...iconShimmer} className="relative z-10 flex items-center justify-center">
             <div
               style={{
-                maskImage: 'linear-gradient(-75deg, #fff calc(var(--x) + 20%), transparent calc(var(--x) + 30%), #fff calc(var(--x) + 100%))',
-                WebkitMaskImage: 'linear-gradient(-75deg, #fff calc(var(--x) + 20%), transparent calc(var(--x) + 30%), #fff calc(var(--x) + 100%))',
+                maskImage: 'linear-gradient(-75deg, rgba(255,255,255,0.98) calc(var(--x) + 20%), transparent calc(var(--x) + 30%), rgba(255,255,255,0.98) calc(var(--x) + 100%))',
+                WebkitMaskImage: 'linear-gradient(-75deg, rgba(255,255,255,0.98) calc(var(--x) + 20%), transparent calc(var(--x) + 30%), rgba(255,255,255,0.98) calc(var(--x) + 100%))',
               } as React.CSSProperties}
             >
               <svg
                 viewBox="-5 -10 110 110"
                 xmlns="http://www.w3.org/2000/svg"
                 className={cn(
-                  'w-4 h-4 transition-colors duration-300',
+                  'w-5 h-5 transition-colors duration-300',
                   open
                     ? 'fill-primary'
                     : 'fill-muted-foreground group-hover:fill-foreground',
