@@ -56,7 +56,7 @@ const DRAG_MARGIN = 16;
 function stripCodeBlock(reply: string): string {
   return reply
     .replace(/```(?:python|py)?\s*\n[\s\S]*?\n```/gi, '')
-    .replace(/<{5,9}\s*BUSCAR[\s\S]*?>{5,9}\s*SUBSTITUIR/gi, '')
+    .replace(/<{4,9}\s*BUSCAR[\s\S]*?={4,9}[\s\S]*?>{4,9}\s*SUBSTITUIR/gi, '')
     .trim();
 }
 
@@ -70,6 +70,17 @@ function conciseSummary(reply: string): string {
 
 function uid() {
   return 'm_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+/** Remove marcadores BUSCAR/SUBSTITUIR do código (defesa em profundidade). */
+function cleanCode(code: string): string {
+  if (!code || typeof code !== 'string') return code;
+  return code
+    .replace(/<{4,9}\s*BUSCAR[^\n]*\n/gi, '')
+    .replace(/\n={4,9}[^\n]*\n/gi, '\n')
+    .replace(/\n>{4,9}\s*SUBSTITUIR[^\n]*\n/gi, '\n')
+    .replace(/\n+/g, '\n')
+    .trim();
 }
 
 const WELCOME: ChatMessage = {
@@ -220,7 +231,9 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
         // Conversacional: nunca altera o código.
         assistant.content = stripCodeBlock(reply) || reply;
       } else if (newCode != null && newCode !== before) {
-        const dl = diffLines(before, newCode);
+        // Limpa marcadores que possam ter escapado
+        const cleanedCode = cleanCode(newCode);
+        const dl = diffLines(before, cleanedCode);
         const { removed } = diffStats(dl);
         const beforeLines = before.split('\n').filter((l) => l.trim()).length;
 
@@ -232,7 +245,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
         assistant.content = conciseSummary(reply);
         assistant.diff = dl;
         assistant.previousCode = before;
-        assistant.proposedCode = newCode;
+        assistant.proposedCode = cleanedCode;
 
         if (suspicious) {
           // Bloqueia a aplicação automática.
@@ -241,8 +254,8 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
             'A resposta removeria grande parte do código atual — provavelmente veio incompleta. Não apliquei automaticamente. Revise o diff e decida abaixo.';
         } else {
           // Aplica e mantém o destaque no editor até você aprovar/reverter.
-          onApplyCode(newCode);
-          assistant.code = newCode;
+          onApplyCode(cleanedCode);
+          assistant.code = cleanedCode;
           assistant.applyState = 'applied';
           if (onHighlightDiff) {
             const addedLines = computeAddedLines(dl);
@@ -293,7 +306,8 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
   /** Aplica manualmente um resultado que foi bloqueado pela trava de segurança. */
   function handleApplyAnyway(msg: ChatMessage) {
     if (msg.proposedCode == null) return;
-    onApplyCode(msg.proposedCode);
+    const cleaned = cleanCode(msg.proposedCode);
+    onApplyCode(cleaned);
     setMessages((arr) => arr.map((m) => (m.id === msg.id ? { ...m, applyState: 'applied' } : m)));
     if (onHighlightDiff && msg.diff) {
       const addedLines = computeAddedLines(msg.diff);
