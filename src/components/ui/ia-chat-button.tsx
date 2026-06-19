@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Wand2 } from 'lucide-react';
+
+
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
 
@@ -117,15 +118,19 @@ export function IAChatButton({ open, onToggle }: IAChatButtonProps) {
                 WebkitMaskImage: 'linear-gradient(-75deg, #fff calc(var(--x) + 20%), transparent calc(var(--x) + 30%), #fff calc(var(--x) + 100%))',
               } as React.CSSProperties}
             >
-              <Wand2
+              <svg
+                viewBox="-5 -10 110 110"
+                xmlns="http://www.w3.org/2000/svg"
                 className={cn(
-                  'w-3.5 h-3.5 transition-colors duration-300',
+                  'w-4 h-4 transition-colors duration-300',
                   open
-                    ? 'text-primary'
-                    : 'text-muted-foreground group-hover:text-foreground',
+                    ? 'fill-primary'
+                    : 'fill-muted-foreground group-hover:fill-foreground',
                 )}
-                strokeWidth={2}
-              />
+              >
+                <path d="m74.773 57.645c-17.676 5.8398-23.562 11.727-29.402 29.402-0.48047 1.4531-2.5352 1.4531-3.0156 0-5.8398-17.676-11.727-23.562-29.402-29.402-1.4531-0.48047-1.4531-2.5352 0-3.0156 17.676-5.8398 23.562-11.727 29.402-29.402 0.48047-1.4531 2.5352-1.4531 3.0156 0 5.8398 17.676 11.727 23.562 29.402 29.402 1.4531 0.48047 1.4531 2.5352 0 3.0156z" />
+                <path d="m87.594 28.617c-8.8359 2.918-11.781 5.8633-14.703 14.703-0.23828 0.72656-1.2656 0.72656-1.5078 0-2.918-8.8359-5.8633-11.781-14.703-14.703-0.72656-0.23828-0.72656-1.2656 0-1.5078 8.8359-2.918 11.781-5.8633 14.703-14.703 0.23828-0.72656 1.2656-0.72656 1.5078 0 2.918 8.8359 5.8633 11.781 14.703 14.703 0.72656 0.23828 0.72656 1.2656 0 1.5078z" />
+              </svg>
             </div>
           </motion.div>
         </button>
