@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 import { VDivider } from '@/components/ui/dividers';
 import { IconButton } from '@/components/ui/icon-button';
-import { TessChatButton } from '@/components/ai/tess/TessChatButton';
+import { IAChatButton } from '@/components/ui/ia-chat-button';
 import { TESS_ENABLED } from '@/lib/tessConfig';
 import { ZOOM_MIN, ZOOM_MAX } from '@/components/ZoomControls';
 import type { PythonEditorTheme } from '@/lib/storage';
@@ -113,7 +113,7 @@ export function PythonEditorToolbar({
           {TESS_ENABLED && (
             <>
               <VDivider />
-              <TessChatButton open={tessChatOpen} onToggle={onToggleTessChat} />
+              <IAChatButton open={tessChatOpen} onToggle={onToggleTessChat} />
             </>
           )}
         </div>
