@@ -391,22 +391,15 @@ function buildUserPrompt(mode: TessMode, content: string, code: string): string 
   const acao = mode === 'fix' ? 'CORRIJA' : 'ALTERE';
 
   return [
-    `${acao} o código Python abaixo conforme o pedido. NÃO converse, NÃO explique muito.`,
+    `${acao} o código Python abaixo conforme o pedido.`,
     ``,
-    `RESPONDA APENAS COM EDIÇÕES CIRÚRGICAS neste formato EXATO (um ou mais blocos):`,
+    `INSTRUÇÃO CRÍTICA: Responda com UMA frase curta + um único bloco \`\`\`python\`\`\` com APENAS as variáveis que mudaram ou serão criadas.`,
     ``,
-    `<<<<<<< BUSCAR`,
-    `(copie aqui, LETRA POR LETRA, as linhas exatas que existem no código atual)`,
-    `=======`,
-    `(as linhas novas que substituem as de cima)`,
-    `>>>>>>> SUBSTITUIR`,
-    ``,
-    `REGRAS CRÍTICAS:`,
-    `- O trecho em BUSCAR precisa ser CÓPIA IDÊNTICA do código atual (mesma indentação, mesmos caracteres). Se não for idêntico, a edição falha.`,
-    `- Edite o MENOR trecho possível — só as linhas que realmente mudam. NÃO copie a variável inteira.`,
-    `- Para REMOVER algo, deixe a parte SUBSTITUIR vazia (ou só com as linhas que restam).`,
-    `- NUNCA use reticências, "# ...", "resto igual" dentro dos blocos.`,
-    `- Antes dos blocos, escreva no máximo UMA frase curta dizendo o que mudou.`,
+    `REGRAS:`,
+    `- Inclua o valor COMPLETO de cada variável (sem "...", sem "resto igual", sem comentários).`,
+    `- NÃO inclua variáveis que não mudaram.`,
+    `- NÃO devolva o arquivo inteiro.`,
+    `- Sem conversas, sem perguntas, sem alternativas — apenas a resposta.`,
     ``,
     `PEDIDO: ${content}`,
     ``,
@@ -415,6 +408,16 @@ function buildUserPrompt(mode: TessMode, content: string, code: string): string 
     displayCode,
     '```',
   ].join('\n');
+}
+
+/** Remove qualquer marcador BUSCAR/SUBSTITUIR que tenha escapado da limpeza. */
+function cleanCodeMarkers(code: string): string {
+  return code
+    .replace(/<{4,9}\s*BUSCAR[^\n]*\n/gi, '')
+    .replace(/\n={4,9}[^\n]*\n/gi, '\n')
+    .replace(/\n>{4,9}\s*SUBSTITUIR[^\n]*\n/gi, '\n')
+    .replace(/\n+/g, '\n') // Normaliza múltiplas quebras de linha
+    .trim();
 }
 
 /**
@@ -432,7 +435,8 @@ function buildResult(reply: string, original: string): { result: RunTessResult; 
   if (blocks.length > 0) {
     const { code, failed } = applyEditBlocks(original, blocks);
     const changed = failed.length < blocks.length && code !== original;
-    return { result: { reply, code: changed ? code : null }, failed };
+    const cleanedCode = changed && code ? cleanCodeMarkers(code) : null;
+    return { result: { reply, code: cleanedCode }, failed };
   }
 
   const fence = extractCodeFence(reply);
@@ -440,20 +444,25 @@ function buildResult(reply: string, original: string): { result: RunTessResult; 
     return { result: { reply, code: null }, failed: [] };
   }
 
+  const cleanedFence = cleanCodeMarkers(fence);
+  if (cleanedFence === original) {
+    return { result: { reply, code: null }, failed: [] };
+  }
+
   const origLines = original.split('\n').filter((l) => l.trim()).length;
-  const fenceLines = fence.split('\n').filter((l) => l.trim()).length;
+  const fenceLines = cleanedFence.split('\n').filter((l) => l.trim()).length;
 
   console.log(`[TESS] fence: ${fenceLines} non-blank lines | original: ${origLines} non-blank lines | ratio: ${(fenceLines / Math.max(origLines, 1)).toFixed(2)}`);
 
   // Arquivo original pequeno ou agente devolveu o arquivo quase completo (≥95%).
   if (origLines < 8 || fenceLines >= origLines * 0.95) {
     console.log('[TESS] → aceito como arquivo inteiro');
-    return { result: { reply, code: fence }, failed: [] };
+    return { result: { reply, code: cleanedFence }, failed: [] };
   }
 
   // Trecho parcial: merge por nome de variável (preserva o restante do original).
   console.log('[TESS] → merge por nome de variável');
-  const merged = mergeSnippet(original, fence);
+  const merged = mergeSnippet(original, cleanedFence);
   return { result: { reply, code: merged !== original ? merged : null }, failed: [] };
 }
 
