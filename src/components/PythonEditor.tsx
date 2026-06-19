@@ -654,7 +654,9 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       const editorDOM = view.dom;
       const scrollDOM = view.scrollDOM;
       const scrollbarWidth = scrollDOM.offsetWidth - scrollDOM.clientWidth;
-      const markerWidth = Math.max(10, scrollbarWidth);
+      const trackWidth = Math.max(10, scrollbarWidth);
+      const markerWidth = Math.round(trackWidth * 0.6);
+      const markerRight = Math.round((trackWidth - markerWidth) / 2);
 
       const container = document.createElement('div');
       container.setAttribute('data-diff-scrollbar', '');
@@ -663,7 +665,7 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
         right: '0px',
         top: '0px',
         bottom: '0px',
-        width: `${markerWidth}px`,
+        width: `${trackWidth}px`,
         pointerEvents: 'none',
         zIndex: '10',
       });
@@ -673,7 +675,7 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
         Object.assign(marker.style, {
           position: 'absolute',
           top: `${topPx}px`,
-          right: '0px',
+          right: `${markerRight}px`,
           width: `${markerWidth}px`,
           height: `${heightPx}px`,
           backgroundColor: color,
@@ -689,27 +691,24 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
 
         container.innerHTML = '';
 
-        // Green markers for added lines
+        // Green markers for added lines — thin indicators (max 4px each)
         for (const ln of diffAddedLines) {
           const clampedLn = Math.min(ln, view.state.doc.lines);
           const lineInfo = view.state.doc.line(clampedLn);
           const block = view.lineBlockAt(lineInfo.from);
           const topPx = (block.top / scrollHeight) * trackHeight;
-          const heightPx = Math.max(3, (block.height / scrollHeight) * trackHeight);
-          container.appendChild(createMarker(topPx, heightPx, 'rgba(34,197,94,0.8)'));
+          const heightPx = Math.min(4, Math.max(2, (block.height / scrollHeight) * trackHeight));
+          container.appendChild(createMarker(topPx, heightPx, 'rgba(34,197,94,0.55)'));
         }
 
-        // Red markers for removed lines — read from CodeMirror state field directly
+        // Red markers for removed lines — thin indicator at removal point
         const removedDecos = view.state.field(removedGhostsField, false);
         if (removedDecos) {
           const iter = removedDecos.iter();
           while (iter.value) {
             const block = view.lineBlockAt(iter.from);
-            const widget = iter.value.spec?.widget;
-            const lineCount = widget instanceof RemovedLinesWidget ? widget.lineCount : 1;
             const topPx = (block.top / scrollHeight) * trackHeight;
-            const heightPx = Math.max(3, (lineCount * block.height / scrollHeight) * trackHeight);
-            container.appendChild(createMarker(topPx, heightPx, 'rgba(239,68,68,0.8)'));
+            container.appendChild(createMarker(topPx, 3, 'rgba(239,68,68,0.55)'));
             iter.next();
           }
         }
