@@ -32,6 +32,7 @@ export interface RemovedLineGroup {
 
 class RemovedLinesWidget extends WidgetType {
   private lines: string[];
+  get lineCount() { return this.lines.length; }
   constructor(lines: string[]) { super(); this.lines = lines; }
   eq(other: RemovedLinesWidget) { return this.lines.join('\n') === other.lines.join('\n'); }
   toDOM() {
@@ -688,6 +689,7 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
 
         container.innerHTML = '';
 
+        // Green markers for added lines
         for (const ln of diffAddedLines) {
           const clampedLn = Math.min(ln, view.state.doc.lines);
           const lineInfo = view.state.doc.line(clampedLn);
@@ -697,13 +699,19 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
           container.appendChild(createMarker(topPx, heightPx, 'rgba(34,197,94,0.8)'));
         }
 
-        for (const group of diffRemovedGroups) {
-          const clampedLn = Math.min(group.atLine, view.state.doc.lines);
-          const lineInfo = view.state.doc.line(clampedLn);
-          const block = view.lineBlockAt(lineInfo.from);
-          const topPx = (block.top / scrollHeight) * trackHeight;
-          const heightPx = Math.max(3, (group.texts.length * block.height / scrollHeight) * trackHeight);
-          container.appendChild(createMarker(topPx, heightPx, 'rgba(239,68,68,0.8)'));
+        // Red markers for removed lines — read from CodeMirror state field directly
+        const removedDecos = view.state.field(removedGhostsField, false);
+        if (removedDecos) {
+          const iter = removedDecos.iter();
+          while (iter.value) {
+            const block = view.lineBlockAt(iter.from);
+            const widget = iter.value.spec?.widget;
+            const lineCount = widget instanceof RemovedLinesWidget ? widget.lineCount : 1;
+            const topPx = (block.top / scrollHeight) * trackHeight;
+            const heightPx = Math.max(3, (lineCount * block.height / scrollHeight) * trackHeight);
+            container.appendChild(createMarker(topPx, heightPx, 'rgba(239,68,68,0.8)'));
+            iter.next();
+          }
         }
       };
 
