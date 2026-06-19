@@ -32,6 +32,7 @@ export interface RemovedLineGroup {
 
 class RemovedLinesWidget extends WidgetType {
   private lines: string[];
+  get lineCount() { return this.lines.length; }
   constructor(lines: string[]) { super(); this.lines = lines; }
   eq(other: RemovedLinesWidget) { return this.lines.join('\n') === other.lines.join('\n'); }
   toDOM() {
@@ -569,6 +570,7 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
     const cmRef = useRef<ReactCodeMirrorRef>(null);
     const [showScrollTop, setShowScrollTop] = useState(false);
     const [diffAddedLines, setDiffAddedLines] = useState<number[]>([]);
+    const [diffRemovedGroups, setDiffRemovedGroups] = useState<RemovedLineGroup[]>([]);
     const [colorPicker, setColorPicker] = useState<{
       color: string;
       position: { x: number; y: number };
@@ -615,11 +617,13 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
         if (!view) return;
         view.dispatch({ effects: setDiffEffect.of(lines) });
         setDiffAddedLines(lines);
+        if (lines.length === 0) setDiffRemovedGroups([]);
       },
       showRemovedGhosts(groups: RemovedLineGroup[]) {
         const view = cmRef.current?.view;
         if (!view) return;
         view.dispatch({ effects: setRemovedGhostsEffect.of(groups) });
+        setDiffRemovedGroups(groups);
       },
     }));
 
@@ -639,6 +643,88 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
         view.dispatch({ effects: setErrorEffect.of(null) });
       }
     }, [errorPos, errorEndPos]);
+
+    // Scrollbar diff markers — fixed overlay inside .cm-editor (like VS Code minimap markers)
+    useEffect(() => {
+      const view = cmRef.current?.view;
+      const hasAdded = diffAddedLines.length > 0;
+      const hasRemoved = diffRemovedGroups.length > 0;
+      if (!view || (!hasAdded && !hasRemoved)) return;
+
+      const editorDOM = view.dom;
+      const scrollDOM = view.scrollDOM;
+      const scrollbarWidth = scrollDOM.offsetWidth - scrollDOM.clientWidth;
+      const trackWidth = Math.max(10, scrollbarWidth);
+      const markerWidth = Math.round(trackWidth * 0.6);
+      const markerRight = Math.round((trackWidth - markerWidth) / 2);
+
+      const container = document.createElement('div');
+      container.setAttribute('data-diff-scrollbar', '');
+      Object.assign(container.style, {
+        position: 'absolute',
+        right: '0px',
+        top: '0px',
+        bottom: '0px',
+        width: `${trackWidth}px`,
+        pointerEvents: 'none',
+        zIndex: '10',
+      });
+
+      const createMarker = (topPx: number, heightPx: number, color: string) => {
+        const marker = document.createElement('div');
+        Object.assign(marker.style, {
+          position: 'absolute',
+          top: `${topPx}px`,
+          right: `${markerRight}px`,
+          width: `${markerWidth}px`,
+          height: `${heightPx}px`,
+          backgroundColor: color,
+          borderRadius: '1px',
+        });
+        return marker;
+      };
+
+      const buildMarkers = () => {
+        const scrollHeight = scrollDOM.scrollHeight;
+        const trackHeight = scrollDOM.clientHeight;
+        if (scrollHeight <= 0 || trackHeight <= 0) return;
+
+        container.innerHTML = '';
+
+        // Green markers for added lines — thin indicators (max 4px each)
+        for (const ln of diffAddedLines) {
+          const clampedLn = Math.min(ln, view.state.doc.lines);
+          const lineInfo = view.state.doc.line(clampedLn);
+          const block = view.lineBlockAt(lineInfo.from);
+          const topPx = (block.top / scrollHeight) * trackHeight;
+          const heightPx = Math.min(4, Math.max(2, (block.height / scrollHeight) * trackHeight));
+          container.appendChild(createMarker(topPx, heightPx, 'rgba(34,197,94,0.55)'));
+        }
+
+        // Red markers for removed lines — thin indicator at removal point
+        const removedDecos = view.state.field(removedGhostsField, false);
+        if (removedDecos) {
+          const iter = removedDecos.iter();
+          while (iter.value) {
+            const block = view.lineBlockAt(iter.from);
+            const topPx = (block.top / scrollHeight) * trackHeight;
+            container.appendChild(createMarker(topPx, 3, 'rgba(239,68,68,0.55)'));
+            iter.next();
+          }
+        }
+      };
+
+      buildMarkers();
+      editorDOM.appendChild(container);
+
+      const resizeObs = new ResizeObserver(() => buildMarkers());
+      resizeObs.observe(scrollDOM);
+
+      return () => {
+        resizeObs.disconnect();
+        container.remove();
+      };
+    }, [diffAddedLines, diffRemovedGroups]);
 
     // Cursor tracking
     const onUpdate = (vu: import('@codemirror/view').ViewUpdate) => {
@@ -763,32 +849,7 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
           style={{ height: '100%', overflow: 'hidden' }}
         />
 
-        {/* Scrollbar diff markers (green = added lines) */}
-        {diffAddedLines.length > 0 && (() => {
-          const view = cmRef.current?.view;
-          const totalLines = view?.state.doc.lines ?? 1;
-          return (
-            <div
-              className="absolute right-0 top-0 bottom-0 pointer-events-none"
-              style={{ width: 8, zIndex: 10 }}
-            >
-              {diffAddedLines.map((ln, i) => (
-                <div
-                  key={i}
-                  className="absolute"
-                  style={{
-                    top: `${(ln / totalLines) * 100}%`,
-                    right: 0,
-                    width: 8,
-                    height: Math.max(3, 100 / totalLines * 2),
-                    backgroundColor: 'rgba(34,197,94,0.8)',
-                    borderRadius: 1,
-                  }}
-                />
-              ))}
-            </div>
-          );
-        })()}
+        {/* Scrollbar diff markers are injected via useEffect into scrollDOM */}
 
         {showScrollTop && (
           <button
