@@ -569,6 +569,7 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
     const cmRef = useRef<ReactCodeMirrorRef>(null);
     const [showScrollTop, setShowScrollTop] = useState(false);
     const [diffAddedLines, setDiffAddedLines] = useState<number[]>([]);
+    const [diffRemovedGroups, setDiffRemovedGroups] = useState<RemovedLineGroup[]>([]);
     const [colorPicker, setColorPicker] = useState<{
       color: string;
       position: { x: number; y: number };
@@ -615,11 +616,13 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
         if (!view) return;
         view.dispatch({ effects: setDiffEffect.of(lines) });
         setDiffAddedLines(lines);
+        if (lines.length === 0) setDiffRemovedGroups([]);
       },
       showRemovedGhosts(groups: RemovedLineGroup[]) {
         const view = cmRef.current?.view;
         if (!view) return;
         view.dispatch({ effects: setRemovedGhostsEffect.of(groups) });
+        setDiffRemovedGroups(groups);
       },
     }));
 
@@ -643,10 +646,14 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
     // Scrollbar diff markers — fixed overlay inside .cm-editor (like VS Code minimap markers)
     useEffect(() => {
       const view = cmRef.current?.view;
-      if (!view || diffAddedLines.length === 0) return;
+      const hasAdded = diffAddedLines.length > 0;
+      const hasRemoved = diffRemovedGroups.length > 0;
+      if (!view || (!hasAdded && !hasRemoved)) return;
 
-      const editorDOM = view.dom; // .cm-editor — has position: relative
+      const editorDOM = view.dom;
       const scrollDOM = view.scrollDOM;
+      const scrollbarWidth = scrollDOM.offsetWidth - scrollDOM.clientWidth;
+      const markerWidth = Math.max(10, scrollbarWidth);
 
       const container = document.createElement('div');
       container.setAttribute('data-diff-scrollbar', '');
@@ -655,10 +662,24 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
         right: '0px',
         top: '0px',
         bottom: '0px',
-        width: '8px',
+        width: `${markerWidth}px`,
         pointerEvents: 'none',
         zIndex: '10',
       });
+
+      const createMarker = (topPx: number, heightPx: number, color: string) => {
+        const marker = document.createElement('div');
+        Object.assign(marker.style, {
+          position: 'absolute',
+          top: `${topPx}px`,
+          right: '0px',
+          width: `${markerWidth}px`,
+          height: `${heightPx}px`,
+          backgroundColor: color,
+          borderRadius: '1px',
+        });
+        return marker;
+      };
 
       const buildMarkers = () => {
         const scrollHeight = scrollDOM.scrollHeight;
@@ -671,19 +692,18 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
           const clampedLn = Math.min(ln, view.state.doc.lines);
           const lineInfo = view.state.doc.line(clampedLn);
           const block = view.lineBlockAt(lineInfo.from);
-          const marker = document.createElement('div');
           const topPx = (block.top / scrollHeight) * trackHeight;
           const heightPx = Math.max(3, (block.height / scrollHeight) * trackHeight);
-          Object.assign(marker.style, {
-            position: 'absolute',
-            top: `${topPx}px`,
-            right: '0px',
-            width: '8px',
-            height: `${heightPx}px`,
-            backgroundColor: 'rgba(34,197,94,0.8)',
-            borderRadius: '1px',
-          });
-          container.appendChild(marker);
+          container.appendChild(createMarker(topPx, heightPx, 'rgba(34,197,94,0.8)'));
+        }
+
+        for (const group of diffRemovedGroups) {
+          const clampedLn = Math.min(group.atLine, view.state.doc.lines);
+          const lineInfo = view.state.doc.line(clampedLn);
+          const block = view.lineBlockAt(lineInfo.from);
+          const topPx = (block.top / scrollHeight) * trackHeight;
+          const heightPx = Math.max(3, (group.texts.length * block.height / scrollHeight) * trackHeight);
+          container.appendChild(createMarker(topPx, heightPx, 'rgba(239,68,68,0.8)'));
         }
       };
 
@@ -697,7 +717,7 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
         resizeObs.disconnect();
         container.remove();
       };
-    }, [diffAddedLines]);
+    }, [diffAddedLines, diffRemovedGroups]);
 
     // Cursor tracking
     const onUpdate = (vu: import('@codemirror/view').ViewUpdate) => {
