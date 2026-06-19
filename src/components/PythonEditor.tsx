@@ -640,6 +640,67 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
       }
     }, [errorPos, errorEndPos]);
 
+    // Scrollbar diff markers — injected directly into CodeMirror's scrollDOM
+    useEffect(() => {
+      const view = cmRef.current?.view;
+      if (!view || diffAddedLines.length === 0) return;
+
+      const scrollDOM = view.scrollDOM;
+      const container = document.createElement('div');
+      container.setAttribute('data-diff-scrollbar', '');
+      Object.assign(container.style, {
+        position: 'absolute',
+        right: '0px',
+        width: '8px',
+        pointerEvents: 'none',
+        zIndex: '10',
+      });
+
+      const buildMarkers = () => {
+        const scrollHeight = scrollDOM.scrollHeight;
+        const clientHeight = scrollDOM.clientHeight;
+        if (scrollHeight <= 0 || clientHeight <= 0) return;
+
+        container.style.top = `${scrollDOM.scrollTop}px`;
+        container.style.height = `${clientHeight}px`;
+        container.innerHTML = '';
+
+        for (const ln of diffAddedLines) {
+          const clampedLn = Math.min(ln, view.state.doc.lines);
+          const lineInfo = view.state.doc.line(clampedLn);
+          const block = view.lineBlockAt(lineInfo.from);
+          const marker = document.createElement('div');
+          Object.assign(marker.style, {
+            position: 'absolute',
+            top: `${(block.top / scrollHeight) * 100}%`,
+            right: '0px',
+            width: '8px',
+            height: `${Math.max(3, (block.height / scrollHeight) * clientHeight)}px`,
+            backgroundColor: 'rgba(34,197,94,0.8)',
+            borderRadius: '1px',
+          });
+          container.appendChild(marker);
+        }
+      };
+
+      buildMarkers();
+      scrollDOM.appendChild(container);
+
+      const onScroll = () => {
+        container.style.top = `${scrollDOM.scrollTop}px`;
+      };
+      scrollDOM.addEventListener('scroll', onScroll);
+
+      const resizeObs = new ResizeObserver(() => buildMarkers());
+      resizeObs.observe(scrollDOM);
+
+      return () => {
+        scrollDOM.removeEventListener('scroll', onScroll);
+        resizeObs.disconnect();
+        container.remove();
+      };
+    }, [diffAddedLines]);
+
     // Cursor tracking
     const onUpdate = (vu: import('@codemirror/view').ViewUpdate) => {
       if (vu.selectionSet || vu.docChanged) {
@@ -763,39 +824,7 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
           style={{ height: '100%', overflow: 'hidden' }}
         />
 
-        {/* Scrollbar diff markers (green = added lines) */}
-        {diffAddedLines.length > 0 && (() => {
-          const view = cmRef.current?.view;
-          if (!view) return null;
-          const scrollHeight = view.scrollDOM.scrollHeight;
-          if (scrollHeight <= 0) return null;
-          return (
-            <div
-              className="absolute right-0 top-0 bottom-0 pointer-events-none"
-              style={{ width: 8, zIndex: 10 }}
-            >
-              {diffAddedLines.map((ln, i) => {
-                const clampedLn = Math.min(ln, view.state.doc.lines);
-                const lineInfo = view.state.doc.line(clampedLn);
-                const block = view.lineBlockAt(lineInfo.from);
-                return (
-                  <div
-                    key={i}
-                    className="absolute"
-                    style={{
-                      top: `${(block.top / scrollHeight) * 100}%`,
-                      right: 0,
-                      width: 8,
-                      height: Math.max(3, (block.height / scrollHeight) * 100),
-                      backgroundColor: 'rgba(34,197,94,0.8)',
-                      borderRadius: 1,
-                    }}
-                  />
-                );
-              })}
-            </div>
-          );
-        })()}
+        {/* Scrollbar diff markers are injected via useEffect into scrollDOM */}
 
         {showScrollTop && (
           <button
