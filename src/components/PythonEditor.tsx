@@ -766,26 +766,33 @@ export const PythonEditor = forwardRef<PythonEditorHandle, Props>(
         {/* Scrollbar diff markers (green = added lines) */}
         {diffAddedLines.length > 0 && (() => {
           const view = cmRef.current?.view;
-          const totalLines = view?.state.doc.lines ?? 1;
+          if (!view) return null;
+          const scrollHeight = view.scrollDOM.scrollHeight;
+          if (scrollHeight <= 0) return null;
           return (
             <div
               className="absolute right-0 top-0 bottom-0 pointer-events-none"
               style={{ width: 8, zIndex: 10 }}
             >
-              {diffAddedLines.map((ln, i) => (
-                <div
-                  key={i}
-                  className="absolute"
-                  style={{
-                    top: `${(ln / totalLines) * 100}%`,
-                    right: 0,
-                    width: 8,
-                    height: Math.max(3, 100 / totalLines * 2),
-                    backgroundColor: 'rgba(34,197,94,0.8)',
-                    borderRadius: 1,
-                  }}
-                />
-              ))}
+              {diffAddedLines.map((ln, i) => {
+                const clampedLn = Math.min(ln, view.state.doc.lines);
+                const lineInfo = view.state.doc.line(clampedLn);
+                const block = view.lineBlockAt(lineInfo.from);
+                return (
+                  <div
+                    key={i}
+                    className="absolute"
+                    style={{
+                      top: `${(block.top / scrollHeight) * 100}%`,
+                      right: 0,
+                      width: 8,
+                      height: Math.max(3, (block.height / scrollHeight) * 100),
+                      backgroundColor: 'rgba(34,197,94,0.8)',
+                      borderRadius: 1,
+                    }}
+                  />
+                );
+              })}
             </div>
           );
         })()}
