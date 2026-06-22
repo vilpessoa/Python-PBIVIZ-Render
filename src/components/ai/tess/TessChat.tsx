@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useDragControls, useMotionValue, useReducedMotion } from 'framer-motion';
-import { X, Send, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw, Minus, ChevronDown } from 'lucide-react';
+import { X, Send, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw, Minus } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown';
 import { useAutoResizeTextarea } from '@/hooks/useAutoResizeTextarea';
 import { sendAssistantMessage } from '@/services/aiService';
 import { TessLogo } from './TessLogo';
@@ -36,11 +35,22 @@ interface Props {
   onScrollToDiff?: (lineNumber: number) => void;
 }
 
-const MODES: { id: TessMode; label: string; icon: React.ElementType; placeholder: string }[] = [
-  { id: 'edit', label: 'Modificar', icon: Wand2, placeholder: '' },
-  { id: 'fix', label: 'Corrigir', icon: Bug, placeholder: '' },
-  { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, placeholder: '' },
+const MODES: { id: TessMode; label: string; icon: React.ElementType; color: string; bgActive: string; borderActive: string }[] = [
+  { id: 'edit', label: 'Modificar', icon: Wand2, color: 'text-[#8B5CF6]', bgActive: 'bg-[#8B5CF6]/15', borderActive: 'border-[#8B5CF6]' },
+  { id: 'fix', label: 'Corrigir', icon: Bug, color: 'text-[#F97316]', bgActive: 'bg-[#F97316]/15', borderActive: 'border-[#F97316]' },
+  { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, color: 'text-[#1EAEDB]', bgActive: 'bg-[#1EAEDB]/15', borderActive: 'border-[#1EAEDB]' },
 ];
+
+function ModeDivider() {
+  return (
+    <div className="relative mx-0.5 h-5 w-[1.5px]">
+      <div
+        className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-primary/40 to-transparent"
+        style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 40%, 140% 50%, 100% 60%, 100% 100%, 0% 100%, 0% 60%, -40% 50%, 0% 40%)' }}
+      />
+    </div>
+  );
+}
 
 const PANEL_W = 384;
 const DRAG_MARGIN = 16;
@@ -320,7 +330,6 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
     }
   }
 
-  const placeholder = MODES.find((m) => m.id === mode)?.placeholder ?? '';
   const isWelcome = messages.length === 0 && !loading;
 
   return (
@@ -521,7 +530,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
             </div>
           )}
 
-          {/* Input estilo PromptBox: textarea auto-resize + barra com modos (Popover) e enviar */}
+          {/* Input: textarea auto-resize + barra com modos animados e enviar */}
           <div className="shrink-0 p-2.5">
             <div className="flex flex-col rounded-2xl border border-border bg-background p-2 shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-ring">
               <textarea
@@ -533,46 +542,54 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
                 }}
                 onKeyDown={onInputKeyDown}
                 rows={1}
-                placeholder={placeholder}
+                placeholder="Escreva sua solicitação..."
                 className="custom-scrollbar max-h-[140px] w-full resize-none border-0 bg-transparent px-2 py-1.5 text-xs leading-relaxed outline-none placeholder:text-muted-foreground"
               />
-              <div className="mt-1 flex items-center gap-2">
-                {(() => {
-                  const current = MODES.find((m) => m.id === mode) ?? MODES[0];
-                  const CurrentIcon = current.icon;
-                  return (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+              <div className="mt-1 flex items-center gap-1">
+                <div className="flex items-center">
+                  {MODES.map((m, i) => {
+                    const Icon = m.icon;
+                    const active = mode === m.id;
+                    return (
+                      <div key={m.id} className="flex items-center">
+                        {i > 0 && <ModeDivider />}
                         <button
                           type="button"
-                          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-[11px] font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          aria-label="Selecionar modo"
+                          onClick={() => setMode(m.id)}
+                          className={cn(
+                            'flex h-7 items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium transition-all',
+                            active
+                              ? cn(m.bgActive, m.borderActive, m.color)
+                              : 'border-transparent bg-transparent text-muted-foreground hover:text-foreground',
+                          )}
                         >
-                          <CurrentIcon className="h-3.5 w-3.5 text-primary" />
-                          {current.label}
-                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent side="top" align="start" className="z-[80] min-w-[12rem] rounded-xl p-1.5">
-                        {MODES.map((m) => {
-                          const Icon = m.icon;
-                          const active = mode === m.id;
-                          return (
-                            <DropdownMenuItem
-                              key={m.id}
-                              onSelect={() => setMode(m.id)}
-                              className={cn('gap-2 rounded-lg px-2.5 py-2 text-xs', active && 'text-primary')}
+                          <div className="flex h-4 w-4 shrink-0 items-center justify-center">
+                            <motion.div
+                              animate={{ rotate: active ? 360 : 0, scale: active ? 1.1 : 1 }}
+                              whileHover={{ rotate: active ? 360 : 15, scale: 1.1, transition: { type: 'spring', stiffness: 300, damping: 10 } }}
+                              transition={{ type: 'spring', stiffness: 260, damping: 25 }}
                             >
-                              <Icon className="h-4 w-4" />
-                              <span className="flex-1">{m.label}</span>
-                              {active && <Check className="h-3.5 w-3.5" />}
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  );
-                })()}
+                              <Icon className={cn('h-3.5 w-3.5', active ? m.color : 'text-inherit')} />
+                            </motion.div>
+                          </div>
+                          <AnimatePresence>
+                            {active && (
+                              <motion.span
+                                initial={{ width: 0, opacity: 0 }}
+                                animate={{ width: 'auto', opacity: 1 }}
+                                exit={{ width: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className={cn('overflow-hidden whitespace-nowrap text-[11px]', m.color)}
+                              >
+                                {m.label}
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
                 <Button
                   size="icon"
                   className="ml-auto h-8 w-8 shrink-0 rounded-full"
