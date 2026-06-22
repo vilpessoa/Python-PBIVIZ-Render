@@ -284,7 +284,6 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
     onHighlightDiff?.([]);
     onShowRemovedGhosts?.([]);
     setMessages((arr) => arr.map((m) => (m.id === msg.id ? { ...m, applyState: 'approved' } : m)));
-    toast.success('Alteração aprovada', { position: 'top-right' });
   }
 
   function handleRevert(msg: ChatMessage) {
@@ -293,7 +292,6 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
     onHighlightDiff?.([]);
     onShowRemovedGhosts?.([]);
     setMessages((arr) => arr.map((m) => (m.id === msg.id ? { ...m, applyState: 'reverted' } : m)));
-    toast.success('Alteração revertida', { position: 'top-right' });
   }
 
   /** Aplica manualmente um resultado que foi bloqueado pela trava de segurança. */
@@ -466,15 +464,24 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
                       </div>
                     )}
 
-                    {/* Aprovado / Revertido — estado final */}
+                    {/* Aprovado / Revertido — estado final (feedback no próprio balão) */}
                     {(m.applyState === 'approved' || m.applyState === 'reverted') && (
-                      <>
-                        <div className="mt-2 mb-2 border-t border-border/50" />
-                        <div className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                          <Check className="h-3 w-3" />
-                          {m.applyState === 'approved' ? 'Aprovado' : 'Revertido'}
-                        </div>
-                      </>
+                      <motion.div
+                        initial={reduce ? false : { opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 28 }}
+                        className="mt-2"
+                      >
+                        {m.applyState === 'approved' ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            <Check className="h-3 w-3" /> Aprovado
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                            <Undo2 className="h-3 w-3" /> Revertido
+                          </span>
+                        )}
+                      </motion.div>
                     )}
 
                     {/* Bloqueado pela trava de segurança */}
