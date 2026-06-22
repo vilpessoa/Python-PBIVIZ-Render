@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useDragControls, useMotionValue, useReducedMotion } from 'framer-motion';
-import { X, Send, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw, Minus } from 'lucide-react';
+import { X, ArrowUp, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw, Minus } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/cn';
@@ -603,7 +603,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
                   {loading ? (
                     <div className="h-3.5 w-3.5 animate-spin rounded-sm bg-primary-foreground" style={{ animationDuration: '3s' }} />
                   ) : (
-                    <Send className="h-4 w-4" />
+                    <ArrowUp className="h-4 w-4" />
                   )}
                 </Button>
               </div>
