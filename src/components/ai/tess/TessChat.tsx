@@ -36,9 +36,9 @@ interface Props {
 }
 
 const MODES: { id: TessMode; label: string; icon: React.ElementType; color: string; bgActive: string; borderActive: string }[] = [
-  { id: 'edit', label: 'Modificar', icon: Wand2, color: 'text-[#8B5CF6]', bgActive: 'bg-[#8B5CF6]/15', borderActive: 'border-[#8B5CF6]' },
-  { id: 'fix', label: 'Corrigir', icon: Bug, color: 'text-[#F97316]', bgActive: 'bg-[#F97316]/15', borderActive: 'border-[#F97316]' },
-  { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, color: 'text-[#1EAEDB]', bgActive: 'bg-[#1EAEDB]/15', borderActive: 'border-[#1EAEDB]' },
+  { id: 'edit', label: 'Modificar', icon: Wand2, color: 'text-[#6B9FD6]', bgActive: 'bg-[#6B9FD6]/10', borderActive: 'border-[#6B9FD6]/50' },
+  { id: 'fix', label: 'Corrigir', icon: Bug, color: 'text-[#D68B8B]', bgActive: 'bg-[#D68B8B]/10', borderActive: 'border-[#D68B8B]/50' },
+  { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, color: 'text-[#6B9FD6]', bgActive: 'bg-[#6B9FD6]/10', borderActive: 'border-[#6B9FD6]/50' },
 ];
 
 function ModeDivider() {
@@ -383,9 +383,12 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
           {isWelcome ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-5 py-6">
               <Typewriter
-                text="Como posso te ajudar hoje?"
+                text="Como posso te ajudar?"
                 speed={60}
                 cursor="|"
+                loop
+                delay={2000}
+                deleteSpeed={35}
                 className="text-base font-medium text-muted-foreground"
               />
             </div>
