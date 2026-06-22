@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useDragControls, useMotionValue, useReducedMotion } from 'framer-motion';
-import { X, Send, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw, Minus, ChevronDown } from 'lucide-react';
+import { X, ArrowUp, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw, Minus } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown';
 import { useAutoResizeTextarea } from '@/hooks/useAutoResizeTextarea';
 import { sendAssistantMessage } from '@/services/aiService';
-import { TessLogo, TessWordmark } from './TessLogo';
+import { TessLogo } from './TessLogo';
+import { Typewriter } from '@/components/ui/typewriter';
 import { diffLines, diffStats } from './tessDiff';
 import type { ChatMessage, TessChatMessage, TessMode } from './types';
 
@@ -35,11 +35,12 @@ interface Props {
   onScrollToDiff?: (lineNumber: number) => void;
 }
 
-const MODES: { id: TessMode; label: string; icon: React.ElementType; placeholder: string }[] = [
-  { id: 'edit', label: 'Modificar', icon: Wand2, placeholder: '' },
-  { id: 'fix', label: 'Corrigir', icon: Bug, placeholder: '' },
-  { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, placeholder: '' },
+const MODES: { id: TessMode; label: string; icon: React.ElementType; color: string; bgActive: string; borderActive: string }[] = [
+  { id: 'edit', label: 'Modificar', icon: Wand2, color: 'text-[#6B9FD6]', bgActive: 'bg-[#6B9FD6]/10', borderActive: 'border-[#6B9FD6]/50' },
+  { id: 'fix', label: 'Corrigir', icon: Bug, color: 'text-[#D68B8B]', bgActive: 'bg-[#D68B8B]/10', borderActive: 'border-[#D68B8B]/50' },
+  { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, color: 'text-[#6B9FD6]', bgActive: 'bg-[#6B9FD6]/10', borderActive: 'border-[#6B9FD6]/50' },
 ];
+
 
 const PANEL_W = 384;
 const DRAG_MARGIN = 16;
@@ -75,12 +76,7 @@ function cleanCode(code: string): string {
     .trim();
 }
 
-const WELCOME: ChatMessage = {
-  id: 'welcome',
-  role: 'assistant',
-  content:
-    'Olá! Sou o Assistente TESS. Escolha um modo abaixo: "Modificar" e "Corrigir" agem direto no código; "Tirar dúvidas" apenas responde sem alterar nada.',
-};
+const WELCOME_ID = 'welcome';
 
 /** Retorna os números de linha 1-indexados das linhas adicionadas no diff. */
 function computeAddedLines(diff: ReturnType<typeof diffLines>): number[] {
@@ -116,7 +112,7 @@ function computeRemovedGroups(diff: ReturnType<typeof diffLines>): { atLine: num
 }
 
 export function TessChat({ open, onClose, onMinimize, minimized, position, onPositionChange, code, onApplyCode, onHighlightDiff, onShowRemovedGhosts, onScrollToDiff }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<TessMode>('edit');
@@ -207,7 +203,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
 
     // Histórico para a API (sem a mensagem de boas-vindas e sem erros)
     const apiMessages: TessChatMessage[] = history
-      .filter((m) => m.id !== 'welcome' && !m.isError)
+      .filter((m) => m.id !== WELCOME_ID && !m.isError)
       .map((m) => ({ role: m.role, content: m.content }));
 
     const before = codeRef.current;
@@ -314,7 +310,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
   function handleClearChat() {
     onHighlightDiff?.([]);
     onShowRemovedGhosts?.([]);
-    setMessages([WELCOME]);
+    setMessages([]);
   }
 
   function onInputKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -324,8 +320,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
     }
   }
 
-  const placeholder = MODES.find((m) => m.id === mode)?.placeholder ?? '';
-  const isWelcome = messages.length === 1 && messages[0].id === 'welcome' && !loading;
+  const isWelcome = messages.length === 0 && !loading;
 
   return (
     <AnimatePresence>
@@ -359,7 +354,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
                 size="icon"
                 className="h-6 w-6"
                 onClick={handleClearChat}
-                disabled={messages.length <= 1}
+                disabled={messages.length === 0}
                 aria-label="Limpar conversa"
                 title="Limpar conversa"
               >
@@ -376,8 +371,16 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
 
           {/* Conteúdo: tela de boas-vindas ou lista de mensagens */}
           {isWelcome ? (
-            <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-5 py-6">
-              <TessWordmark className="h-10 opacity-90" />
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-5 py-6">
+              <Typewriter
+                text="Como posso te ajudar?"
+                speed={60}
+                cursor="|"
+                loop
+                delay={2000}
+                deleteSpeed={35}
+                className="text-base font-medium text-muted-foreground"
+              />
             </div>
           ) : (
             <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
@@ -520,7 +523,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
             </div>
           )}
 
-          {/* Input estilo PromptBox: textarea auto-resize + barra com modos (Popover) e enviar */}
+          {/* Input: textarea auto-resize + barra com modos animados e enviar */}
           <div className="shrink-0 p-2.5">
             <div className="flex flex-col rounded-2xl border border-border bg-background p-2 shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-ring">
               <textarea
@@ -532,46 +535,53 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
                 }}
                 onKeyDown={onInputKeyDown}
                 rows={1}
-                placeholder={placeholder}
+                placeholder="Escreva sua solicitação..."
                 className="custom-scrollbar max-h-[140px] w-full resize-none border-0 bg-transparent px-2 py-1.5 text-xs leading-relaxed outline-none placeholder:text-muted-foreground"
               />
-              <div className="mt-1 flex items-center gap-2">
-                {(() => {
-                  const current = MODES.find((m) => m.id === mode) ?? MODES[0];
-                  const CurrentIcon = current.icon;
-                  return (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+              <div className="mt-1 flex items-center gap-1">
+                <div className="flex items-center">
+                  {MODES.map((m, i) => {
+                    const Icon = m.icon;
+                    const active = mode === m.id;
+                    return (
+                      <div key={m.id} className="flex items-center">
                         <button
                           type="button"
-                          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-[11px] font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          aria-label="Selecionar modo"
+                          onClick={() => setMode(m.id)}
+                          className={cn(
+                            'flex h-7 items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium transition-all',
+                            active
+                              ? cn(m.bgActive, m.borderActive, m.color)
+                              : 'border-transparent bg-transparent text-muted-foreground hover:text-foreground',
+                          )}
                         >
-                          <CurrentIcon className="h-3.5 w-3.5 text-primary" />
-                          {current.label}
-                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent side="top" align="start" className="z-[80] min-w-[12rem] rounded-xl p-1.5">
-                        {MODES.map((m) => {
-                          const Icon = m.icon;
-                          const active = mode === m.id;
-                          return (
-                            <DropdownMenuItem
-                              key={m.id}
-                              onSelect={() => setMode(m.id)}
-                              className={cn('gap-2 rounded-lg px-2.5 py-2 text-xs', active && 'text-primary')}
+                          <div className="flex h-4 w-4 shrink-0 items-center justify-center">
+                            <motion.div
+                              animate={{ rotate: active ? 360 : 0, scale: active ? 1.1 : 1 }}
+                              whileHover={{ rotate: active ? 360 : 15, scale: 1.1, transition: { type: 'spring', stiffness: 300, damping: 10 } }}
+                              transition={{ type: 'spring', stiffness: 260, damping: 25 }}
                             >
-                              <Icon className="h-4 w-4" />
-                              <span className="flex-1">{m.label}</span>
-                              {active && <Check className="h-3.5 w-3.5" />}
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  );
-                })()}
+                              <Icon className={cn('h-3.5 w-3.5', active ? m.color : 'text-inherit')} />
+                            </motion.div>
+                          </div>
+                          <AnimatePresence>
+                            {active && (
+                              <motion.span
+                                initial={{ width: 0, opacity: 0 }}
+                                animate={{ width: 'auto', opacity: 1 }}
+                                exit={{ width: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className={cn('overflow-hidden whitespace-nowrap text-[11px]', m.color)}
+                              >
+                                {m.label}
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
                 <Button
                   size="icon"
                   className="ml-auto h-8 w-8 shrink-0 rounded-full"
@@ -582,7 +592,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
                   {loading ? (
                     <div className="h-3.5 w-3.5 animate-spin rounded-sm bg-primary-foreground" style={{ animationDuration: '3s' }} />
                   ) : (
-                    <Send className="h-4 w-4" />
+                    <ArrowUp className="h-4 w-4" />
                   )}
                 </Button>
               </div>
