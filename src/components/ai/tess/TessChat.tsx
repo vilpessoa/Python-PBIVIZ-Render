@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useDragControls, useMotionValue, useReducedMotion } from 'framer-motion';
-import { X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw, Minus, Plus, Table } from 'lucide-react';
+import { X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw, Minus, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown';
 import { ProgressiveFluxLoader } from '@/components/ui/progressive-flux-loader';
 import { sendAssistantMessage } from '@/services/aiService';
 import { TessLogo, TessWordmark } from './TessLogo';
@@ -39,14 +39,6 @@ const MODES: { id: TessMode; label: string; icon: React.ElementType; placeholder
   { id: 'edit', label: 'Modificar', icon: Wand2, placeholder: 'Ex.: adicione 2 novos usuários…' },
   { id: 'fix', label: 'Corrigir', icon: Bug, placeholder: 'Descreva o erro ou peça para corrigir…' },
   { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, placeholder: 'Ex.: o que esse trecho faz?' },
-];
-
-/** Prompts rápidos exibidos na tela de boas-vindas (preenchem o input ao clicar). */
-const QUICK_PROMPTS: { label: string; text: string; icon: React.ElementType }[] = [
-  { label: 'Adicionar item', text: 'Adicione um novo item aos dados.', icon: Plus },
-  { label: 'Corrigir erro', text: 'Corrija os erros do código.', icon: Bug },
-  { label: 'Explicar o código', text: 'O que este código faz?', icon: HelpCircle },
-  { label: 'Gerar tabela HTML', text: 'Gere uma tabela HTML a partir dos dados.', icon: Table },
 ];
 
 const PANEL_W = 384;
@@ -326,11 +318,6 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
     setMessages([WELCOME]);
   }
 
-  function handleQuickPrompt(text: string) {
-    setInput(text);
-    inputRef.current?.focus();
-  }
-
   function onInputKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -365,10 +352,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
           >
             <div className="flex items-center gap-2">
               <TessLogo className="h-7 w-7" />
-              <div className="leading-tight">
-                <div className="text-sm font-semibold">Assistente TESS</div>
-                <div className="text-[10px] text-muted-foreground">Construtor de código Python</div>
-              </div>
+              <div className="text-sm font-semibold">Assistente TESS</div>
             </div>
             <div className="flex items-center gap-0.5" onPointerDown={(e) => e.stopPropagation()}>
               <Button
@@ -393,30 +377,8 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
 
           {/* Conteúdo: tela de boas-vindas ou lista de mensagens */}
           {isWelcome ? (
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
-              <div className="flex flex-col items-center gap-4 text-center">
-                <TessWordmark className="h-10" />
-                <div className="space-y-1">
-                  <h3 className="text-base font-semibold tracking-tight">Como posso ajudar?</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Escolha um atalho abaixo ou descreva o que precisa. Use os modos para
-                    modificar, corrigir ou tirar dúvidas sobre o código.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                  {QUICK_PROMPTS.map((p) => {
-                    const Icon = p.icon;
-                    return (
-                      <button key={p.label} type="button" onClick={() => handleQuickPrompt(p.text)}>
-                        <Badge variant="outline" className="cursor-pointer gap-1.5 hover:bg-accent">
-                          <Icon className="h-3.5 w-3.5 text-primary" />
-                          {p.label}
-                        </Badge>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-5 py-6">
+              <TessWordmark className="h-10 opacity-90" />
             </div>
           ) : (
             <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
@@ -551,55 +513,63 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
             </div>
           )}
 
-          {/* Seletor de modo */}
-          <div className="flex shrink-0 items-center gap-1 border-t border-border bg-surface px-2.5 pt-2">
-            {MODES.map((m) => {
-              const Icon = m.icon;
-              const active = mode === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setMode(m.id)}
-                  aria-pressed={active}
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
-                    active
-                      ? 'border-primary/40 bg-primary/15 text-primary'
-                      : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                >
-                  <Icon className="h-3 w-3" />
-                  {m.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Input */}
-          <div className="shrink-0 bg-surface p-2.5 pt-2">
-            <div className="flex items-end gap-2">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={onInputKeyDown}
-                rows={1}
-                placeholder={placeholder}
-                className="max-h-28 min-h-[38px] flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-ring"
-              />
+          {/* Input + seletor de modo (dropdown) */}
+          <div className="shrink-0 border-t border-border bg-surface p-2.5">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onInputKeyDown}
+              rows={1}
+              placeholder={placeholder}
+              className="max-h-28 min-h-[38px] w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-ring"
+            />
+            <div className="mt-2 flex items-center gap-2">
+              {(() => {
+                const current = MODES.find((m) => m.id === mode) ?? MODES[0];
+                const CurrentIcon = current.icon;
+                return (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-[11px] font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label="Selecionar modo"
+                      >
+                        <CurrentIcon className="h-3.5 w-3.5 text-primary" />
+                        {current.label}
+                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="top" align="start" className="z-[80] min-w-[11rem]">
+                      {MODES.map((m) => {
+                        const Icon = m.icon;
+                        const active = mode === m.id;
+                        return (
+                          <DropdownMenuItem
+                            key={m.id}
+                            onSelect={() => setMode(m.id)}
+                            className={cn('gap-2 text-xs', active && 'text-primary')}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                            <span className="flex-1">{m.label}</span>
+                            {active && <Check className="h-3.5 w-3.5" />}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              })()}
               <Button
                 size="icon"
-                className="h-9 w-9 shrink-0"
+                className="ml-auto h-9 w-9 shrink-0"
                 onClick={handleSend}
                 disabled={loading || !input.trim()}
                 aria-label="Enviar"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
-            </div>
-            <div className="mt-1 px-1 text-[10px] text-muted-foreground">
-              Enter envia · Shift+Enter quebra linha
             </div>
           </div>
         </motion.div>
