@@ -437,7 +437,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
                                   if (addedLines.length > 0) onScrollToDiff(addedLines[0]);
                                 }
                               }}
-                              className="ml-0.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10"
+                              className="ml-0.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-primary transition-all hover:bg-primary/10 active:scale-95"
                             >
                               <Eye className="h-3 w-3" /> Avaliar
                             </button>
@@ -448,18 +448,18 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
 
                     {/* Aplicado — aguardando aprovação */}
                     {m.applyState === 'applied' && (
-                      <div className="mt-2 flex items-center justify-end gap-1.5">
+                      <div className="mt-2 flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => handleApprove(m)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-[11px] font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
+                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-[11px] font-medium text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-95"
                         >
                           <Check className="h-3 w-3" /> Aprovar
                         </button>
                         <button
                           type="button"
                           onClick={() => handleRevert(m)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1 text-[11px] font-medium text-muted-foreground transition-all hover:bg-accent hover:text-foreground active:scale-95"
                         >
                           <Undo2 className="h-3 w-3" /> Reverter
                         </button>
