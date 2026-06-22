@@ -1,20 +1,20 @@
 import type { Plugin } from 'vite';
 
 /**
- * Plugin de DEV: serve /api/tess durante `npm run dev` (o Vite não executa as
- * Vercel Functions). Reaproveita o mesmo núcleo de api/_tess/handler.ts.
+ * Plugin de DEV: serve /api/ai durante `npm run dev` (o Vite não executa as
+ * Vercel Functions). Reaproveita o mesmo núcleo de api/_ai/index.ts.
  *
- * Lê TESS_API_KEY / TESS_AGENT_ID de process.env (carregados via loadEnv no
- * vite.config). Em produção, quem responde é a Vercel Function (api/tess.ts).
+ * Lê as chaves dos provedores de process.env (carregadas via loadEnv no
+ * vite.config). Em produção, quem responde é a Vercel Function (api/ai.ts).
  *
- * Para remover o Assistente TESS, ver api/_tess/REMOCAO.md.
+ * Para remover um provedor, ver api/_ai/REMOCAO.md.
  */
-export function tessDevPlugin(): Plugin {
+export function aiDevPlugin(): Plugin {
   return {
-    name: 'tess-dev-middleware',
+    name: 'ai-dev-middleware',
     apply: 'serve',
     configureServer(server) {
-      server.middlewares.use('/api/tess', (req, res, next) => {
+      server.middlewares.use('/api/ai', (req, res, next) => {
         if (req.method !== 'POST') return next();
 
         let raw = '';
@@ -26,27 +26,25 @@ export function tessDevPlugin(): Plugin {
             res.end(JSON.stringify(payload));
           };
           try {
-            const { runTess } = await server.ssrLoadModule('/api/_tess/handler.ts');
+            const { runAssistant } = await server.ssrLoadModule('/api/_ai/index.ts');
             const body = raw ? JSON.parse(raw) : {};
             try {
-              const result = await runTess({
+              const result = await runAssistant({
                 messages: body.messages,
                 code: body.code,
                 mode: body.mode,
-                apiKey: process.env.TESS_API_KEY,
-                agentId: process.env.TESS_AGENT_ID,
               });
               send(200, result);
             } catch (err) {
               const e = err as { name?: string; status?: number; message?: string };
-              if (e?.name === 'TessError' && typeof e.status === 'number') {
+              if (e?.name === 'ProviderError' && typeof e.status === 'number') {
                 send(e.status, { error: e.message });
               } else {
-                send(500, { error: 'Erro interno no Assistente TESS.' });
+                send(500, { error: 'Erro interno no Assistente de IA.' });
               }
             }
           } catch {
-            send(500, { error: 'Falha ao carregar o handler da TESS.' });
+            send(500, { error: 'Falha ao carregar o núcleo do Assistente de IA.' });
           }
         });
       });

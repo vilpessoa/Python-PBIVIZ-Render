@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProgressiveFluxLoader } from '@/components/ui/progressive-flux-loader';
-import { sendTessMessage } from '@/services/tessService';
+import { sendAssistantMessage } from '@/services/aiService';
 import { TessLogo, TessWordmark } from './TessLogo';
 import { diffLines, diffStats } from './tessDiff';
 import type { ChatMessage, TessChatMessage, TessMode } from './types';
@@ -219,7 +219,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
 
     const before = codeRef.current;
     try {
-      const { reply, code: newCode } = await sendTessMessage({
+      const { reply, code: newCode } = await sendAssistantMessage({
         messages: apiMessages,
         code: before,
         mode: sentMode,

@@ -1,17 +1,20 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════════════╗
- * ║  ★ PONTO DE CALIBRAÇÃO DO ASSISTENTE TESS ★                                ║
+ * ║  ★ PONTO DE CALIBRAÇÃO DO ASSISTENTE DE IA ★                               ║
  * ║                                                                            ║
  * ║  Este é o ÚNICO lugar onde o comportamento do assistente é ajustado.       ║
- * ║  Edite os textos abaixo para calibrar como a TESS responde em cada modo.   ║
+ * ║  Edite os textos abaixo para calibrar como o modelo responde em cada modo. ║
  * ║  Roda 100% no servidor (Vercel Function) — nunca vai para o navegador.     ║
+ * ║                                                                            ║
+ * ║  É AGNÓSTICO DE PROVEDOR: vale para TESS, Anthropic, Gemini, etc. Cada     ║
+ * ║  provedor decide onde posiciona este prompt (ver providers/<id>.ts).       ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
 
-export type TessMode = 'edit' | 'fix' | 'ask';
+import type { AssistantMode } from './types.js';
 
 /** Regras de base, válidas em todos os modos. */
-const TESS_BASE_RULES = `Você é o Assistente TESS integrado ao editor "Python HTML Render", que avalia Python pragmático e gera HTML em tempo real.
+const BASE_RULES = `Você é o Assistente de IA integrado ao editor "Python HTML Render", que avalia Python pragmático e gera HTML em tempo real.
 
 REGRAS INVIOLÁVEIS:
 1. Faça APENAS o que o usuário pediu — nada além disso.
@@ -39,7 +42,7 @@ REGRAS:
 - Nada de texto depois do bloco de código.`;
 
 /** Instruções específicas por modo (o que muda no formato da resposta). */
-const MODE_INSTRUCTIONS: Record<TessMode, string> = {
+const MODE_INSTRUCTIONS: Record<AssistantMode, string> = {
   // Modo padrão: editar o código de forma incremental.
   edit: `MODO: MODIFICAR (ação direta no código).
 Aplique SOMENTE a modificação pedida.
@@ -60,7 +63,7 @@ ${INCREMENTAL_SPEC}`,
 };
 
 /** Monta o prompt de sistema final para o modo selecionado. */
-export function buildSystemPrompt(mode: TessMode): string {
+export function buildSystemPrompt(mode: AssistantMode): string {
   const instr = MODE_INSTRUCTIONS[mode] ?? MODE_INSTRUCTIONS.edit;
-  return `${TESS_BASE_RULES}\n\n${instr}`;
+  return `${BASE_RULES}\n\n${instr}`;
 }
