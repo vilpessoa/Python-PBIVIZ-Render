@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown';
 import { useAutoResizeTextarea } from '@/hooks/useAutoResizeTextarea';
 import { sendAssistantMessage } from '@/services/aiService';
-import { TessLogo, TessWordmark } from './TessLogo';
+import { TessLogo } from './TessLogo';
+import { Typewriter } from '@/components/ui/typewriter';
 import { diffLines, diffStats } from './tessDiff';
 import type { ChatMessage, TessChatMessage, TessMode } from './types';
 
@@ -75,12 +76,7 @@ function cleanCode(code: string): string {
     .trim();
 }
 
-const WELCOME: ChatMessage = {
-  id: 'welcome',
-  role: 'assistant',
-  content:
-    'Olá! Sou o Assistente TESS. Escolha um modo abaixo: "Modificar" e "Corrigir" agem direto no código; "Tirar dúvidas" apenas responde sem alterar nada.',
-};
+const WELCOME_ID = 'welcome';
 
 /** Retorna os números de linha 1-indexados das linhas adicionadas no diff. */
 function computeAddedLines(diff: ReturnType<typeof diffLines>): number[] {
@@ -116,7 +112,7 @@ function computeRemovedGroups(diff: ReturnType<typeof diffLines>): { atLine: num
 }
 
 export function TessChat({ open, onClose, onMinimize, minimized, position, onPositionChange, code, onApplyCode, onHighlightDiff, onShowRemovedGhosts, onScrollToDiff }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<TessMode>('edit');
@@ -207,7 +203,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
 
     // Histórico para a API (sem a mensagem de boas-vindas e sem erros)
     const apiMessages: TessChatMessage[] = history
-      .filter((m) => m.id !== 'welcome' && !m.isError)
+      .filter((m) => m.id !== WELCOME_ID && !m.isError)
       .map((m) => ({ role: m.role, content: m.content }));
 
     const before = codeRef.current;
@@ -314,7 +310,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
   function handleClearChat() {
     onHighlightDiff?.([]);
     onShowRemovedGhosts?.([]);
-    setMessages([WELCOME]);
+    setMessages([]);
   }
 
   function onInputKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -325,7 +321,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
   }
 
   const placeholder = MODES.find((m) => m.id === mode)?.placeholder ?? '';
-  const isWelcome = messages.length === 1 && messages[0].id === 'welcome' && !loading;
+  const isWelcome = messages.length === 0 && !loading;
 
   return (
     <AnimatePresence>
@@ -359,7 +355,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
                 size="icon"
                 className="h-6 w-6"
                 onClick={handleClearChat}
-                disabled={messages.length <= 1}
+                disabled={messages.length === 0}
                 aria-label="Limpar conversa"
                 title="Limpar conversa"
               >
@@ -376,8 +372,13 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
 
           {/* Conteúdo: tela de boas-vindas ou lista de mensagens */}
           {isWelcome ? (
-            <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-5 py-6">
-              <TessWordmark className="h-10 opacity-90" />
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-5 py-6">
+              <Typewriter
+                text="Como posso te ajudar hoje?"
+                speed={60}
+                cursor="|"
+                className="text-base font-medium text-muted-foreground"
+              />
             </div>
           ) : (
             <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
