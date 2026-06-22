@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useDragControls, useMotionValue, useReducedMotion } from 'framer-motion';
-import { X, Send, Loader2, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw, Minus, ChevronDown } from 'lucide-react';
+import { X, Send, Undo2, Check, AlertCircle, Wand2, Bug, HelpCircle, Eraser, ShieldAlert, Eye, RotateCcw, Minus, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown';
-import { ProgressiveFluxLoader } from '@/components/ui/progressive-flux-loader';
+import { useAutoResizeTextarea } from '@/hooks/useAutoResizeTextarea';
 import { sendAssistantMessage } from '@/services/aiService';
 import { TessLogo, TessWordmark } from './TessLogo';
 import { diffLines, diffStats } from './tessDiff';
@@ -123,7 +123,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
 
   const reduce = useReducedMotion();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { textareaRef, adjustHeight } = useAutoResizeTextarea({ minHeight: 44, maxHeight: 140 });
   const codeRef = useRef(code);
   useEffect(() => {
     codeRef.current = code;
@@ -166,7 +166,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
   // ESC fecha; foco no input ao abrir
   useEffect(() => {
     if (!open || minimized) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 50);
+    const t = setTimeout(() => textareaRef.current?.focus(), 50);
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -188,6 +188,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
     const history = [...messages, userMsg];
     setMessages(history);
     setInput('');
+    adjustHeight(true);
     await runSend(history, mode);
   }
 
@@ -343,7 +344,7 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
           exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
           transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 380, damping: 30 }}
           style={{ x, y, position: 'fixed', right: 20, bottom: 20, zIndex: 70, width: PANEL_W, maxHeight: 'min(560px, calc(100vh - 96px))' }}
-          className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-xl ring-1 ring-black/8 dark:ring-white/10"
+          className="flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-surface-elevated/95 shadow-2xl ring-1 ring-black/8 backdrop-blur-xl supports-[backdrop-filter]:bg-surface-elevated/80 dark:ring-white/10"
         >
           {/* Header (alça de arrasto) */}
           <div
@@ -384,15 +385,15 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
             <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
               {messages.map((m) => (
                 <div key={m.id} className={cn('flex gap-2', m.role === 'user' ? 'justify-end' : 'justify-start')}>
-                  {m.role !== 'user' && <TessLogo className="mt-0.5 h-6 w-6" />}
+                  {m.role !== 'user' && <TessLogo className="mt-0.5 h-6 w-6 shrink-0" />}
                   <div
                     className={cn(
-                      'max-w-[82%] rounded-xl px-3 py-2 text-xs leading-relaxed',
+                      'max-w-[82%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed shadow-sm',
                       m.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
+                        ? 'rounded-tr-none bg-primary text-primary-foreground'
                         : m.isError
-                        ? 'border border-destructive/40 bg-destructive/10 text-destructive'
-                        : 'border border-border bg-surface',
+                        ? 'rounded-tl-none border border-destructive/40 bg-destructive/10 text-destructive'
+                        : 'rounded-tl-none border border-border/60 bg-surface backdrop-blur-sm',
                     )}
                   >
                     {m.isError && <AlertCircle className="mb-1 inline h-3.5 w-3.5" />}
@@ -504,73 +505,87 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
 
               {loading && (
                 <div className="flex justify-start gap-2">
-                  <TessLogo className="mt-0.5 h-6 w-6" />
-                  <div className="w-52 rounded-xl border border-border bg-surface px-3 py-2">
-                    <ProgressiveFluxLoader />
+                  <TessLogo className="mt-0.5 h-6 w-6 shrink-0" />
+                  <div className="flex items-center gap-1 rounded-2xl rounded-tl-none border border-border/60 bg-surface px-4 py-3 shadow-sm">
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/40 [animation-delay:-0.3s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/40 [animation-delay:-0.15s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/40" />
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Input + seletor de modo (dropdown) */}
-          <div className="shrink-0 border-t border-border bg-surface p-2.5">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onInputKeyDown}
-              rows={1}
-              placeholder={placeholder}
-              className="max-h-28 min-h-[38px] w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-ring"
-            />
-            <div className="mt-2 flex items-center gap-2">
-              {(() => {
-                const current = MODES.find((m) => m.id === mode) ?? MODES[0];
-                const CurrentIcon = current.icon;
-                return (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-[11px] font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        aria-label="Selecionar modo"
-                      >
-                        <CurrentIcon className="h-3.5 w-3.5 text-primary" />
-                        {current.label}
-                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent side="top" align="start" className="z-[80] min-w-[11rem]">
-                      {MODES.map((m) => {
-                        const Icon = m.icon;
-                        const active = mode === m.id;
-                        return (
-                          <DropdownMenuItem
-                            key={m.id}
-                            onSelect={() => setMode(m.id)}
-                            className={cn('gap-2 text-xs', active && 'text-primary')}
-                          >
-                            <Icon className="h-3.5 w-3.5" />
-                            <span className="flex-1">{m.label}</span>
-                            {active && <Check className="h-3.5 w-3.5" />}
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                );
-              })()}
-              <Button
-                size="icon"
-                className="ml-auto h-9 w-9 shrink-0"
-                onClick={handleSend}
-                disabled={loading || !input.trim()}
-                aria-label="Enviar"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
+          {/* Input estilo PromptBox: textarea auto-resize + barra com modos (Popover) e enviar */}
+          <div className="shrink-0 p-2.5">
+            <div className="flex flex-col rounded-2xl border border-border bg-background p-2 shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-ring">
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  adjustHeight();
+                }}
+                onKeyDown={onInputKeyDown}
+                rows={1}
+                placeholder={placeholder}
+                className="custom-scrollbar max-h-[140px] w-full resize-none border-0 bg-transparent px-2 py-1.5 text-xs leading-relaxed outline-none placeholder:text-muted-foreground"
+              />
+              <div className="mt-1 flex items-center gap-2">
+                {(() => {
+                  const current = MODES.find((m) => m.id === mode) ?? MODES[0];
+                  const CurrentIcon = current.icon;
+                  return (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-[11px] font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          aria-label="Selecionar modo"
+                        >
+                          <CurrentIcon className="h-3.5 w-3.5 text-primary" />
+                          {current.label}
+                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent side="top" align="start" className="z-[80] min-w-[12rem] rounded-xl p-1.5">
+                        {MODES.map((m) => {
+                          const Icon = m.icon;
+                          const active = mode === m.id;
+                          return (
+                            <DropdownMenuItem
+                              key={m.id}
+                              onSelect={() => setMode(m.id)}
+                              className={cn('gap-2 rounded-lg px-2.5 py-2 text-xs', active && 'text-primary')}
+                            >
+                              <Icon className="h-4 w-4" />
+                              <span className="flex-1">{m.label}</span>
+                              {active && <Check className="h-3.5 w-3.5" />}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                })()}
+                <Button
+                  size="icon"
+                  className="ml-auto h-8 w-8 shrink-0 rounded-full"
+                  onClick={handleSend}
+                  disabled={loading || !input.trim()}
+                  aria-label="Enviar"
+                >
+                  {loading ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-sm bg-primary-foreground" style={{ animationDuration: '3s' }} />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
+            <p className="mt-1.5 px-2 text-[10px] text-muted-foreground">
+              {loading ? 'IA está pensando…' : 'Pronto para enviar'}
+            </p>
           </div>
         </motion.div>
       )}
