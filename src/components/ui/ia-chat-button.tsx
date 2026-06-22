@@ -55,15 +55,15 @@ export function IAChatButton({ open, onToggle }: IAChatButtonProps) {
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label="Assistente IA"
+          aria-label={open ? 'Fechar Assistente IA' : 'Abrir Assistente IA'}
           aria-pressed={open}
           onClick={onToggle}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
           className={cn(
-            'relative h-8 w-8 flex items-center justify-center rounded-full p-px outline-offset-2',
+            'group relative h-8 w-8 flex items-center justify-center rounded-full p-px outline-offset-2',
             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70',
-            'active:scale-95 transition-all active:duration-100',
+            'hover:scale-105 active:scale-95 transition-transform duration-200 active:duration-100',
             'overflow-visible',
           )}
         >
@@ -119,7 +119,7 @@ export function IAChatButton({ open, onToggle }: IAChatButtonProps) {
               } as React.CSSProperties}
             >
               <svg
-                viewBox="-5 -10 110 110"
+                viewBox="0 0 100 100"
                 xmlns="http://www.w3.org/2000/svg"
                 className={cn(
                   'w-5 h-5 transition-colors duration-300',
@@ -128,15 +128,19 @@ export function IAChatButton({ open, onToggle }: IAChatButtonProps) {
                     : 'fill-muted-foreground group-hover:fill-foreground',
                 )}
               >
-                <path d="m74.773 57.645c-17.676 5.8398-23.562 11.727-29.402 29.402-0.48047 1.4531-2.5352 1.4531-3.0156 0-5.8398-17.676-11.727-23.562-29.402-29.402-1.4531-0.48047-1.4531-2.5352 0-3.0156 17.676-5.8398 23.562-11.727 29.402-29.402 0.48047-1.4531 2.5352-1.4531 3.0156 0 5.8398 17.676 11.727 23.562 29.402 29.402 1.4531 0.48047 1.4531 2.5352 0 3.0156z" />
-                <path d="m87.594 28.617c-8.8359 2.918-11.781 5.8633-14.703 14.703-0.23828 0.72656-1.2656 0.72656-1.5078 0-2.918-8.8359-5.8633-11.781-14.703-14.703-0.72656-0.23828-0.72656-1.2656 0-1.5078 8.8359-2.918 11.781-5.8633 14.703-14.703 0.23828-0.72656 1.2656-0.72656 1.5078 0 2.918 8.8359 5.8633 11.781 14.703 14.703 0.72656 0.23828 0.72656 1.2656 0 1.5078z" />
+                {/* Estrela grande (direita) */}
+                <path d="M64 23 Q69.5 47.5 94 53 Q69.5 58.5 64 83 Q58.5 58.5 34 53 Q58.5 47.5 64 23 Z" />
+                {/* Estrela média (topo-esquerda) */}
+                <path d="M29 16 Q32 30 46 33 Q32 36 29 50 Q26 36 12 33 Q26 30 29 16 Z" />
+                {/* Estrela pequena (inferior-esquerda) */}
+                <path d="M25 59 Q27 68 36 70 Q27 72 25 81 Q23 72 14 70 Q23 68 25 59 Z" />
               </svg>
             </div>
           </motion.div>
         </button>
       </TooltipTrigger>
       <TooltipContent side="bottom" className="px-2 py-1 text-xs">
-        Assistente IA
+        {open ? 'Fechar Assistente IA' : 'Assistente IA'}
       </TooltipContent>
     </Tooltip>
   );
