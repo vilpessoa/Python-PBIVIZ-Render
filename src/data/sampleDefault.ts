@@ -2,12 +2,12 @@ const DEFAULT_SAMPLE = `# Galeria de Usuários — Python para HTML
 # Dados de exemplo: lista de usuários do sistema
 
 _usuarios = [
+    {"nome": "Vilcimar Pessoa",  "email": "vill@company.com",   "cargo": "Diretor Executivo"},
     {"nome": "Alice Silva",    "email": "alice@company.com",    "cargo": "Engenheira de Software"},
     {"nome": "Bruno Costa",    "email": "bruno@company.com",    "cargo": "Analista de Dados"},
-    {"nome": "Carlos Mendes",  "email": "carlos@company.com",   "cargo": "DevOps Engineer"},
-    {"nome": "Diana Oliveira", "email": "diana@company.com",    "cargo": "Product Manager"},
-    {"nome": "Eduardo Lima",   "email": "eduardo@company.com",  "cargo": "Tech Lead"},
     {"nome": "Fernanda Gomes", "email": "fernanda@company.com", "cargo": "UX Designer"},
+    {"nome": "Gabriel Rocha",  "email": "gabriel@company.com",  "cargo": "Backend Developer"},
+    {"nome": "Helena Martins", "email": "helena@company.com",   "cargo": "QA Engineer"},
 ]
 
 _css = """
@@ -15,7 +15,7 @@ _css = """
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f8f9fa;
   min-height: 100vh;
   padding: 32px 16px;
 }
@@ -54,7 +54,7 @@ body {
 .avatar {
   width: 48px; height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #667eea, #00f3fc);
   display: flex; align-items: center; justify-content: center;
   color: white; font-size: 20px; font-weight: 700;
   flex-shrink: 0;
@@ -65,18 +65,27 @@ body {
 </style>
 """
 
-_cards = "".join([
+_linhas_tabela = "".join([
     f'<div class="card"><div class="avatar">{u["nome"][0]}</div><div class="info"><div class="name">{u["nome"]}</div><div class="email">{u["email"]}</div><div class="cargo">{u["cargo"]}</div></div></div>'
     for u in _usuarios
 ])
 
+_letras = sorted({u["nome"][0].upper() for u in _usuarios})
+_menu_alfabetico = "".join([f'<a href="#{l}" class="letra">{l}</a>' for l in _letras])
+
 _html = f"""
+{_css}
 <div class="container">
   <div class="header">
     <h1>👥 Equipe de Tecnologia</h1>
     <p>{len(_usuarios)} profissionais · Sistema Python</p>
   </div>
-  <div class="grid">{_cards}</div>
+  <div class="menu-alfabetico">
+    {_menu_alfabetico}
+  </div>
+  <div class="grid">
+    {_linhas_tabela}
+  </div>
 </div>
 """
 
