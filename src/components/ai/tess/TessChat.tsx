@@ -36,9 +36,9 @@ interface Props {
 }
 
 const MODES: { id: TessMode; label: string; icon: React.ElementType; placeholder: string }[] = [
-  { id: 'edit', label: 'Modificar', icon: Wand2, placeholder: 'Ex.: adicione 2 novos usuários…' },
-  { id: 'fix', label: 'Corrigir', icon: Bug, placeholder: 'Descreva o erro ou peça para corrigir…' },
-  { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, placeholder: 'Ex.: o que esse trecho faz?' },
+  { id: 'edit', label: 'Modificar', icon: Wand2, placeholder: '' },
+  { id: 'fix', label: 'Corrigir', icon: Bug, placeholder: '' },
+  { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, placeholder: '' },
 ];
 
 const PANEL_W = 384;
@@ -421,52 +421,49 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
                     {m.diff && (() => {
                       const { added, removed } = diffStats(m.diff);
                       return (
-                        <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-mono">
-                          {added > 0 && <span className="text-emerald-600 dark:text-emerald-400">+{added}</span>}
-                          {removed > 0 && <span className="text-rose-600 dark:text-rose-400">-{removed}</span>}
-                          {m.applyState === 'applied' && <span className="text-muted-foreground">· destacado no editor</span>}
+                        <div className="mt-2 flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                            +{added}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-rose-600 dark:text-rose-400">
+                            -{removed}
+                          </span>
+                          {m.applyState === 'applied' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onScrollToDiff && m.diff) {
+                                  const addedLines = computeAddedLines(m.diff);
+                                  if (addedLines.length > 0) onScrollToDiff(addedLines[0]);
+                                }
+                              }}
+                              className="ml-0.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10"
+                            >
+                              <Eye className="h-3 w-3" /> Avaliar
+                            </button>
+                          )}
                         </div>
                       );
                     })()}
 
                     {/* Aplicado — aguardando aprovação */}
                     {m.applyState === 'applied' && (
-                      <>
-                        <div className="mt-2 mb-2 border-t border-border/50" />
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                            Revise o diff no editor
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (onScrollToDiff && m.diff) {
-                                  const added = computeAddedLines(m.diff);
-                                  if (added.length > 0) onScrollToDiff(added[0]);
-                                }
-                              }}
-                              className="inline-flex items-center gap-1 rounded-md border border-primary/30 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10"
-                            >
-                              <Eye className="h-3 w-3" /> Avaliar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleApprove(m)}
-                              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-emerald-700"
-                            >
-                              <Check className="h-3 w-3" /> Aprovar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRevert(m)}
-                              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-                            >
-                              <Undo2 className="h-3 w-3" /> Reverter
-                            </button>
-                          </div>
-                        </div>
-                      </>
+                      <div className="mt-2 flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleApprove(m)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-[11px] font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
+                        >
+                          <Check className="h-3 w-3" /> Aprovar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRevert(m)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        >
+                          <Undo2 className="h-3 w-3" /> Reverter
+                        </button>
+                      </div>
                     )}
 
                     {/* Aprovado / Revertido — estado final */}
@@ -583,9 +580,6 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
                 </Button>
               </div>
             </div>
-            <p className="mt-1.5 px-2 text-[10px] text-muted-foreground">
-              {loading ? 'IA está pensando…' : 'Pronto para enviar'}
-            </p>
           </div>
         </motion.div>
       )}
