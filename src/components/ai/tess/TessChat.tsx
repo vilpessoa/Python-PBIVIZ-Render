@@ -41,16 +41,6 @@ const MODES: { id: TessMode; label: string; icon: React.ElementType; color: stri
   { id: 'ask', label: 'Tirar dúvidas', icon: HelpCircle, color: 'text-[#6B9FD6]', bgActive: 'bg-[#6B9FD6]/10', borderActive: 'border-[#6B9FD6]/50' },
 ];
 
-function ModeDivider() {
-  return (
-    <div className="relative mx-0.5 h-5 w-[1.5px]">
-      <div
-        className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-primary/40 to-transparent"
-        style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 40%, 140% 50%, 100% 60%, 100% 100%, 0% 100%, 0% 60%, -40% 50%, 0% 40%)' }}
-      />
-    </div>
-  );
-}
 
 const PANEL_W = 384;
 const DRAG_MARGIN = 16;
@@ -555,7 +545,6 @@ export function TessChat({ open, onClose, onMinimize, minimized, position, onPos
                     const active = mode === m.id;
                     return (
                       <div key={m.id} className="flex items-center">
-                        {i > 0 && <ModeDivider />}
                         <button
                           type="button"
                           onClick={() => setMode(m.id)}
