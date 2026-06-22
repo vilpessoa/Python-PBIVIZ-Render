@@ -1,21 +1,22 @@
 import type { TessChatMessage, TessMode } from '@/components/ai/tess/types';
 
-export interface TessReply {
+export interface AssistantReply {
   reply: string;
   code: string | null;
 }
 
 /**
- * Cliente do Assistente TESS: chama a função serverless /api/tess.
+ * Cliente do Assistente de IA: chama a função serverless /api/ai.
  * A chave da API fica no servidor — aqui só trafegam mensagens e código.
+ * O provedor de LLM ativo é definido no servidor pela env AI_PROVIDER.
  */
-export async function sendTessMessage(opts: {
+export async function sendAssistantMessage(opts: {
   messages: TessChatMessage[];
   code: string;
   mode: TessMode;
   signal?: AbortSignal;
-}): Promise<TessReply> {
-  const res = await fetch('/api/tess', {
+}): Promise<AssistantReply> {
+  const res = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages: opts.messages, code: opts.code, mode: opts.mode }),
@@ -33,5 +34,5 @@ export async function sendTessMessage(opts: {
     throw new Error(message);
   }
 
-  return (await res.json()) as TessReply;
+  return (await res.json()) as AssistantReply;
 }
