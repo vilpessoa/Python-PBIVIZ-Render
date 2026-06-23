@@ -87,9 +87,53 @@ export function HelpDialog({ open, onOpenChange }: Props) {
           </section>
         </div>
 
-        <p className="text-[11px] text-muted-foreground/70 border-t border-border pt-3">
-          Converte código Python em componentes HTML estilizados, prontos para relatórios e dashboards analíticos.
-        </p>
+        {/* Rodapé: Sobre + Desenvolvido por */}
+        <div className="mt-4 border-t border-border pt-4 flex flex-col sm:flex-row items-center gap-4">
+          <p className="text-xs text-muted-foreground text-center sm:text-left flex-1">
+            Converte código Python em componentes HTML estilizados, prontos para relatórios Power BI e dashboards analíticos.
+          </p>
+
+          {/* Card: Desenvolvido por */}
+          <a
+            href="https://www.linkedin.com/in/vilcimarpessoa/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative flex items-center gap-3.5 rounded-2xl border border-border bg-surface px-4 py-3 shadow-[var(--shadow-card)] transition-all duration-300 hover:border-primary/40 hover:shadow-[var(--shadow-glow)] shrink-0 overflow-hidden"
+          >
+            {/* Brilho de fundo sutil no hover */}
+            <span className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+            {/* Foto com anel gradiente azul premium */}
+            <div className="relative shrink-0 z-10">
+              <div className="rounded-full p-[1.5px] bg-gradient-to-r from-blue-400 via-primary to-blue-600 opacity-80">
+                <img
+                  src="/vilpessoa-linkedin.jpg"
+                  alt="Vil Pessoa"
+                  className="h-11 w-11 rounded-full object-cover block"
+                />
+              </div>
+              {/* Badge LinkedIn azul oficial */}
+              <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-md bg-[#0A66C2] shadow-sm">
+                <svg viewBox="0 0 24 24" className="h-3 w-3 fill-white">
+                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                </svg>
+              </span>
+            </div>
+
+            {/* Texto */}
+            <div className="min-w-0 z-10">
+              <p className="text-[9px] font-semibold uppercase tracking-widest text-primary/70 leading-none mb-0.5">
+                Desenvolvido por
+              </p>
+              <p className="text-sm font-semibold text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
+                Vil Pessoa
+              </p>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                Suporte · Dúvidas · Melhorias
+              </p>
+            </div>
+          </a>
+        </div>
       </DialogContent>
     </Dialog>
   );
