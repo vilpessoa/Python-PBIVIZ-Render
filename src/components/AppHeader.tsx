@@ -177,9 +177,7 @@ export function AppHeader({
                       )}
                     </div>
                     {snippets.length > 3 && (
-                      <div className="flex h-5 items-center justify-center border-t border-border/50 bg-muted/20 text-[10px] text-muted-foreground">
-                        ⬇ Scroll para mais
-                      </div>
+                      <div className="h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
                     )}
                   </>
                 )}
