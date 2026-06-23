@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ChevronDown, FileText, HelpCircle, Trash2, ZapOff } from 'lucide-react';
+import { ChevronDown, Code2, FileText, HelpCircle, Trash2, ZapOff } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -135,26 +135,31 @@ export function AppHeader({
                 </div>
               )}
               <div className="max-h-60 overflow-y-auto">
-                {filtered.map((s) => (
-                  <DropdownMenuItem
-                    key={s.id}
-                    className="group flex items-center justify-between gap-2 pr-1"
-                    onSelect={() => onLoadSnippet(s)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="truncate text-xs font-medium">{s.name}</div>
-                      <div className="text-[10px] text-muted-foreground">{relativeTime(s.updatedAt)}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); onDeleteSnippet(s.id); }}
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
-                      aria-label="Excluir rascunho"
+                <div className="space-y-1 p-1">
+                  {filtered.map((s) => (
+                    <DropdownMenuItem
+                      key={s.id}
+                      className="group flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 hover:bg-accent data-[highlighted]:bg-accent"
+                      onSelect={() => onLoadSnippet(s)}
                     >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </DropdownMenuItem>
-                ))}
+                      <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
+                        <Code2 className="h-4 w-4" />
+                      </div>
+                      <div className="flex flex-1 flex-col gap-1 min-w-0">
+                        <div className="truncate text-sm font-medium text-foreground">{s.name}</div>
+                        <div className="text-[10px] text-muted-foreground">{relativeTime(s.updatedAt)}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDeleteSnippet(s.id); }}
+                        className="ml-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                        aria-label="Excluir rascunho"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </DropdownMenuItem>
+                  ))}
+                </div>
                 {filtered.length === 0 && search && (
                   <div className="px-3 py-3 text-center text-xs text-muted-foreground">
                     Nenhum resultado para "{search}"
