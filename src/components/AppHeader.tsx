@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ChevronDown, Code2, FileText, HelpCircle, Trash2, ZapOff } from 'lucide-react';
+import { ChevronDown, Code2, FileText, HelpCircle, Search, Trash2, ZapOff } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
