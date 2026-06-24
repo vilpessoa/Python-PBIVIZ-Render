@@ -184,7 +184,6 @@ export function AppHeader({
                   <div className="h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
                 )}
               </div>
-              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
