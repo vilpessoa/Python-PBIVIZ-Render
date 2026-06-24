@@ -111,7 +111,7 @@ export function AppHeader({
               </DropdownMenuTrigger>
             </div>
 
-            <DropdownMenuContent align="center" className="min-w-[20rem] p-0 shadow-popover">
+            <DropdownMenuContent className="min-w-[20rem] p-0 shadow-popover">
               <div className="border-b border-border bg-gradient-to-r from-primary/10 to-primary/5 px-3 py-2.5">
                 <div className="flex items-center gap-2 text-xs font-semibold tracking-tight text-primary">
                   <FileText className="h-4 w-4" />
